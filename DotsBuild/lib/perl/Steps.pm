@@ -305,9 +305,10 @@ sub insertTaxon {
   my $names = "$downloadSubDir/names.dmp";
   my $nodes = "$downloadSubDir/nodes.dmp";
   my $gencode = "$downloadSubDir/gencode.dmp";
+  my $merged = "$downloadSubDir/merged.dmp";
   my $restart = $propertySet->getProp('insertTaxonRestart');
 
-  my $args = "--names $names --nodes $nodes --gencode $gencode --restart $restart";
+  my $args = "--names $names --nodes $nodes --gencode $gencode --merged $merged --restart $restart";
 
   $mgr->runPlugin("loadTaxon", "GUS::Common::Plugin::LoadTaxon", $args,
 		  "Loading Taxon tables",'downloadTaxon');
@@ -3447,7 +3448,7 @@ sub loadGEA {
 
     my $args = "--mappingfiles $file --pattern1 '(\\S+)\\t' --pattern2 '\\tDT\.(\\d+)' --db_id $geaDbId --db_rel_id $relId";
 
-    $mgr->runPlugin("loadGEA${geaFile}Mapping", "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence", $args, "loading GEA to DoTS mapping");
+    $mgr->runPlugin("loadGEA${geaFile}Mapping", "GUS::Common::Plugin::InsertDbRefAndDbRefNaSequenceGeneral", $args, "loading GEA to DoTS mapping");
   }
   $mgr->endStep($signal);
 }
