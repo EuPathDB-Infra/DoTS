@@ -167,6 +167,13 @@ NOTES
 		descr => 'run plugin in a test region',
 		reqd => 0,
 		default => 0,
+		}),
+
+     stringArg({name => 'copy_table_suffix',
+		descr => 'suffix of names for tables to keep a local copy of result, relieve next build from archiving',
+		constraintFunc=> undef,
+		isList => 0, 
+		reqd => 0,
 		})
     ];
 
@@ -195,6 +202,7 @@ sub run {
     my $tempLogin = $self->getArg('temp_login');
     my $isRerun = $self->getArg('skip_chrs');
     my $isTest = $self->getArg('test');
+    my $copyTabSuffix = $self->getArg('copy_table_suffix');
 
     $self->log("Clean out or create temp tables to hold genome dots gene analysis result...");
     my @tmpMeta = &createTempTables($dbh, $tempLogin, $isRerun || $isTest);
@@ -203,7 +211,7 @@ sub run {
 
     $self->log("Creating genome-based DoTS genes...");
     my ($coords, $skip_chrs) = &DoTS::Gene::Util::getCoordSelectAndSkip($dbh, $genomeId, $args);
-    my @done_chrs = @$skip_chrs;
+    my @done_chrs; push @done_chrs,  @$skip_chrs;
 
     my $baseQSel = $self->getBaseQuerySelector();
     my $baseTSel = $self->getBaseTargetSelector();
@@ -231,10 +239,35 @@ sub run {
     $dbh->do("analyze table ${tempLogin}." . $tmpMeta[0] . " compute statistics");
     $dbh->do("analyze table ${tempLogin}." . $tmpMeta[3] . " compute statistics");
 
+    if ($copyTabSuffix) {
+	$self->log("making a copy of results to relieve next build from archiving");
+	$self->makeCopy($dbh, $tempLogin . '.' . $tmpMeta[0], $tmpMeta[1], 'gDG',
+			$tempLogin . '.' . $tmpMeta[3], $tmpMeta[4], 'gDT', $copyTabSuffix);
+    }
+
     return "finished genome-based dots gene creation";
 }
 
 ##########################
+
+sub makeCopy {
+    my ($self, $dbh, $gDGtab, $gDGcols, $gDGpref, $gDTtab, $gDTcols, $gDTpref, $copyTabSuf) = @_;
+
+    my $taxonId = $self->getArg('taxon_id');
+    my $genomeId = $self->getArg('genome_db_rls_id');
+
+    my $sql = "create table $gDGpref$copyTabSuf as "
+    	. "(select * from $gDGtab where " . $gDGcols->[1] . " = $taxonId"
+	. " and " . $gDGcols->[2] . " = $genomeId)";
+    $self->log("making a copy of gene result: sql=$sql");
+    $dbh->sqlexec($sql);
+
+    my $sql = "create table $gDTpref$copyTabSuf as "
+    	. "(select * from $gDTtab where " . $gDTcols->[1] . " = $taxonId"
+	. " and " . $gDTcols->[2] . " = $genomeId)";
+    $self->log("making a copy of transcript result: sql=$sql");
+    $dbh->sqlexec($sql);
+}
 
 sub getInitialGeneAndTranscriptIds {
     my ($self, $dbh, $tmpMeta) = @_;
@@ -374,7 +407,7 @@ sub saveGene {
 
     my ($gdg_tab, $gdg_cols, $gdg_types, $gdt_tab, $gdt_cols, $gdt_types) = @$tmpMeta;
 
-    my $dbh = $self->geteryHandle();
+    my $dbh = $self->getQueryHandle();
     my $taxonId = $self->getArg('taxon_id');
     my $genomeId = $self->getArg('genome_db_rls_id');
     my $tmpLogin = $self->getArg('temp_login');
@@ -394,7 +427,7 @@ sub saveGene {
 	. $gene->getTotalSpanSize . "," . $gene->getNumberOfSpans . ","
 	. $gene->getMinSpanSize . "," . $gene->getMaxSpanSize . ","
 	. $gene->getMinInterspanSize. "," . $gene->getMaxInterspanSize. ","
-	. "'" . ($tooBig ? '' : $ess) . "', '" . ($tooBig ? '' : $ees) . "',"
+	. "'" . ($tooBig ? substr($ess, 0, 1) : $ess) . "', '" . ($tooBig ? substr($ees, 0, 1) : $ees) . "',"
 	. $gene->getAnnotationProperties->{'omc'} . ","
 	. $gene->getAnnotationProperties->{'cmc'} . ","
 	. $gene->getAnnotationProperties->{'pmc'} . ")";
@@ -432,11 +465,11 @@ sub appendClob {
     my($dbh, $sp, $id, $val) = @_;
     my $appender = $dbh->prepare("BEGIN $sp(?, ?); END;");
 
-    my $len = length($val);
+    my $len = length($val) - 1;
     print STDERR "appending $len chars using stored procedure $sp for id: $id ...\n";
     my $actual_len = 0;
-    for (my $i=0; $i<$len-4000; $i += 4000) {
-	my $substr = substr($val, 0, 4000);
+    for (my $i=1; $i<$len; $i += 4000) {
+	my $substr = substr($val, $i, 4000);
 	$appender->execute($id, $substr);
 	$actual_len += length($substr);
     }
