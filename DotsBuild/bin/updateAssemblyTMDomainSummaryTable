@@ -35,7 +35,7 @@ my $deleteSql =
 print STDERR "Deleting \n";
 print STDERR "deleteSql: $deleteSql\n" if $verbose;
 
-$dbh->do($deleteSql) || die "Delete failed.\nSQL: $deletexSql";
+$dbh->do($deleteSql) || die "Delete failed.\nSQL: $deleteSql";
 
 print STDERR "Committing delete\n";
 $dbh->commit();
