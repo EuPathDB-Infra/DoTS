@@ -144,7 +144,8 @@ my @properties =
  ["cddFileDates", "","approx date for cdd files"],
  ["repeatmask.dangleMax", "","option for trimDangling in repeatMasker"],
  ["allgenesSchema", "","login used for allgenes tables schema"],
- ["runQualityStart", "","yes or no"]
+ ["runQualityStart", "","yes or no"],
+ ["otherSpeciesRelease", "","most recent, completed, release number of other the species, hum or mus"]
  ); 
 
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
@@ -255,8 +256,6 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
 
    &deleteGenesWithNoRNA();
 
-   &getAssembliesPerGene();
-
    &makeFrameFinder();
 
    &extractMarkers();
@@ -286,6 +285,10 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
    &assemblyProteinIntegration();
 
    &RNAProteinIntegration();
+
+   &makeGeneForRNA();
+
+   &getAssembliesPerGene();
 
 $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
@@ -339,7 +342,7 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &deleteGeneTrapAssembly();
 
-&insertUCGeneTags();
+&insertBaygenomicsGeneTags();
 
 &downloadGGTC();
 
@@ -393,7 +396,7 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &updatePromoterRegionTable();
 
-&updatePancreasAssembliesTable();
+#&updatePancreasAssembliesTable();
 
 &createManuallyReviewedDoTSFile();
 
@@ -1832,7 +1835,7 @@ sub prepareDownloadSiteFiles {
   my $logFile = "$pipelineDir/logs/${fastaFile}Extract.log";
   my $sql = "select 'DT.'||na_sequence_id,'[$speciesNickname]',description,'('||number_of_contained_sequences||' sequences)','length='||length,sequence from dots.Assembly where taxon_id = $taxonId";
   my $cmd = "dumpSequencesFromTable.pl --outputFile $pipelineDir/seqfiles/$fastaFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"$sql\" 2>>  $logFile";
-  $mgr->runCmd($cmd) unless -e "$pipelineDir/seqfiles/$fastaFile" || "$pipelineDir/seqfiles/${fastaFile}.gz";
+  $mgr->runCmd($cmd);
   my $cmd = "gzip $pipelineDir/seqfiles/$fastaFile";
   $mgr->runCmd($cmd) unless -e "$pipelineDir/seqfiles/${fastaFile}.gz";
   push(@files, "$pipelineDir/seqfiles/${fastaFile}.gz");
@@ -1877,7 +1880,7 @@ sub prepareDownloadSiteFiles {
   # mRNAs per DT
   push(@files, "$pipelineDir/misc/${prefix}_mRNAaccessionsPerAssembly.dat.gz");
   $descrip = "The Genbank accessions of mRNAs contained in each assembled transcript";
-  $htaccessString .= "AddDescription \"descrip\" *mRNA*\n";
+  $htaccessString .= "AddDescription \"$descrip\" *mRNA*\n";
   addFileToReadme("${prefix}_mRNAaccessionsPerAssembly.dat.gz", $descrip);
 
   # Brain Anatomy terms
@@ -1887,7 +1890,7 @@ sub prepareDownloadSiteFiles {
   $mgr->runCmd($cmd);
   push(@files, "$pipelineDir/misc/$brainFile");
   $descrip = "Brain anatomy terms for which there are DoTS Transcripts.  (Tab delimited: term, term ID, count of DTs)";
-  $htaccessString .= "AddDescription \"descrip\" *brainTerms*\n";
+  $htaccessString .= "AddDescription \"$descrip\" *brainTerms*\n";
   addFileToReadme($brainFile, $descrip);
 
   # move files to download directory
@@ -1976,7 +1979,7 @@ sub createManuallyReviewedDoTSFile {
   my $manRevwDoTSReportFile = "$pipelineDir/downloadSite/${prefix}_manuallyReviewedTranscriptsReport.txt";
     
   # create report of manually reviewed dots
-  my $cmd = "gusreport --configModule GUS::ReportMaker::SampleTranscriptReportConfig --dbLogin $tempLogin --dbPassword $tempPassword --tempTableName ${tempLogin}.tempResult --requestedColumns 'Description, GeneSymbol, Length, GOid, DoTSGene, SeqsInAssem, MGI, LocusLink, ContainsMRNA, Motifs, Organism, mRNASeq, proteinSeq' --sql 'select distinct pa.na_sequence_id, 9999 from DoTS.rna r, ${allgenesLogin}.proteinassembly pa where r.review_status_id = 1 and r.rna_id = pa.rna_id and pa.taxon_id = $taxonId' > $manRevwDoTSReportFile";
+  my $cmd = "gusreport --configModule GUS::ReportMaker::SampleTranscriptReportConfig --dbLogin $tempLogin --dbPassword $tempPassword --tempTableName ${tempLogin}.tempResult --requestedColumns 'Description, GeneSymbol, Length, GOid, DoTSGene, SeqsInAssem, MGI, LocusLink, ContainsMRNA, Motifs, Organism, mRNASeq, proteinSeq' --sql 'select distinct pa.na_sequence_id, 9999 from DoTS.rna r, allgenes.proteinassembly pa where r.review_status_id = 1 and r.rna_id = pa.rna_id and pa.taxon_id = $taxonId' > $manRevwDoTSReportFile";
   $mgr->runCmd($cmd);
 
   my $cmd = "gzip $manRevwDoTSReportFile";
@@ -1995,6 +1998,7 @@ sub updateHtaccessFile {
   my $htaccess = "$pipelineDir/downloadSite/.htaccess";
   
   open(F, ">>$htaccess") || $mgr->error("Can't open $htaccess for writing");
+  my $cmd = print F ("$htaccessString");
   close(F);
 }
 
@@ -2010,12 +2014,12 @@ sub prepareBlastSiteFiles {
 
     my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
     my $fastafile = "$pipelineDir/downloadSite/${prefix}.fasta.gz";
-    my $cmd = " gunzip $pipelineDir/downloadSite/${prefix}.fasta.gz";
-    $mgr->runCmd($cmd);
+    #my $cmd = " gunzip $pipelineDir/downloadSite/${prefix}.fasta.gz";
+    #$mgr->runCmd($cmd);
     $fastafile = "$pipelineDir/downloadSite/${prefix}.fasta";
     my $fastalink = "$pipelineDir/blastSite/${speciesNickname}DoTS";
-    $mgr->runCmd("ln -s $fastafile $fastalink");
-    $mgr->runCmd("$blastBinDir/xdformat -n $fastalink");
+    #$mgr->runCmd("ln -s $fastafile $fastalink");
+    #$mgr->runCmd("$blastBinDir/xdformat -n $fastalink");
 
     # make blast files for all species.  combine this build w/ latest of other species
     my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
@@ -2025,11 +2029,11 @@ sub prepareBlastSiteFiles {
     my $otherPipelineDir = "$dotsBuildDir/$otherSpeciesBuildName";
     my $prefix = "${otherSpeciesNickname}DoTS_rel${otherSpeciesRelease}";
 
-    $cmd = "gzunzip $otherPipelineDir/downloadSite/${prefix}.fasta.gz";
-    $mgr->runCmd($cmd);
+    #my $cmd = "gunzip $otherPipelineDir/downloadSite/${prefix}.fasta.gz";
+    #$mgr->runCmd($cmd);
     my $fastafile2 = "$otherPipelineDir/downloadSite/${prefix}.fasta";
     my $fastalink2 = "$pipelineDir/blastSite/${otherSpeciesNickname}DoTS";
-    $mgr->runCmd("ln -s $fastafile2 $fastalink2");
+    #$mgr->runCmd("ln -s $fastafile2 $fastalink2");
     $mgr->runCmd("cat $fastalink $fastalink2 > $pipelineDir/blastSite/allDoTS");
     $mgr->runCmd("$blastBinDir/xdformat -n $pipelineDir/blastSite/allDoTS");
     $mgr->runCmd("gzip $fastafile2");
@@ -2233,7 +2237,7 @@ sub deleteGeneTrapAssembly {
     $mgr->endStep($signal);
 } 
 
-sub insertUCGeneTags {
+sub insertBaygenomicsGeneTags {
 
     my $externalDbDir = $propertySet->getProp('externalDbDir');
 
@@ -2258,7 +2262,7 @@ sub insertUCGeneTags {
 
     my $args = "--verbose --table_name DoTS::ExternalNASequence --sequencefile $geneTagFile --external_database_release_id $geneTagDB --regex_source_id \"$regex_src_id\"  --regex_desc \"$regex_desc\" --taxon_id $taxonId";
 
-    $mgr->runPlugin("insertUCGeneTag", 
+    $mgr->runPlugin("insertBaygenomicsGeneTag", 
 		    "GUS::Common::Plugin::InsertNewExternalSequences", $args,
 		    "Inserting UC Gene Tags", 'NewGeneTags');
 }
@@ -2278,8 +2282,6 @@ sub downloadGGTC {
   my $logfile = "$pipelineDir/logs/${signal}.log";
 
   $mgr->runCmd("mkdir -p $downloadSubDir");
-
-  $mgr->runCmd("unsetenv ftp_proxy");
 
   my $cmd = "wget -t5 -b -m -np -nd -nH -o $logfile  --cut-dirs=2 -A \"*html\"  -P $downloadSubDir http://tikus.gsf.de/project/sequence/";
 
@@ -2456,6 +2458,16 @@ sub RNAProteinIntegration {
 } 
 
 
+sub makeGeneForRNA  {
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $args = "--taxon $taxonId";
+
+  $mgr->runPlugin("makeGeneForRNA", "DoTS::DotsBuild::Plugin::MakesGenesForRNA", $args, "making genes for rna with null gene_id");
+} 
+  
+
 sub makeStatisticsPage {
 
   my $signal = "makeStatisticsPage";
@@ -2491,6 +2503,8 @@ sub downloadMGIInfo {
     my $date = $propertySet->getProp('buildDate');
 
     my $downloadSubDir = "$externalDbDir/mgi/$date";
+
+    $mgr->runCmd("mkdir -p $downloadSubDir");
     
     my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=2 -A \"MRK_Dump2.rpt\"  -P $downloadSubDir  ftp://ftp.informatics.jax.org/pub/reports/";
 
@@ -2715,8 +2729,10 @@ sub downloadLocusLink {
     my $date = $propertySet->getProp('buildDate');
 
     my $downloadSubDir = "$externalDbDir/locuslink/$date";
+
+    $mgr->runCmd("mkdir -p $downloadSubDir");
     
-    my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=2 -A \"loc2acc\"  -P $downloadSubDir  ftp://ftp.ncbi.nlm.nih.gov/refseq/LocusLink/";
+    my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=2 -A \"loc2acc,loc2ref\"  -P $downloadSubDir  ftp://ftp.ncbi.nlm.nih.gov/refseq/LocusLink/";
 
     $mgr->runCmd($cmd);
 
@@ -2761,19 +2777,41 @@ sub parseLocusLink {
 
   my $downloadSubDir = "$externalDbDir/locuslink/$date";
 
-  my $inputfile = "$downloadSubDir/loc2acc";
+  my $inputfile_acc = "$downloadSubDir/loc2acc";
   
   my $species = $propertySet->getProp('speciesNickname');
 
-  my $outputfile = "$pipelineDir/misc/${species}LL2DoTS";
+  my $outputfile_acc = "$pipelineDir/misc/${species}LL2DoTSacc";
 
   my $taxonId = $propertySet->getProp('taxonId');
 
   my $tax_id = $propertySet->getProp('ncbiTaxId');
 
-  my $cmd = "makeLL2DoTSfile --inputFile $inputfile --taxon_id $taxonId --tax_id $tax_id > $outputfile 2>>$logFile";
+  #my $cmd = "makeLL2DoTSfile --inputFile $inputfile_acc --taxon_id $taxonId --tax_id $tax_id > $outputfile_acc 2>>$logFile";
+
+  #$mgr->runCmd($cmd);
+
+  my $inputfile_ref = "$downloadSubDir/loc2ref";
+
+  my $outputfile_ref = "$pipelineDir/misc/${species}LL2DoTSref";
+
+  my $cmd = "makeLLRef2DoTSfile --inputFile $inputfile_ref --taxon_id $taxonId --tax_id $tax_id > $outputfile_ref 2>>$logFile";
 
   $mgr->runCmd($cmd);
+
+  my $outputfile_pre = "$pipelineDir/misc/${species}LL2DoTSpre";
+
+  $cmd = "cat $outputfile_acc $outputfile_ref > $outputfile_pre";
+
+  $mgr->runCmd($cmd);
+
+  my $outputfile_sort = "$pipelineDir/misc/${species}LL2DoTSsort";
+
+  $mgr->runCmd("sort $outputfile_pre >$outputfile_sort");
+
+  my $outputfile = "$pipelineDir/misc/${species}LL2DoTS";
+
+  $mgr->runCmd("uniq $outputfile_sort >$outputfile");
 
   $cmd = "cp $outputfile $pipelineDir/downloadSite";
 
@@ -2789,7 +2827,7 @@ sub parseLocusLink {
 
   $mgr->runCmd($cmd);
 
-  &writeHtaccessFile("AddDescription \"A mapping of DoTS to LocusLink\" *LL*\n");
+  &updateHtaccessFile("AddDescription \"A mapping of DoTS to LocusLink\" *LL*\n");
 
   $mgr->endStep($signal);
 }
@@ -2858,7 +2896,7 @@ sub updateProteinAssemblyTable {
 
   my $allgenesSchema = $propertySet->getProp('allgenesSchema');
 
-  my $args = "--verbose --taxon_id $taxonId --allgenesSchema $allgenesSchema";
+  my $args = "--verbose --taxon $taxonId --allgenesSchema $allgenesSchema";
 
   my $cmd = "updateProteinAssemblyTable $args 2>> $logFile";
 
@@ -2905,7 +2943,7 @@ sub updatePromoterRegionTable {
 
   my $logFile = "$pipelineDir/logs/${signal}.log";
 
-  my $args = "--verbose --taxon $taxonId --genomeExtRelDbId $genome_rls_id --allgenesSchema $allgenesSchema";
+  my $args = "--taxon $taxonId --genomeExtRelDbId $genome_rls_id --allgenesSchema $allgenesSchema";
 
   my $cmd = "updatePromoterRegionTable $args 2>> $logFile";
 
@@ -2986,7 +3024,7 @@ sub makePredictedProteinFile {
 
   my $signal = "makePredictedProteinFile";
   
-  return if $mgr->startStep("Preparing predicted protein file", $signal);
+  return if $mgr->startStep("Prepar predicted protein file", $signal);
   
   my $dotsRelease = $propertySet->getProp('dotsRelease');
   my $speciesNickname = $propertySet->getProp('speciesNickname');
