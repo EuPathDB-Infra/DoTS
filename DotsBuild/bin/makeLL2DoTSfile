@@ -7,7 +7,7 @@ use GUS::ObjRelP::DbiDatabase;
 use GUS::Common::GusConfig;
 
 
-my ($verbose, $inputFile,$tax_id,$taxon_id,$gusConfigFile));
+my ($verbose, $inputFile,$tax_id,$taxon_id,$gusConfigFile);
 
 &GetOptions("verbose!"=> \$verbose,
             "inputFile=s" => \$inputFile,
