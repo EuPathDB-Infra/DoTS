@@ -188,7 +188,7 @@ sub formatGOTable {
 
   my $tableString;
   foreach my $funcKey (@sortedGoFuncs) {
-      my($goId, $func) = ($funcKey =~ /^(\d+)\|(.*)$/);
+      my($goId, $func) = ($funcKey =~ /^(GO:\d+)\|(.*)$/);
       my $funcBrief = $func;
       $funcBrief = substr($func,0,30) . "..." if (length($func) > 30);
       my %values = &findGOValues($funcBrief,
