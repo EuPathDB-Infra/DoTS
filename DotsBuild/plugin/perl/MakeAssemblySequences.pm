@@ -27,9 +27,9 @@ sub new {
       h => 'earliest date for sequences to include: default = all',
      },
 
-     {o => 'taxon_id',
-      t => 'int',
-      h => 'taxon_id for sequences to process: 8=Hum, 14=Mus.',
+     {o => 'taxon_id_list',
+      t => 'string',
+      h => 'comma delimited taxon_id list for sequences to process: 8=Hum, 14=Mus.',
      },
      {o => 'idSQL',
       t => 'string',
@@ -76,21 +76,13 @@ sub run {
   print STDERR ($self->getCla->{'commit'} ? "COMMIT ON\n" : "COMMIT TURNED OFF\n");
   print STDERR ("Testing on". $self->getCla->{'testnumber'}."\n") if $self->getCla->{'testnumber'};
   
-  ##set the taxon_id...
-  die "You must enter either the --taxon_id and optionally --idSQL on the command line\n" unless $self->getCla->{taxon_id};
+  ##set the taxon_id_list...
+  die "You must enter either the --taxon_id_list and optionally --idSQL on the command line\n" unless $self->getCla->{taxon_id_list};
 
   die "You must provide the subdirectory and repeat file, e.g. unknown_release/vector_humMitoRibo.lib\n" unless $self->getCla->{repeatFile};
 
   die "You must provide a --phrapDir in which an executable cross_match program resides" unless -x $self->getCla->{phrapDir} . "/cross_match";
-  ##set up the library:
-  #if($self->getCla->{taxon_id} == 8){
-    #$library = '/ptolemy/share/data/thirdparty/repeat/unknown_release/vector_humMitoRibo.lib';
-  #}elsif($self->getCla->{taxon_id} == 14){
-    #$library = '/ptolemy/share/data/thirdparty/repeat/unknown_release/vector_musMitoRibo.lib';
-  #}else{
-    #$library = '/ptolemy/share/data/thirdparty/repeat/unknown_release/vector';
-    #print STDERR ("No taxon_id specified....");
-  #}
+
   $library = $self->getCla->{repeatFile};
   print STDERR ("Running cross_match with $library\n");
   
@@ -117,10 +109,10 @@ sub run {
     $self->processQuery($self->getCla->{idSQL});
   } else {
     
-    print STDERR ("Generating new AssemblySequences for taxon(s)". $self->getCla->{taxon_id}."\n");
+    print STDERR ("Generating new AssemblySequences for taxon(s)". $self->getCla->{taxon_id_list}."\n");
     
     ##first get the ESTs and mRNAs..
-    my $sql = "select e.na_sequence_id from dots.ExternalNASequence e where e.taxon_id in(".$self->getCla->{taxon_id}.")".
+    my $sql = "select e.na_sequence_id from dots.ExternalNASequence e where e.taxon_id in(".$self->getCla->{taxon_id_list}.")".
       " and e.sequence_type_id in (7,8) " .
 	"and e.na_sequence_id not in (select a.na_sequence_id from dots.AssemblySequence a) ";
     
@@ -134,22 +126,15 @@ sub run {
     ##need to check this for things that are not human or mouse...may need to use less sophisticated query!
     my $mRNASql = "select o.na_sequence_id from dots.externalnasequence o where o.na_sequence_id in (
                        select s.na_sequence_id from dots.externalnasequence s, dots.transcript t, dots.nalocation l
-                       where s.taxon_id =".$self->getCla->{taxon_id} . 
-			 " and s.sequence_type_id = 2 
+                       where s.taxon_id in (".$self->getCla->{taxon_id_list} . 
+			 ") and s.sequence_type_id = 2 
                        and t.na_sequence_id = s.na_sequence_id
                        and t.name = 'CDS'
                        and l.na_feature_id = t.na_feature_id
                        group by s.na_sequence_id having count(*) = 1 )
                        and o.length > 400
                        and o.na_sequence_id not in (select a.na_sequence_id from dots.AssemblySequence a)";
-    
-    #more general query that may not be as good...
-    #    my $mRNASql = "select e.na_sequence_id from dots.ExternalNASequence e
-    # where e.sequence_type_id = 2
-    # and e.external_database_release_id in ()
-    # and e.taxon_id in(". $self->getCla->{'taxon_id'}.")
-    # and e.length > 500
-    # and e.na_sequence_id not in (select a.na_sequence_id from dots.AssemblySequence a)";
+
     
     if ($self->getCla->{'date'}) {
       $mRNASql .= "and modification_date >= '".$self->getCla->{'date'}."'";
