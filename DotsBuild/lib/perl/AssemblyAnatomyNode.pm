@@ -12,6 +12,7 @@ sub new {
   $self->{parentNode} = $parentNode;
   $self->{kids} = [];
   $self->{estCount} = 0;
+  return $self;
 }
 
 sub addKid {
