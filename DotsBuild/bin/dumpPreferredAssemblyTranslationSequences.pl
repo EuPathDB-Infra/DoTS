@@ -54,7 +54,7 @@ if(-e $outFile){
 
 my %RNA;
 
-my $sql = 'select pi.rna_id,a.na_sequence_id from dots.assembly a,dots.rnafeature rf,dots.rnainstance ri where a.taxon_id = $taxon and a.na_sequence_id = rf.na_sequence_id and rf.na_feature_id = ri.na_feature_id';
+my $sql = "select ri.rna_id,a.na_sequence_id from dots.assembly a,dots.rnafeature rf,dots.rnainstance ri where a.taxon_id = $taxon and a.na_sequence_id = rf.na_sequence_id and rf.na_feature_id = ri.na_feature_id";
 
 my $stmt = $dbh->prepareAndExecute($sql) || die "Cannot execute $sql\n";
 
