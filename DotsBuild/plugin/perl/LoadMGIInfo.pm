@@ -144,7 +144,7 @@ sub updateDbRef($dataHash) {
 	my $secondary_identifier = $dataHash->{$id}->[2];
 	my $remark = $dataHash->{$id}->[3];
 	
-	my $newDbRef = GUS::Model::SRes::DbRef->new({'primary_identifier'=>$id,'external_db_release_id'=>$external_db_release_id});
+	my $newDbRef = GUS::Model::SRes::DbRef->new({'primary_identifier'=>$id,'external_database_release_id'=>$external_db_release_id});
 	
 	$newDbRef->retrieveFromDB;
 	
