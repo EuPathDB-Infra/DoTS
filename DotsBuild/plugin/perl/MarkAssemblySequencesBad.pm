@@ -49,17 +49,17 @@ sub new {
 
 sub run {
   my $self   = shift;
-  my $ctx = shift;
-
+  my $algoInvo = $self->getAlgInvocation;
+  my $args = $self->getArgs;
   my $accession;
   my $deepChimera = 0;
   my @bad;
 
-  print $ctx->{cla}->{'commit'} ? "COMMIT ON\n" : "COMMIT TURNED OFF\n";
-  print "Testing on $ctx->{cla}->{'testnumber'}\n" if $ctx->{cla}->{'testnumber'};
+  print $args->{'commit'} ? "COMMIT ON\n" : "COMMIT TURNED OFF\n";
+  print "Testing on $args->{'testnumber'}\n" if $args->{'testnumber'};
 
-  open(F,"$ctx->{cla}->{'filename'}") || die "file $ctx->{cla}->{'filename'} not found\n";
-  if ($ctx->{cla}->{'processed_category'} eq 'chimera') {
+  open(F,"$args->{'filename'}") || die "file $args->{'filename'} not found\n";
+  if ($args->{'processed_category'} eq 'chimera') {
     while (<F>) {
       if (/^\>(\S+)/) {
 				##record here...
@@ -74,8 +74,8 @@ sub run {
     }
   } else {
     while (<F>) {
-      if ($ctx->{cla}->{regex_id}){
-        if(/$ctx->{cla}->{regex_id}/){
+      if ($args->{regex_id}){
+        if(/$args->{regex_id}/){
           push(@bad,$1);
         }
       }elsif (/\>(\S+)/) {
@@ -85,21 +85,21 @@ sub run {
   }
 
   close F;
-  print STDERR "marking ".scalar(@bad)." AssemblySequences as $ctx->{cla}->{'processed_category'}\n";
+  print STDERR "marking ".scalar(@bad)." AssemblySequences as $args->{'processed_category'}\n";
 
   my $count = 0;
   foreach my $ass_seq_id (@bad) {
 
-    last if ($ctx->{cla}->{'testnumber'} && $count >= $ctx->{cla}->{'testnumber'});
+    last if ($args->{'testnumber'} && $count >= $args->{'testnumber'});
 
     my $ass = GUS::Model::DoTS::AssemblySequence->
       new({'assembly_sequence_id' => $ass_seq_id});
     if ($ass->retrieveFromDB()) {
       $ass->setHaveProcessed(1) unless $ass->getHaveProcessed() == 1;
-      $ass->setProcessedCategory($ctx->{cla}->{'processed_category'}) unless $ass->getProcessedCategory() eq $ctx->{cla}->{processed_category};
+      $ass->setProcessedCategory($args->{'processed_category'}) unless $ass->getProcessedCategory() eq $args->{processed_category};
 
       ##if low_quality want to set quality_start and quality_end so is < 50 bp...so  doesn't  turn up in an assembly..
-      if($ctx->{cla}->{processed_category} eq 'low_quality'){  
+      if($args->{processed_category} eq 'low_quality'){  
         $ass->setQualityStart(1) unless $ass->getQualityStart == 1;
         $ass->setQualityEnd(1) unless $ass->getQualityEnd == 1;
       }
@@ -109,13 +109,13 @@ sub run {
     } else {
       print "ERROR: unable to retrieve $ass_seq_id from AssemblySequence table\n";
     }
-    print "$count: have_processed = 1, processed_category = $ctx->{cla}->{processed_category} for $ass_seq_id\n" if $count % 100 == 0;
+    print "$count: have_processed = 1, processed_category = $args->{processed_category} for $ass_seq_id\n" if $count % 100 == 0;
 		
     ##following must be in loop to allow garbage collection...
-    $ctx->{'self_inv'}->undefPointerCache();
+    $algoInvo->undefPointerCache();
   }
 
-  my $ret = "Marked $count AssemblySequences as $ctx->{cla}->{'processed_category'}";
+  my $ret = "Marked $count AssemblySequences as $args->{'processed_category'}";
   print "\n$ret\n";
   return $ret; 
 }
