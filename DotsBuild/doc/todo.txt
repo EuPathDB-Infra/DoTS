@@ -1,7 +1,6 @@
            ================ DOTS BUILD TODO ===============
 
 NOW
-  - include makePromoterRegionTable
   - revise plugin that fills the anatomy percent table
   - cope with FF's * 
   - add the FF file to the downloads department
@@ -10,17 +9,20 @@ NOW
   - look into ExtractAndBlockAssemblySeqs problem of adding "sequences length"
   - get new GEA files
   - use 'allgenes' schema instead of 'allgenes_xx'
-  - look into brian's observation about the promoter regions
   - reminder to do manual library assignment as soon as ESTs are loaded
   - write download sub for genetags:http://baygenomics.ucsf.edu/cgi-bin/BayDbAccess.py?TYPE=download  (this is the URL for the Skarnes/Tessier-Levigne gene tag download)
   - continute reviewing scripts and plugins to make sure they are dying properly
   - validate framefinder predictions?
-  - get a legit version of the TMHMM package
   - update the release date in externaldatabaserelease where version is continuous (add this to GBParser, NRDB, etc. plugins)
   - human EPCR markers are not in the database. 
   - rename all-predictions
+
+steve
+  - look into brian's observation about the promoter regions
   - make file for Mr. BrainInfo
   - add the sub to make Angel's materialized view
+  - get a legit version of the TMHMM package
+  - include makePromoterRegionTable
 
 
 
