@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 use strict;
 
+use lib "$ENV{GUS_HOME}/lib/perl";
 use GUS::Pipeline::Manager;
 use CBIL::Util::PropertySet;
 use File::Basename;
@@ -18,13 +19,11 @@ my @properties =
  # properties required by Pipeline API
  ["liniacServer",         "",  "full name of liniac server"],
  ["stopBefore",   "none",  "the step to stop before.  uses the signal name"],
- ["objectsPath",   "",  "path to GUS objects, eg /usr/lib/perl5/site_perl/5.6.0"],
 
  # properties used by dotsbuild
  ["dotsBuildDir",         "",  "local dots update dir"],
  ["dotsRelease",          "",  "eg 5 or 6"],
- ["buildName",            "",  "name of build, eg mus-05-22-02"],
- ["completedSpeciesBuildName", "",  "similar to build name, but for the other species (eg mus if this is a hum build) if that one completed first. use 'notdone' if it isn't done."],
+ ["completedSpeciesNickName", "",  "nick name of the other species (eg mus if this is a hum build) if that one completed first. use 'notdone' if it isn't done."],
  ["reassemble",           "",  "yes or no"],
  ["serverPath",           "",  "full path of dots update dir on liniac server"],
  ["nodePath",             "",  "full path of scratch dir on liniac node"],
@@ -80,7 +79,6 @@ my @properties =
  ["GOversion",   "",  "version of GO, eg, 2.155"],
  ["GOrootId",   "",  "only until GUS 3.0, eg, 59235"],
  ["ePCRinPath",   "", "where to find e-PCR, eg /usr/local/src/bio/e-PCR/src"],
- ["dbUser",   "", "database user, eg gusrw"],
  ["buildDate" ,   "", "approximate start date of build"],
  ["wordfile" ,   "", "file of word probabilities for framefinder"],
  ["frameFinderRestart" ,  "","list of algorithm_invocation_id for restart of FrameFinder plugin, eg '1,2,3'"],
@@ -93,14 +91,14 @@ my @properties =
  ["loadGEA" ,  "",  "yes or no"],
  ["insertTaxonRestart" , "","last ncbi_tax_id in the log for restarting LoadTaxon.pm"],
  ["nrdbRestart" , "","last set number in log for restarting LoadNrdb.pm"],
- ["nrdbTempLogin" , "","login for temp table space, e.g. pinney@gusdev"],
+ ["nrdbTempLogin" , "","login for temp table space, e.g. pinney\@gusdev"],
  ["nrdbTempPassword" , "","password for temp table space"],
  ["loadGeneTrapAssembly", "", "yes or no"],
  ["geneTrapDbRls", "", "name:external_database_release_id abbreviation pairs for gene trap sequences e.g. stl:3692,ggtc:5393"],
  ["loadLocusLink", "", "yes or no"],
  ["projectLinkRestart", "", "yes or no"],
  ["allgenesVersion", "", "version number for allgenes, e.g. 5.0"],
- ["downloadDir", "", "directory for downloaded data from external databases"],
+ ["externalDbDir", "", "directory for downloaded data from external databases"],
  ["genbankRel", "", "GenBank release number found in the README file"],
  ["gb_db_rel_id", "", "external_database_release_id for GenBank"],
  ["gbFiles", "", "list of comma delinieated genbank files to be parsed into GUS"]
@@ -109,7 +107,7 @@ my @properties =
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
 
 my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
-my $buildName = $propertySet->getProp('buildName');
+my $buildName = &makeBuildName($propertySet->getProp('speciesNickname'));
 my $pipelineDir = "$dotsBuildDir/$buildName";
 
 
@@ -118,7 +116,7 @@ my $pipelineDir = "$dotsBuildDir/$buildName";
 my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFile);
 
 &createDotsPipelineDir($propertySet);
-
+exit;
 &downloadGenbank();
 
 &downloadRefSeq();
@@ -428,11 +426,14 @@ sub downloadGenbank {
 
     $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
 
-    my $downloadDir = $propertySet->getProp('downloadDir');
+    my $externalDbDir = $propertySet->getProp('externalDbDir');
+    my $genbankRel = $propertySet->getProp('genbankRel');
 
-    my $downloadSubDir = "$downloadDir/genbank";
+    my $downloadSubDir = "$externalDbDir/genbank/$genbankRel";
 
     my $logfile = "$pipelineDir/logs/downloadGenbank.log";
+
+    $mgr->runCmd('mkdir -p $downloadSubDir');
 
     my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=1 -R \"gbest*,gbgss*,gbhtg*\" -A \"*.seq.gz,README.genbank\"  -P $downloadSubDir ftp://ftp.ncbi.nih.gov/genbank/";
 
@@ -443,24 +444,24 @@ sub downloadGenbank {
 
 sub downloadRefSeq {
     my $signal = "downloadRefSeq";
-    
+
     return if $mgr->startStep("Downloading RefSeq", $signal,'downloadGenbank');
 
     $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
 
     my $logfile = "$pipelineDir/logs/downloadRefSeq.log";
 
-    my $downloadDir = $propertySet->getProp('downloadDir');
+    my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-    my $downloadSubDir = "$downloadDir/refseq";
+    my $downloadSubDir = "$externalDbDir/refseq";
+
+    my $ftpsite = "ftp://ftp.ncbi.nih.gov/ref_seq/H_sapiens/mRNA_Prot/";
+    my $ftpfile = "hs.gbff.gz";
 
     my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=3 -A \"$ftpfile\" -P $downloadSubDir $ftpsite";
 
-    $ftpsite = "ftp://ftp.ncbi.nih.gov/ref_seq/H_sapiens/mRNA_Prot/";
-    $ftpfile = "hs.gbff.gz";
-
     $mgr->runCmd($cmd);
-	
+
     $ftpsite = "ftp://ftp.ncbi.nih.gov/ref_seq/M_musculus/mRNA_Prot/";
     $ftpfile = "mouse.gbff.gz";
 
@@ -479,9 +480,9 @@ sub downloaddbEST {
 
     my $logfile = "$pipelineDir/logs/downloaddbEST.log";
 
-    my $downloadDir = $propertySet->getProp('downloadDir');
+    my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-    my $downloadSubDir = "$downloadDir/dbest";
+    my $downloadSubDir = "$externalDbDir/dbest";
 
     my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=3 -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/repository/dbEST/bcp/";
 
@@ -502,9 +503,9 @@ sub downloadTaxon {
 
     my $logfile = "$pipelineDir/logs/downloadTaxon.log";
 
-    my $downloadDir = $propertySet->getProp('downloadDir');
+    my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-    my $downloadSubDir = "$downloadDir/taxonomy";
+    my $downloadSubDir = "$externalDbDir/taxonomy";
 
     my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=2 -A \"gi_taxid_nucl.dmp.gz,gi_taxid_prot.dmp.gz,taxdump.tar.gz\" -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/pub/taxonomy/"; 
 
@@ -532,9 +533,9 @@ sub downloadNRDB {
 
     my $logfile = "$pipelineDir/logs/downloadNRDB.log";
 
-    my $downloadDir = $propertySet->getProp('downloadDir');
+    my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-    my $downloadSubDir = "$downloadDir/nrdb";
+    my $downloadSubDir = "$externalDbDir/nrdb";
 
     my $cmd = "wget -t5 -b -m -np -nd -nH -o $logfile --cut-dirs=3 -A \"nr.Z\"  -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/pub/blast/db/";
 	
@@ -547,11 +548,11 @@ sub downloadNRDB {
 
 sub insertTaxon {
 
-    my $downloadDir = $propertySet->getProp('downloadDir');
+    my $externalDbDir = $propertySet->getProp('externalDbDir');
     
-    my $names = "$downloadDir/taxonomy/names.dmp";
-    my $nodes = "$downloadDir/taxonomy/nodes.dmp";
-    my $gencode = "$downloadDir/taxonomy/gencode.dmp";
+    my $names = "$externalDbDir/taxonomy/names.dmp";
+    my $nodes = "$externalDbDir/taxonomy/nodes.dmp";
+    my $gencode = "$externalDbDir/taxonomy/gencode.dmp";
     my $restart = $propertySet->getProp('insertTaxonRestart');
     
     my $args = "--names $names --nodes $nodes --gencode $gencode --restart $restart";
@@ -568,11 +569,11 @@ sub parseGenbank {
   
   my @gbFiles = split (/,/, $propertySet->getProp('gbFiles'));
   
-  my $downloadDir = $propertySet->getProp('downloadDir');
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
   
   foreach my $file (@gbFiles) {
     
-    my $dirAndFile = "$downloadDir/genbank/$file";
+    my $dirAndFile = "$externalDbDir/genbank/$file";
     
     my $log = "$pipelineDir/logs/${file}.err";
     
@@ -586,7 +587,11 @@ sub parseGenbank {
 }
 
 sub parsedbEST {
-  $mgr->runPlugin("loadDbEst", "GUS::Common::Plugin::GBParser", $args, "Loading dbEST files into GUS"
+
+  my $args;
+
+  $mgr->runPlugin("loadDbEst", "GUS::Common::Plugin::GBParser", $args, 
+		  "Loading dbEST files into GUS");
 }
 
 sub makeAssemSeqs {
@@ -922,9 +927,9 @@ sub downloadCDD {
 
     $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
 
-    my $downloadDir = $propertySet->getProp('downloadDir');
+    my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-    my $downloadSubDir = "$downloadDir/cdd";
+    my $downloadSubDir = "$externalDbDir/cdd";
 
     my $logfile = "$pipelineDir/logs/$signal.log";
 
@@ -1016,9 +1021,9 @@ sub downloadProdom {
 
     my $prodomRelease = $propertySet->getProp('prodomRelease');
 
-    my $downloadDir = $propertySet->getProp('downloadDir');
+    my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-    my $downloadSubDir = "$downloadDir/prodom";
+    my $downloadSubDir = "$externalDbDir/prodom";
 
     my $file = "$prodomRelease.forblast.gz";
 
@@ -1042,9 +1047,9 @@ sub insertProdom {
 
     my $prodomRelease = $propertySet->getProp('prodomRelease');
 
-    my $downloadDir = $propertySet->getProp('downloadDir');
+    my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-    my $prodomFile = "$downloadDir/prodom/$prodomRelease.forblast";
+    my $prodomFile = "$externalDbDir/prodom/$prodomRelease.forblast";
     my $logFile = "$pipelineDir/logs/insertProdom.log";
 
     my $prodomDB = $propertySet->getProp('prodom_db_rls_id');
@@ -1382,7 +1387,7 @@ sub prepareDownloadSiteFiles {
 
     my $logFile = "$pipelineDir/logs/${fastaFile}Extract.log";
 
-    my $sql = "select 'DT.'||na_sequence_id,'[$species]',description,'('||number_of_contained_sequences||' sequences)','length='||length,sequence from dots.Assembly where taxon_id = $taxonId";
+    my $sql = "select 'DT.'||na_sequence_id,'[$speciesNickname]',description,'('||number_of_contained_sequences||' sequences)','length='||length,sequence from dots.Assembly where taxon_id = $taxonId";
 
     my $cmd = "dumpSequencesFromTable.pl --outputFile $pipelineDir/seqfiles/$fastaFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"$sql\" 2>>  $logFile";
 
@@ -1503,10 +1508,11 @@ sub prepareBlastSiteFiles {
     $mgr->runCmd("ln -s $fastafile $fastalink");
     $mgr->runCmd("$blastBinDir/xdformat -n $fastalink");
 
-    my $completedSpeciesBuildName =
-	$propertySet->getProp('completedSpeciesBuildName');
+    my $completedSpeciesNickName =
+	$propertySet->getProp('completedSpeciesNickName');
+    my $completedSpeciesBuildName = &makeBuildName($completedSpeciesNickName);
 
-    if ($completedSpeciesBuildName ne 'notdone') {
+    if ($completedSpeciesNickName ne 'notdone') {
 	my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
 	my $otherPipelineDir = "$dotsBuildDir/$completedSpeciesBuildName";
 	my $otherSpeciesNickname = $speciesNickname eq 'mus'? 'hum' : 'mus';
@@ -1550,8 +1556,6 @@ sub extractMarkers {
     my $taxonId = $propertySet->getProp('taxonId');
 
     my $gusConfigFile = $propertySet->getProp('gusConfigFile');
-
-    my $dbUser = $propertySet->getProp('dbUser');
 
     my $markerFile = "$pipelineDir/epcr/rh.sts";
 
@@ -1959,7 +1963,7 @@ sub loadGeneTrapAssembly {
 
     foreach my $db (@DB) {
 	my ($name, $id) = split(/:/, $db);
-	$blastDir = "$pipelineDir/genetrap/$name";
+	my $blastDir = "$pipelineDir/genetrap/$name";
 	my $args = "--extDbId $id --blastDir $blastDir";
 	$mgr->runPlugin("load${name}GeneTrapBlast", "DoTS::DotsBuild::Plugin::CalculateGeneTrapLinks", $args, "loading blast results for $name gene trap tags");
     } 
@@ -2010,9 +2014,9 @@ sub downloadMGIInfo {
 
     my $logfile = "$pipelineDir/logs/downloadMGIInfo.log";
 
-    my $downloadDir = $propertySet->getProp('downloadDir');
+    my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-    my $downloadSubDir = "$downloadDir/mgi";
+    my $downloadSubDir = "$externalDbDir/mgi";
 
     my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=3 -A \"MRK_List2.sql.rpt\"  -P $downloadSubDir  ftp://www.informatics.jax.org/pub/informatics/reports/";
 
@@ -2167,7 +2171,7 @@ sub makeProjectLink {
 
     my $args;
 
-    $args = "--commit --verbose --allgenes_num $allgenesVer --gusConfigFile $gusConfigFile  --taxon $taxonId --imclone_db_rls_id $imcloneDbRlSID";
+    $args = "--commit --verbose --allgenes_num $allgenesVer --gusConfigFile $gusConfigFile  --taxon $taxonId --imclone_db_rls_id $imcloneDbRlsId";
 
     $args .= " --restart"
       if ($propertySet->getProp('projectLinkRestart') eq "yes");
@@ -2175,6 +2179,12 @@ sub makeProjectLink {
     my $cmd = "makeProjectLink.pl $args";
 
     $mgr->runCmd($cmd);
+}
+
+sub makeBuildName {
+  my ($nickName) = @_;
+
+  return "release" . $propertySet->getProp('dotsRelease') . "/" . $nickName;
 }
 
 sub usage {
