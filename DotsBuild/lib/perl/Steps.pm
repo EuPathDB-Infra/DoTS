@@ -2899,6 +2899,8 @@ sub parseLocusLink {
 
   &updateHtaccessFile($mgr, "AddDescription \"A mapping of DoTS to LocusLink\" *LL*\n");
 
+  &addFileToReadme($mgr, "${pipelineDir}/downloadSite/${species}DoTS_rel${dotsRelease}_LL2DoTS", $descrip);
+
   $mgr->endStep($signal);
 }
 
@@ -3630,11 +3632,48 @@ sub createPredTranslDetailsFile {
   $mgr->runCmd($cmd);
 
   my $descrip = "A tab delimited file of the translation details for proteins predicted using FrameFinder";
-  &updateHtaccessFile("AddDescription \"$descrip\" *Details*\n");
-  &addFileToReadme("${prefix}_predictedProteinDetails.txt.gz", $descrip);
+  &updateHtaccessFile($mgr, "AddDescription \"$descrip\" *Details*\n");
+  &addFileToReadme($mgr, "${prefix}_predictedProteinDetails.txt.gz", $descrip);
 
   $mgr->endStep($signal);
 }
+
+sub createManuallyReviewedDoTSFile { 
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "createPredTranslDetailsFile";
+  my $signal = "createManuallyReviewedDoTSFile";
+
+  return if $mgr->startStep("Preparing manually reviewed DoTs file", $signal);
+
+  my $pipelineDir = $mgr->{pipelineDir};
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  my $tempLogin = $propertySet->getProp('tempLogin');  
+  my $tempPassword = $propertySet->getProp('tempPassword'); 
+  my $taxonId = $propertySet->getProp('taxonId');
+  my $allgenesLogin  = $propertySet->getProp('allgenesLogin');
+  
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+  
+  my $manRevwDoTSReportFile = "$pipelineDir/downloadSite/${prefix}_manuallyReviewedTranscriptsReport.txt";
+    
+  # create report of manually reviewed dots
+  my $cmd = "gusreport --configModule GUS::ReportMaker::SampleTranscriptReportConfig --tempTableName tempResult --requestedColumns 'Description, GeneSymbol, Length, GOid, DoTSGene, SeqsInAssem, MGI, LocusLink, ContainsMRNA, Motifs, Organism, mRNASeq, proteinSeq' --sql 'select distinct pa.na_sequence_id, 9999 from DoTS.rna r, allgenes.proteinassembly pa where r.review_status_id = 1 and r.rna_id = pa.rna_id and pa.taxon_id = $taxonId' > $manRevwDoTSReportFile";
+  $mgr->runCmd($cmd);
+
+  my $cmd = "gzip $manRevwDoTSReportFile";
+
+  $mgr->runCmd($cmd);
+
+  my $descrip = "A tab delimited report for all manually reviewed DoTS Transcripts";
+  &updateHtaccessFile($mgr, "AddDescription \"$descrip\" *manuallyReviewed*\n");
+  &addFileToReadme($mgr, "${prefix}_manuallyReviewedTranscriptsReport.txt.gz", $descrip);
+
+  $mgr->endStep($signal);
+}
+
 
 sub makeBuildName {
   my ($nickName, $release) = @_;
