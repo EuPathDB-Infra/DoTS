@@ -405,5 +405,38 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &loadSGPHMMSignalP($mgr);
 
+&prepareDownloadSiteFiles($mgr);
+
+&prepareBlastSiteFiles($mgr);
+
+&downloadLocusLink($mgr);
+
+&deleteLocusLink($mgr);
+
+&parseLocusLink($mgr);
+
+&loadLocusLinkToDoTS($mgr);
+
+&loadLocusLinkInfo($mgr);
+
 &downloadHInvitationalFile($mgr);
 
+&downloadMGIInfo($mgr);
+
+&deleteMGIToDots($mgr);
+
+&loadMGIToDoTS($mgr);
+
+&loadMGIInfo($mgr);
+
+&deleteGeneCardsToDots($mgr);
+
+&parseGeneCardsToDoTS($mgr);
+
+&loadGeneCardsToDoTS($mgr);
+
+&deleteGEAToDoTS($mgr);
+
+&parseGEA($mgr);
+
+&loadGEA($mgr);
