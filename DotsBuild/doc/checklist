@@ -1,0 +1,12 @@
+CHECKLIST FOR GETTING READY TO START A BUILD
+
+- update property files
+
+- update dbEST mirror
+
+- confirm cdd regex (&insertCDD)
+
+- confirm all wget commands (ie that the files are still at the expected url)
+
+- prepareDownloadSiteFiles sub fails and needs to be fixed-files have been gzip'd in earlier subs and this sub altered but I'm not sure it works.
+

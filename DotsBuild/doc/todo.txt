@@ -1,45 +1,67 @@
           ================ DOTS BUILD TODO ===============
+
+FOR RELEASE 7
+
+ **** Before Downloading ****
+
+   - make sure we have enough disk space 
+        -mothball build 5
+        -evaluate if we need to be more aggressive about gzipping
+
+   - see if log is being clobbered
+
+   - go through the Pre-build Checklist
+
+
+
+ **** Before Post-Download Pipeline ****
+
+   - correct genbank external_database_release_id (get rid of the new one)
+
+   - replace repeat/vector file on both ptolemy and liniac:ftp://ftp.ncbi.nih.gov/blast/db/FASTA/vector.Z
+
+   - add sub to run plugin/script that updates all the quality attributes for existing AssemblySequences-time this to see if this should be done at every build or there should be a set of rules to detect when a sequence has changed
+
+   - For release7, run reassemble for the initial (just the initial?) assembly plugin - compare times (just need to change property value)
+
+   - There are ~1300 duplicates in the ExternalNASrquence that are GenBank or RefSeq (maybe the above is responsible, when update is deemed necessary from the NAEntry table)-investigate and remedy if possible.
+
+
+
+ **** While Build is Running ****
+
+   - need procedure for updating externaldatabaserelease where version is continuous (add this to GBParser, NRDB, etc. plugins)
+
+   - Look into including controlling index dropping, creating, checking in the pipeline. 
+
+   - Discover what makes All on liniac-we made All but rpsblast replaced it.
+
+   - write download sub for genetags:http://baygenomics.ucsf.edu/cgi-bin/BayDbAccess.py?TYPE=download  (this is the URL for the Skarnes/Tessier-Levigne gene tag download)- I downloaded these manually for release6  
+
+   - consider adding a "incrementally_maintained" boolean to externaldatabaserelease
+
+   - Modify dots.SignalPeptideFeature to include signal_probability and anchor_probability or otherwise remedy that situation and then rerun the plugin to add that data. The plugin may have to be modified.
+
+   - The file set that resulted from partitioning the human predicted protein (framefinder) file, is too large to process with signalP and signalPHMM. I had to do it twice. See about changing the file size - need to change code for partitioning and processing scripts. 
+
+
 NEW ISSUES 
+
+NRDB has a version "continuous" and also "unknown"... why?
+
+do we have to limit our queries that make the download site files by project id?
+
+don't run in --verbose mode.... makes logs too big!!!
 
 make all big files .gz
 
+
 Add properties for version numbers for cdd, mgi
 
-Discover what makes All on liniac-we made All but rpsblast replaced it.
-Add procedures to dotsbuild to add COG and cd to db-done
 
 Add option for regex for task.prop for cdd
 
-write download sub for genetags:http://baygenomics.ucsf.edu/cgi-bin/BayDbAccess.py?TYPE=download  (this is the URL for the Skarnes/Tessier-Levigne gene tag download)- I downloaded these manually for release6  
-
-need procedure for updating externaldatabaserelease where version is unknown or continuous
-
 standardize all sequence entry, blast, and similarity (incl. gene tags) procedures and code
-
-in controller.prop for intermed matrix,taskclass=DistribJobTasks::BlastMatrixTask
-nodeclass=DistribJob::BprocNode should read taskclass=DJob::DistribJobTasks::BlastMatrixTask
-nodeclass=DJob::DistribJob::BprocNode
-
-replace repeat/vector file on both ptolemy and liniac:ftp://ftp.ncbi.nih.gov/blast/db/FASTA/vector.Z
-
-
-add sub to run plugin/script that updates all the quality attributes for existing AssemblySequences-time this to see if this should be done at every build or there should be a set of rules to detect when a sequence has changed
-
-For release7, run reassemble for the initial (just the initial?) assembly plugin - compare times
-
-Investigate speed up for LoadBlastSimilaritiesPK (Tried splitting the similarity files and running two processes for loading the similarities-this seems to be working for human nrdb but with one conflict getting SmilaritySpan id and another failure for ?).
-
-Look into includingcontrolling index dropping, creating, checking in the pipeline. 
-
-prepareDownloadSiteFiles sub fails and needs to be fixed-files have been gzip'd in earlier subs and this sub altered but I'm not sure it works.
-
-modify teh Similarity plugins to commit on a better schedule
-
-Modify dots.SignalPeptideFeature to include signal_probability and anchor_probability or otherwise remedy that situation and then rerun the plugin to add that data. The plugin may have to be modified.
-
-Do we want to add an attribute to the externaldatabase table indicating whether the corresponding release_id(s) should be changed with each new version or if we just want to update the row in ExternalDatabaseRelease. Related to this, I gave both GenBank and RefSeq new release_ids for release6 and I think I need to change them to the original and update the rows in ExternalDatabaseRelease. 
-
-There are ~1300 duplicates in the ExternalNASrquence that are GenBank or RefSeq (maybe the above is responsible, when update is deemed necessary from the NAEntry table)-investigate and remedy if possible.
 
 The file set that resulted from partitioning the human predicted protein (framefinder) file, is too large to process with signalP and signalPHMM. I had to do it twice. See about changing the file size - need to change code for partitioning and processing scripts. 
 
