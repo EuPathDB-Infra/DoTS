@@ -62,9 +62,7 @@ sub new {
 	 {o => 'cap4_params',
 	  t => 'string',
 	  h => 'parameters to pass to cap4',
-	  d => 'Verbosity=0 -NoRecover -NoPolyBaseMask MinCovRep=500 InOverhang=30 
-                EndOverhang=30 RemOverhang=30 QualSumLim=300 MaxInternalGaps=15 
-                -ESTAssembly MaxOverlaps=50 -KeepDups',
+	  d => 'Verbosity=0 -NoRecover -NoPolyBaseMask MinCovRep=500 InOverhang=30 EndOverhang=30 RemOverhang=30 QualSumLim=300 MaxInternalGaps=15 -ESTAssembly MaxOverlaps=50 -KeepDups',
          },
 	 {o => 'testnumber',
 	  t => 'int',
@@ -1073,7 +1071,8 @@ sub getGusEntriesForReassembly {
   }
   foreach my $na_seq_id (@oldIds) {
     if (! exists $mapAss{$na_seq_id}) { ##new assembly...
-      my $a  = GUS::Model::DoTS::Assembly->new({'na_sequence_id' => $na_seq_id,'taxon_id' => $ctx->{cla}->{taxon_id} });
+      #my $a  = GUS::Model::DoTS::Assembly->new({'na_sequence_id' => $na_seq_id,'taxon_id' => $ctx->{cla}->{taxon_id} }); alered by DP 3/08/03-see line below
+      my $a  = GUS::Model::DoTS::Assembly->new({'na_sequence_id' => $na_seq_id });
       my $haveAssSeqs = 0;
       if ($a->retrieveFromDB()) {
         #        $assCache->cacheAssembly($a);
@@ -1117,7 +1116,8 @@ sub getGusEntries {
   foreach my $na_seq_id (@oldIds) {
     if (! $assCache->assemblyIsCached($na_seq_id)) { ##new assembly...
       ##check this....should use the where hash ref...need to modify these Gene and RNA methods..
-      my $a  = GUS::Model::DoTS::Assembly->new({'na_sequence_id' => $na_seq_id,'taxon_id' => $ctx->{cla}->{taxon_id} });
+      #my $a  = GUS::Model::DoTS::Assembly->new({'na_sequence_id' => $na_seq_id,'taxon_id' => $ctx->{cla}->{taxon_id} });altered by DP 3/08/03-see next line
+      my $a  = GUS::Model::DoTS::Assembly->new({'na_sequence_id' => $na_seq_id});
       if ($a->retrieveFromDB()) {
         #        print STDERR "getGusEntries: ".$a->toXML() if $debug;
         $assCache->cacheAssembly($a);
