@@ -2517,11 +2517,11 @@ sub prepareBlastSiteFiles {
 
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
   my $fastafile = "$mgr->{pipelineDir}/downloadSite/${prefix}.fasta.gz";
-  my $cmd = " gunzip $mgr->{pipelineDir}/downloadSite/${prefix}.fasta.gz";
+  my $cmd = " gunzip $mgr->{pipelineDir}/downloadSite/${prefix}.fasta.gz" if (! -e "$mgr->{pipelineDir}/downloadSite/${prefix}.fasta");
   $mgr->runCmd($cmd);
   $fastafile = "$mgr->{pipelineDir}/downloadSite/${prefix}.fasta";
   my $fastalink = "$mgr->{pipelineDir}/blastSite/${speciesNickname}DoTS";
-  $mgr->runCmd("ln -s $fastafile $fastalink");
+  $mgr->runCmd("ln -s $fastafile $fastalink") if (! -e $fastalink);
   $mgr->runCmd("$blastBinDir/xdformat -n $fastalink");
 
   # make blast files for all species.  combine this build w/ latest of other species
