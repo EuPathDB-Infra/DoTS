@@ -348,6 +348,14 @@ $mgr->waitForLiniac("genomic alignments of assemSeqs", "waitGenomeAlignAss");
 
    &prepareEPConBlastSiteFiles($mgr);
 
+   &deleteGeneTrapAssembly($mgr);
+
+   &extractGeneTrapTags($mgr);
+
+   &blastGeneTrapTags($mgr);
+
+   &loadGeneTrapAssembly($mgr);
+
 $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &copySimilaritiesFromLiniac($mgr);
