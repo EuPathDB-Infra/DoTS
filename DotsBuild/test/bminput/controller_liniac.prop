@@ -1,8 +1,0 @@
-masterdir=/home/sfischer/test/master
-inputdir=/home/sfischer/test/DotsBuild/bminput
-nodedir=/scratch/user/sfischer/test
-slotspernode=1
-subtasksize=3
-taskclass=DotsBuild::BlastMatrixTask
-nodeclass=DistribJob::BprocNode
-restart=no

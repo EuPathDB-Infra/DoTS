@@ -1,2 +1,0 @@
-XXfuncnameXX	XXhumCountXX	XXhumBarWidthXX	XXhumBarRemainderXX	XXhumPercentXX%	XXmusCountXX	XXmusBarWidthXX	XXmusBarRemainderXX	XXmusPercentXX%
-
