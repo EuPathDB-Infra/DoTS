@@ -139,7 +139,7 @@ sub run {
              from dots.externalnasequence s, dots.transcript t, 
              dots.nalocation l, dots.sequencetype st
              where s.taxon_id in ($taxonIdList) 
-             and s.name = 'RNA'
+             and st.name = 'RNA'
              and s.sequence_type_id = st.sequence_type_id    
              and t.na_sequence_id = s.na_sequence_id
              and t.name = 'CDS'
