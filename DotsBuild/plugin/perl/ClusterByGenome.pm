@@ -63,7 +63,8 @@ $| = 1;
 sub run {
   my $self   = shift;
   
-  $self->log ($self->getArgs()->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n");
+  $self->logCommit;
+  $self->logArgs;
 
   my $dbh = $self->getQueryHandle();
   my $cla = $self->getCla();
@@ -78,42 +79,67 @@ sub run {
 
   my $aid = &getAlignedGeneAnalysisId($dbh,$taxon_id, $genome_id);
 
-  print "seeding clusters ...\n";
+  $self->logData("seeding clusters ...");
   my $clusters = &getClusterSeeds($dbh, $aid, $test_chr);
-  print "number of clusters seeded: " . scalar(keys %$clusters) . ".\n";
+  $self->logData("number of clusters seeded: " . scalar(keys %$clusters) . '.');
 
-  print "adding new members to clusters ...\n";
+  $self->logData("adding new members to clusters ...");
   my ($new_seqs, $changed_dgs, $no_dg_seqs) =
       &addNewMembers($dbh, $aid, $taxon_id, $query_dbid, $genome_id, $stage, $clusters);
-  print "$new_seqs new seqs, enriched $changed_dgs existing clusters, $no_dg_seqs do not overlap existing clusters\n";
+  $self->logData("$new_seqs new seqs, enriched $changed_dgs existing clusters, $no_dg_seqs do not overlap existing clusters");
 
-  print "get links between clusters ...\n";
+  $self->logData("get links between clusters ...");
   my $clnks = &getClusterLinks($clusters);
-  print "number of links found: " . scalar(keys %$clnks) . ".\n";
+  $self->logData("number of links found: " . scalar(keys %$clnks) . ".");
 
-  print "get linked cluster groups ...\n";
+  $self->logData("get linked cluster groups ...");
   my $cgrps = &getLinkedClusterGroups($clnks);
-  print "number of linked cluster groups: " . scalar(keys %$cgrps) . ".\n";
+  $self->logData("number of linked cluster groups: " . scalar(keys %$cgrps) . ".");
 
-  print "merging linked clusters ...\n";
+  $self->logData("merging linked clusters ...");
   &mergeLinkedClusters($clusters, $cgrps);
-  print "number of final clusters: " . scalar(keys %$clusters) . ".\n";
+  $self->logData("number of final clusters: " . scalar(keys %$clusters) . ".");
 
-  print "writing into $out_file ...\n";
+  $self->logData("writing into $out_file ...");
   open O, ">$out_file" or die "could not write $out_file";
+
+  my $cKeys = &getClusterKeyList($clusters, $sort);
+
   my $c = 0;
   my $biggest = 0;
-  foreach (keys %$clusters) {
+  foreach (@$cKeys) {
       my @seqs = keys %{ $clusters->{$_} };
       my $csize = scalar(@seqs);
       print O ">Cluster_" . (++$c) . " ($csize sequences): (" . join(', ', @seqs) . ")\n";
       $biggest = $csize if $csize > $biggest;
   }
   close O;
-  print "biggest cluster has $biggest sequences\n";
+  $self->logData("biggest cluster has $biggest sequences.");
 }
 
 ####################
+
+sub getClusterKeyList {
+    my ($clusters, $sort) = @_;
+
+    if (!$sort) { my @res = keys %$clusters; return \@res; }
+
+    my %countHash;
+    foreach my $ck (keys %$clusters) {
+	my $c = $clusters->{$ck};
+	my $sz = scalar(keys %$c);
+	$countHash{$sz} = [] unless $countHash{$sz};
+	push @{ $countHash{$sz} }, $ck;
+    }
+
+    my $res = [];
+    foreach (sort {$a <=> $b} keys %countHash) {
+	push @$res, @{ $countHash{$_} };
+    }
+
+    $res;
+}
+
 sub mergeLinkedClusters {
     my ($clusters, $cgrps) = @_;
 
@@ -160,15 +186,6 @@ sub getLinkedClusterGroups {
     $clnks;
 }
 
-sub isLinked {
-    my ($h1, $h2) = @_;
-
-    foreach (keys %$h1) {
-	return 1 if exists $h2->{$_};
-    }
-    return 0;
-}
-
 sub getClusterLinks {
     my ($clusters) = @_;
 
@@ -181,16 +198,22 @@ sub getClusterLinks {
 	    $clnks->{$mid}->{$cid} = '';
 	}
     }
+    # print "****  TotLnks: " . scalar(keys %$clnks) . "\n";
 
     # delete member seqs that only "link" one cluster
     # when >1 member seqs link the same set of clusters, keep any link
     my %unique_clnks;
     foreach my $lid (keys %$clnks) {
 	my $l = $clnks->{$lid};
-	delete $clnks->{$lid} unless scalar(keys %$l) > 1; 
-	my $uk = join(',', sort keys %$l);
-	$unique_clnks{$uk} = $lid;
+	if (scalar(keys %$l) == 1) {
+	    delete $clnks->{$lid};
+	} else {
+	    my $uk = join(',', sort keys %$l);
+	    $unique_clnks{$uk} = $lid;
+	}
     }
+    # print "****  Lnks w >1 DGs: " . scalar(keys %$clnks) . "\n";
+    # print "****  UniqLnks: " . scalar(keys %unique_clnks) . "\n";
 
     $clnks = {};
     foreach my $k (keys %unique_clnks) {
@@ -212,9 +235,9 @@ sub addNewMembers {
     my %changed_dgs;
     my $no_dg_seqs = 0;
     my $sql = "select s.assembly_sequence_id, b.target_start, b.target_end, b.target_na_sequence_id "
-	. "from DoTS.BlatAlignment b, DoTS.AssemblySequence s"
+	. "from DoTS.BlatAlignment b, DoTS.AssemblySequence s "
 	. "where b.query_na_sequence_id = s.na_sequence_id "
-	. "b.query_table_id = 57 and b.query_taxon_id = $taxon_id "
+	. "and b.query_table_id = 57 and b.query_taxon_id = $taxon_id "
 	. "and b.query_external_db_release_id = $query_dbid "
 	. "and b.target_table_id = 245 and b.target_taxon_id = $taxon_id "
 	. "and b.target_external_db_release_id = $genome_id and b.is_best_alignment = 1";
@@ -222,21 +245,28 @@ sub addNewMembers {
     $sth->execute or die "could not run $sql";
     while (my ($id, $ts, $te, $chr_id) = $sth->fetchrow_array) {
 	my $sql1 = "select ag.aligned_gene_id from Allgenes.AlignedGene ag, Dots.VirtualSequence vs "
-	    . "where ag.chr = vs.chromosome and vs.na_sequence_id = $chr_id "
+	    . "where ag.chromosome = vs.chromosome and vs.na_sequence_id = $chr_id "
 	    . "and not (ag.chromosome_start > $te or ag.chromosome_end < $ts) "
 	    . "and ag.aligned_gene_analysis_id = $aid";
 	my $sth1 = $dbh->prepare($sql1) or die "bad sql $sql1";
 	$sth1->execute or die "could not run $sql1";
 	$new_seqs++;
 	my $has_dg_overlap = 0;
-	while (my ($agid) = $sth->fetchrow_array) {
+	while (my ($agid) = $sth1->fetchrow_array) {
 	    # TODO: maybe evaluation exon overlaps by comparing block coordinates
 	    $clusters->{$agid}->{$id} = '';
 	    $changed_dgs{$agid} = '';
 	    $has_dg_overlap++;
 	}
-	$no_dg_seqs++ unless $has_dg_overlap;
 	$sth1->finish;
+
+	# HACK: put seqs on each chr in a group if they do not overlap any dgs
+	unless ($has_dg_overlap) {
+	    $no_dg_seqs++; 
+	    $clusters->{"c$chr_id"} = {} unless ($clusters->{"c$chr_id"});
+	    $clusters->{"c$chr_id"}->{$id} = '';
+	    # print "*** adding seq $id on chr $chr_id to a group\n";
+	}
     }
     $sth->finish;
 
