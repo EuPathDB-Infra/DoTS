@@ -81,22 +81,23 @@ sub addGene {
   foreach my $rna_id (@$rnaArray) {
     my $rna = GUS::Model::DoTS::RNA->new({'rna_id' => $rna_id});
     $rna->retrieveFromDB();
-    my $gene = $rna->getParent('DoTS::Gene',1) ? $rna->getParent('DoTS::Gene') : $self->makeGene($rna);
-    $rna->addToSubmitList($gene);
-    $count += $rna->submit();
+    $count += $self->makeGene($rna);
+    $self->log ("$count : rna_id : $rna_id\n");
     $rna->undefPointerCache();
   }
-  $self->log ("$count\n");  
+  $self->log ("$count total gene rows inserted and rna rows updated\n");  
 }
 
 
 
 sub makeGene {
-  my ($self,$rna) = @_;
+  my ($self) = shift;
+  my ($rna) = @_;
   my $review_status_id = 0;  
   my $gene = GUS::Model::DoTS::Gene->new({'review_status_id'=>$review_status_id});
   $gene->addChild($rna);
-  return $gene;
+  my $num = $gene->submit();
+  return $num;
 }
 
 
