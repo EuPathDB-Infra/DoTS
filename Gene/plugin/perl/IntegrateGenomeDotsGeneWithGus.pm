@@ -128,7 +128,7 @@ FAILURE_CASES
 
 sub run {
     my $self = shift;
-    
+
     $self->logAlgInvocationId();
     $self->logArgs();
 
@@ -144,8 +144,8 @@ sub run {
     my $onlyDelete = $self->getArg('only_delete');
     my $onlyInsert = $self->getArg('only_insert');
 
-    my ($gis, $gfs, $gdgs) = $self->getExistGiGfGdg($dbh, $genomeId);
     unless ($isRestart || $onlyInsert) {
+        my ($gis, $gfs, $gdgs) = $self->getExistGiGfGdg($dbh, $genomeId);
 	my $efs = $self->getExistEfOrRf($dbh, 'DoTS.ExonFeature', $genomeId);
 	my $rfs = $self->getExistEfOrRf($dbh, 'DoTS.RnaFeature', $genomeId);
 	$self->cleanOldResults($dbh, $gis, $gfs, $efs, $rfs);
@@ -154,8 +154,10 @@ sub run {
     if ($onlyDelete) {
 	return "finished deleting old gDG results"; 
     }
-    
-    $self->moveToGus($dbh, $taxonId, $genomeId, $gdgTab, $gdtTab, $gdgs, $testNum);
+
+#    my ($gis, $gfs, $skip_gdgs) = $self->getExistGiGfGdg($dbh, $genomeId);
+my $skip_gdgs = {};
+    $self->moveToGus($dbh, $taxonId, $genomeId, $gdgTab, $gdtTab, $skip_gdgs, $testNum);
     return "finished moving $gdgTab and $gdtTab into GUS central dogma tables";
 }
 
@@ -313,7 +315,6 @@ sub moveToGus {
 	    $ef->setExternalDatabaseReleaseId($genomeId);
 	    $success = $ef->submit(0);
 	    $self->error("could not submit new ExonFeature for " . $gf->getName . " exon $i") if !$success;
-	    
 
 	    my $efLoc = GUS::Model::DoTS::NALocation->new();
 	    $efLoc->setNaFeatureId($ef->getNaFeatureId);
