@@ -431,6 +431,20 @@ sub extractAssemSeqs {
 
 }
 
+sub extractUnalignedAssemSeqs {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $taxonIdList = &getTaxonIdList($mgr);
+
+  my $outputFile = "$mgr->{pipelineDir}/seqfiles/unalignedAssemSeqs.fsa";
+  my $args = "--taxon_id_list '$taxonIdList' --outputfile $outputFile --extractonly";
+
+  $mgr->runPlugin("extractUnalignedAssemSeqs",
+		  "DoTS::DotsBuild::Plugin::ExtractAndBlockAssemblySequences",
+		  $args, "Extracting unaligned assembly sequences");
+
+}
 
 # $name is prevDots or intermedDots
 sub extractDots {
@@ -848,6 +862,21 @@ sub reassemble {
   $mgr->goodbye($msg);
 }
 
+sub deleteAssembliesWithNoAssemblySequences {
+  my ($mgr, $name) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $args = "--taxon_id $taxonId";
+  
+  $mgr->runPlugin("${name}deleteAssembliesWithNoAssSeq", 
+		  "DoTS::DotsBuild::Plugin::DeleteAssembliesWithNoAssemblySequences",
+		  $args, "Deleting assemblies with no assemblysequences");
+  
+}
+
+
 sub matrix {
   my ($name, $mgr) = @_;
 
@@ -869,6 +898,24 @@ sub copyDotsToLiniac {
   my $f = "${name}Dots.fsa";
 
   my $signal = "${name}Dots2liniac";
+  return if $mgr->startStep("Copying $seqfilesDir/$f to $serverPath/$mgr->{buildName}/seqfiles on $liniacServer", $signal);
+
+  $mgr->copyToLiniac($seqfilesDir, $f, $liniacServer, "$serverPath/$mgr->{buildName}/seqfiles");
+
+  $mgr->endStep($signal);
+}
+
+sub copyFileToLiniac {
+  my ($name, $mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $serverPath = $propertySet->getProp('serverPath');
+  my $liniacServer = $propertySet->getProp('liniacServer');
+
+  my $seqfilesDir = "$mgr->{pipelineDir}/seqfiles";
+  my $f = "${name}.fsa";
+
+  my $signal = "${name}2liniac";
   return if $mgr->startStep("Copying $seqfilesDir/$f to $serverPath/$mgr->{buildName}/seqfiles on $liniacServer", $signal);
 
   $mgr->copyToLiniac($seqfilesDir, $f, $liniacServer, "$serverPath/$mgr->{buildName}/seqfiles");
