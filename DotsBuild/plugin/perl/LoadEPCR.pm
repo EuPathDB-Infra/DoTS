@@ -74,22 +74,23 @@ my $debug = 0;
 
 sub run {
 	my $self   = shift;
-	my $ctx = shift;
+	my $args = $self->getArgs;
+	my $algoInvo = $self->getAlgInvocation;
 
-  print $ctx->{cla}->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
-  print "Testing on $ctx->{cla}->{'testnumber'}\n" if $ctx->{cla}->{'testnumber'};
+  print $args->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
+  print "Testing on $args->{'testnumber'}\n" if $args->{'testnumber'};
 
 	############################################################
 	# Put loop here...remember to undefPointerCache()!
 	############################################################
 	my ($idcol,$fh,$dir,$file,$count,$log,$maptableid, $seqsubclassview,$is_reversed);
-	$idcol = $ctx->{ cla }->{ idcol };
-	$dir = $ctx->{ cla }->{ dir };
-	$file = $ctx->{ cla }->{ file };
+	$idcol = $args->{ idcol };
+	$dir = $args->{ dir };
+	$file = $args->{ file };
 	$fh = new FileHandle("$file", "<") || die "File $dir$file not open";
-	$log = new FileHandle("$ctx->{ cla }->{ log }", ">") || die "Log not open";
-        $maptableid = $ctx->{cla}->{maptableid};
-	$seqsubclassview = $ctx->{cla}->{seqsubclassview};	
+	$log = new FileHandle("$args->{ log }", ">") || die "Log not open";
+        $maptableid = $args->{maptableid};
+	$seqsubclassview = $args->{seqsubclassview};	
 	while (my $l = $fh->getline()) {
 		$count++;
 		
@@ -104,7 +105,7 @@ sub run {
 		$is_reversed = 1;
 		}
 		## Start seq_id; parese file until it is reached
-		next if (defined $ctx->{ cla }->{ start } && $ctx->{ cla }->{ start } > $count);
+		next if (defined $args->{ start } && $args->{ start } > $count);
 		## Split location into start and stop
 		my @locs = split /\.\./, $loc;
                 
@@ -126,7 +127,7 @@ sub run {
 			$sgm->setNaSequenceId($naid);
 		}else {
 			$log->print("No na_seq_id: $l\n");
-			$ctx->{ self_inv }->undefPointerCache();
+			$algoInvo->undefPointerCache();
 			next;
 		}
                 $sgm->setMapTableId($maptableid);
@@ -136,8 +137,8 @@ sub run {
 			$log->print("SUBMITTED: $seq_id\t$map_id\t$count\n");
 			$sgm->submit();
 
-		$ctx->{ self_inv }->undefPointerCache();
-		last if (defined $ctx->{cla}->{testnumber} && $count >= $ctx->{cla}->{testnumber});
+		$algoInvo->undefPointerCache();
+		last if (defined $args->{testnumber} && $count >= $args->{testnumber});
 		print STDERR "ENTERED: $count \n" if ($count % 1000 == 0);
 	} #end while()
 
