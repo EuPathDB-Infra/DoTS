@@ -151,7 +151,7 @@ sub run {
     my $c = 0;
     foreach my $coord (@$coords) {
         print "processing chr" . $coord->{chr} . ":" . $coord->{start} . "-" . $coord->{end} . "\n"; 
-	$c += &processRegion($dbh, $coord, $args);
+	$c += $self->processRegion($dbh, $coord, $args);
 	$dbh->commit;
 	push @done_chrs, $coord->{chr};
 	print "completed/skipped chromosomoes: " . join(', ', @done_chrs) . "\n";
@@ -165,7 +165,7 @@ sub run {
 #
 #----------------
 sub processRegion {
-    my ($dbh, $coord, $args) = @_;
+    my ($self, $dbh, $coord, $args) = @_;
 
     my $gdgids = &selectGenomeDotsGenes(@_);
     my $gdg_tab = $args->{'temp_login'} . '.' . $args->{'genome_dots_gene_cache'};
@@ -178,25 +178,31 @@ sub processRegion {
     my $c = 0;
     for (my $i=0; $i<$tot; $i++) {
 	my $gid = $gdgids->[$i];
+	$self->log("processing GDG.$gid ...");
 	
 	# confidence score info
 	my $cs_info = {};
 	# 1. splice signal, polya signal, polya track
+	$self->log("\tsignals ...");
 	DoTS::Gene::ConfidenceScore::Signals::setSignals($dbh, $gdt_tab, $bs_tab,
 							 $gid, $cs_info);
 	# 2. input seq composition (mRNA, total RNA, EST clones, EST libs, EST 5-3 pairs)
+	$self->log("\tcomposition ...");
 	DoTS::Gene::ConfidenceScore::Composition::setComposition($dbh, $gdg_tab, $gdt_tab,
 								 $gid, $cs_info);
 	# 3. protein coding potential
+	$self->log("\tcoding potential ...");
 	DoTS::Gene::ConfidenceScore::Coding::setCoding($dbh, $gdg_tab, $gdt_tab,
 						       $gid, $cs_info);
 	# 4. EST 5'-3' plot score
+	$self->log("\tEST plot score ...");
 	DoTS::Gene::ConfidenceScore::ESTPlotScore::setESTPlotScore($dbh, $gdg_tab, $gdt_tab,
 						       $gid, $chr_id, $cs_info);
 	# overall score
+	$self->log("\toverall score ...");
 	DoTS::Gene::ConfidenceScore::Overall::setScore($dbh, $gdg_tab,
 						       $gid, $cs_info, $stats);
-
+	$self->log("\tdb update ...");
 	&dbUpdate($dbh, $gdg_tab, $gid, $cs_info);
 
 	unless (++$c % 100) {
@@ -228,9 +234,11 @@ sub selectGenomeDotsGenes {
     if ($ss_sel) {
 	$sql .= " and " . ($ss_sel == 1 ? '' : 'not') . " (max_intron >= 47 or contains_mrna = 1)";
     }
+    print "running sql: $sql ...\n";
     my $sth = $dbh->prepareAndExecute($sql);
     my @gdgids;
     while (my ($gdgid) = $sth->fetchrow_array) { push @gdgids, $gdgid; }
+    print "found " . scalar(@gdgids) . " genome dots genes to process\n";
     return \@gdgids;
 }
 
