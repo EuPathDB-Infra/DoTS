@@ -601,6 +601,33 @@ sub copyGenomeAssemSeqsFromLiniac {
     
   $mgr->endStep($signal);
 }
+sub deleteGenomeAlignments {
+  my ($mgr,$queryName) = @_;
+  my $propertySet = $mgr->{propertySet};
+  my $signal = "delete${queryName}GenomeAlignments";
+  return if $mgr->startStep("Deleting entries from BLATAlignments",$signal);
+  my $taxonId = $propertySet->getProp('taxonId');
+  my $genomeId = $propertySet->getProp('genome_db_rls_id');
+  my $qTabId = ($queryName =~ /dots/i ? 56 : 57);
+  $qTabId = 89 if ($queryName =~ /geneTag/i);
+  my $qRelId; 
+  if ($qTabId == 57) {
+    $qRelId = $propertySet->getProp('gb_db_rel_id');
+  }
+  if (($qTabId == 89) {
+    my @DBs = split(/,/, $propertySet->getProp('geneTrapDbRls'));
+    foreach my $db (@DBs) {
+      my ($name, $id) = split(/:/, $db);
+      $qRelId .= "id,";
+    }
+    $qRelId =~ s/,$//;
+  }
+  my $logFile = "$mgr->{pipelineDir}/logs/${signal}.log";
+  my $sql = "select blat_alignment_id from dots.blatalignment where target_table_id = 245 and target_external_db_release_id = $genomeId and query_external_db_release_id in ($qRelId) and query_table_id = $qTabId and query_taxon_id=$taxonId and target_taxon_id = $taxon_id";
+  my $cmd = "deleteEntries.pl --table DoTS::BLATAlignment --idSQL \"$sql\" --verbose 2>> $logF\ile";
+  $mgr->runCmd($cmd);
+  $mgr->endStep($signal);
+}
 
 sub loadGenomeAlignments {
   my ($mgr, $queryName, $targetName) = @_;
