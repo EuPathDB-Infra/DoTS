@@ -75,6 +75,8 @@ my @properties =
  ["load_db_rls_id",   "",  "a new id for the external_database_release table"],
  ["pfam_db_rls_id",   "",  "a new id for the external_database_release table"],
  ["smart_db_rls_id",   "",  "a new id for the external_database_release table"],
+ ["cog_db_rls_id", "","a new id,COG of CDD,for the external_database_release table"],
+ ["cd_db_rls_id", "","a new id, CD of CDD, for the external_database_release table"],
  ["nrdb_db_rls_id" , "","the external_database_release_id for nrdb"],
  ["imclone_db_rls_id" , "","the external_database_release_id for imclone"],
  ["locuslink_db_rls_id" , "","the external_database_release_id for LL"],
@@ -251,8 +253,6 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &copySimilaritiesFromLiniac();
 
-&makeProjectLink();
-
 &insertProteinSimilarities("finalDots-prodom", "DoTS::MotifAASequence");
 
 &insertProteinSimilarities("finalDots-nrdb", "DoTS::ExternalAASequence");
@@ -263,7 +263,7 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 #&applyGORules(); DB
 
-&copyGOPredictions(); 
+#&copyGOPredictions(); This needs to be discussed and probably run
 
 &assignSequenceDescription();
 
@@ -359,7 +359,7 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &loadGeneCardsToDoTS();
 
-#&makeProjectLink();  put back here
+&makeProjectLink(); 
 
 $mgr->goodbye("Pipeline complete!\n");
 
@@ -428,7 +428,7 @@ sub createDotsPipelineDir {
     &makeSimilarityDir("finalDots", "cdd", $buildName, $dotsBuildDir, 
 		       $serverPath, $nodePath, $bsTaskSize, 
 		       $ncbiBlastBinPathLiniac,
-		       "cdd/All",  '\w+\|\w+\|(\S+)', 'rpsblast', 
+		       "cdd/All",  '\w+\|\w+\|\d+\s+(\w+)', 'rpsblast', 
 		       "-a 2 -e .1 -p F");
 
     &makeAssemblyDir("initial", $buildName, $dotsBuildDir);
@@ -1103,6 +1103,18 @@ sub unpackCDD {
     }
     
     $mgr->runCmd("catFiles --fileGlob '$downloadSubDir/smart*.csq' --outFile $downloadSubDir/SMART");
+
+    if (-e "$downloadSubDir/COG") {
+      $mgr->runCmd("rm -f $downloadSubDir/COG");
+    }
+    
+    $mgr->runCmd("catFiles --fileGlob '$downloadSubDir/COG*.csq' --outFile $downloadSubDir/COG");
+
+    if (-e "$downloadSubDir/CD") {
+      $mgr->runCmd("rm -f $downloadSubDir/CD");
+    }
+    
+    $mgr->runCmd("catFiles --fileGlob '$downloadSubDir/cd*.csq' --outFile $downloadSubDir/CD");
     
     $mgr->runCmd("rm -r $downloadSubDir/cdd.tar");
 	
@@ -1157,6 +1169,32 @@ sub insertCDD {
 		    $smartArgs,
 		    "Inserting Smart", 'downloadGOStuff');
 
+  my $cogDB = $propertySet->getProp('cog_db_rls_id');
+
+  $regex_src_id = "^\\>\\w+\\|\\w+\\|\\w+\\s(COG\\w+)";
+  $regex_name = "^\\S+\\sCOG\\w+\\,\\s([\\w\\_\\s]+)\\,\\s";
+  $regex_desc = "^\\S+\\sCOG\\w+\\,\\s(.*)";
+  
+  my $cogArgs = "--verbose --table_name 'DoTS::MotifAASequence' --sequencefile '$downloadSubDir/COG' --external_database_release_id $cogDB  --regex_source_id \"$regex_src_id\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
+  
+  $mgr->runPlugin("insertCOG", 
+		  "GUS::Common::Plugin::InsertNewExternalSequences", 
+		  $cogArgs,
+		  "Inserting COG", 'downloadGOStuff');
+
+  my $cdDB = $propertySet->getProp('cd_db_rls_id');
+  
+  $regex_src_id = "^\\>\\w+\\|\\w+\\|\\w+\\s(cd\\w+)";
+  $regex_name = "^\\S+\\scd\\w+\\,\\s([\\w\\_\\s]+)\\,\\s";
+  $regex_desc = "^\\S+\\scd\\w+\\,\\s(.*)";
+  
+  my $cdArgs = "--verbose --table_name 'DoTS::MotifAASequence' --sequencefile '$downloadSubDir/CD' --external_database_release_id $cdDB  --regex_source_id \"$regex_src_id\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
+  
+  $mgr->runPlugin("insertCD", 
+		  "GUS::Common::Plugin::InsertNewExternalSequences", 
+		  $cdArgs,
+		  "Inserting CD", 'downloadGOStuff');
+  
 }
 
 sub downloadProdom {
@@ -1339,6 +1377,10 @@ sub substituteCDDPKs {
 
     my $loadDB = $propertySet->getProp('load_db_rls_id');
 
+    my $cogDB = $propertySet->getProp('cog_db_rls_id');
+
+    my $cdDB = $propertySet->getProp('cd_db_rls_id');
+
     my $gusConfigFile = $propertySet->getProp('gusConfigFile');
 
     my $signal = "substituteCDDPKs";
@@ -1350,7 +1392,7 @@ sub substituteCDDPKs {
     my $outfile = "$pipelineDir/similarity/finalDots-cdd/blastSimilarity.out.correctPK";
     my $logfile = "$pipelineDir/logs/$signal.log";
 
-    my $sql = "select source_id,aa_sequence_id from dots.motifaasequence where external_database_release_id in ($smartDB,$pfamDB,$loadDB)";
+    my $sql = "select source_id,aa_sequence_id from dots.motifaasequence where external_database_release_id in ($smartDB,$pfamDB,$loadDB,$cogDB,$cdDB)";
 
     $mgr->runCmd("cat $infile | substitutePrimKeysInSimilarity --subjectSQL \"$sql\" --verbose --gusConfigFile $gusConfigFile > $outfile 2>> $logfile");
 
@@ -1368,13 +1410,14 @@ sub assignSequenceDescription {
     my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}"; 
 
     my $assignDescriptionRestart = $propertySet->getProp('assignDescriptionRestart');
+                                                          
 
-    my $restart = ($assignDescriptionRestart) ? "select na_sequence_id from dots.assembly where row_alg_invocation_id in ($assignDescriptionRestart)" : "";
+    my $restart = $assignDescriptionRestart > 1 ? "--restart \"select na_sequence_id from dots.assembly where row_alg_invocation_id in ($assignDescriptionRestart)\"" : "";
 
     my $dotsMGIfile = "$pipelineDir/misc/${prefix}_bestNRDBHits.dat";
     my $sql = "select na_sequence_id,na_sequence_id from dots.Assembly where taxon_id = $taxonId";
 
-    my $args = "--update_rna_descriptions --copy_manual_descriptions --taxon_id $taxonId --table DoTS::Assembly --query_table DoTS::Assembly --doNotVersion --nrdb_ext_db_rls_id $nrdbReleaseId --dots_mgi_file $dotsMGIfile --restart \"$restart\" --idSQL \"$sql\"";
+    my $args = "--update_rna_descriptions --copy_manual_descriptions --taxon_id $taxonId --table DoTS::Assembly --query_table DoTS::Assembly $restart --doNotVersion --nrdb_ext_db_rls_id $nrdbReleaseId --dots_mgi_file $dotsMGIfile  --idSQL \"$sql\"";
 
     $mgr->runPlugin("assignSeqDescrip", 
 		    "DoTS::DotsBuild::Plugin::AssignSequenceDescription",
@@ -1594,18 +1637,20 @@ sub prepareDownloadSiteFiles {
 		 "$pipelineDir/misc/$nrdbHitsFile",
                  "$pipelineDir/seqfiles/$predictedProteinsFile");
 
-    my $filterfile = "$pipelineDir/misc/imcloneOnlyAssemblies.dat";
+    #my $filterfile = "$pipelineDir/misc/imcloneOnlyAssemblies.dat";
 
     my $logfile = "$pipelineDir/logs/${signal}.log";
 
-    my $filterpattern = "\>?(\S+)";
+    #my $filterpattern = "\>?(\S+)";
 
-    my $inputpattern = "\>?DT\.(\S+)";
+    #my $inputpattern = "\>?DT\.(\S+)";
 
     foreach my $file (@files) {
 	my $outputfile = "$pipelineDir/downloadSite/" . &basename($file);
 	
-	my $cmd = "filterIds $file $filterfile $filterpattern $inputpattern > $outputfile 2>> $logfile";
+	#my $cmd = "filterIds $file $filterfile $filterpattern $inputpattern > $outputfile 2>> $logfile";
+
+	my $cmd = "cp $file $outputfile";
 
 	$mgr->runCmd($cmd);
 
