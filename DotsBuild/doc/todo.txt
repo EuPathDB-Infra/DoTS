@@ -1,4 +1,13 @@
-          ================ DOTS BUILD TODO ================
+          ================ DOTS BUILD TODO ===============
+NEW ISSUES 
+
+Discover what makes All on liniac-we made All but rpsblast replaced it.
+Add procedures to dotsbuild to add COG and cd to db
+Alter InsertNewExternalSequences to truncate descriptions to <=255   
+
+
+
+
 BUILD ISSUES
 
 There are missing assemblies discovered by Angel-investigate - there are only 8 truly missing
