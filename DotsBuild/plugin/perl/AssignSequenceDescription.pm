@@ -1,7 +1,4 @@
-############################################################
-## Change Package name....
-############################################################
-package AssignSequenceDescription;
+package DoTS::DotsBuild::Plugin::AssignSequenceDescription;
 
 ## Updates the RNA.name and RNA.description fields..
 
@@ -14,115 +11,104 @@ package AssignSequenceDescription;
 
 ## Brian Brunk 7/21/00
 
+@ISA = qw(GUS::PluginMgr::Plugin);
 use strict;
-use DBI;
-############################################################
-# Add any specific objects (GUSdev::) here
-############################################################
-use Objects::GUSdev::RNA;
-use Objects::GUSdev::Similarity;
-use Objects::GUSdev::ExternalNASequence;
-
-
+use GUS::Model::DoTS::RNA;
+use GUS::Model::DoTS::Similarity;
+use GUS::Model::DoTS::ExternalNASequence;
 
 sub new {
-	my $Class = shift;
+  my $Class = shift;
 
-	return bless {}, $Class;
-}
+  my $m = bless {}, $Class;
 
-sub Usage {
-	my $M   = shift;
-	return 'Assigns description to sequence based on similarity to nrdb neighbors';
-}
+  my $usage = 'Assigns description to sequence based on similarity to nrdb neighbors';
 
-############################################################
-# put the options in this method....
-############################################################
-sub EasyCspOptions {
-	my $M   = shift;
-	{
+  my $easycsp =
+    [
+     {o => 'testnumber',
+      t => 'int',
+      h => 'number of iterations for testing',
+     },
 
- testnumber        => {
-                       o => 'testnumber=i',
-                       h => 'number of iterations for testing',
-                      },
+     {o => 'restart',
+      t => 'string',
+      h => 'sql string that returns primary_key list from --table to ignore',
+     },
+     {o => 'deleteEvidence',
+      t => 'boolean',
+      h => 'delete evidence foreach RNA if update (more efficient to version/delete with sql if doing all entries)',
+     },
+     {o => 'doNotVersion',
+      t => 'boolean',
+      h => 'Sets globalDoNotVersion to 1',
+     },
+     {o => 'addEvidence',
+      t => 'boolean',
+      h => 'evidence to support description',
+     },
+     {o => 'use_mrna',
+      t => 'boolean',
+      h => 'use contained_mrna to assign description if Assembly',
+     },
+     {o => 'idSQL=s',
+      h => 'SQL statement:  should return table,query_table primary_key list from --table',
+     },
+     {o => 'ignoreAlgInv',
+      t => 'string',
+      h => 'includes " and s.row_alg_invocation_id not in (ignoreAlgInv)" in similarity query',
+     },
+     {
+      o => 'sim_mod_date',
+      t => 'string',
+      h => 'includes " and s.modification_date >= \'sim_mod_date\'" in similarity query',
+     },
+     {o => 'query_table',
+      t => 'string',
+      h => 'query table which contains similarities (full className)',
+     },
+     {o => 'table',
+      t => 'string',
+      h => 'table to  update description (full className)',
+     },
+     {o => 'nrdb_ext_db_rls_id',
+      t => 'int',
+      h => 'id of external db release',
+      d => '4194',
+     },
+     {o => 'attribute',
+      t => 'string',
+      h => 'name of attribute to udpate',
+      d => 'description',
+     },
+     {o => 'dots_mgi_file',
+      t => 'string',
+      h => 'name of a file to output iformation for Carol Bult...hack',
+     },
+     {o => 'update_rna_descriptions',
+      t => 'boolean',
+      h => 'Update the RNA.description field',
+     },
+     {o => 'taxon_id',
+      t => 'int',
+      h => 'taxon_id, required for update_rna_descriptions and copy_manual_descriptions',
+     },
+     {o => 'copy_manual_descriptions',
+      t => 'boolean',
+      h => 'scopy the  manually reviewed descriptions back to Assembly',
+     },
+    ];
 
- restart           => {
-                       o => 'restart=s',
-                       h => 'sql string that returns primary_key list from --table to ignore',
-                      },
+  $m->initialize({requiredDbVersion => {},
+		  cvsRevision => '$Revision$', # cvs fills this in!
+		  cvsTag => '$Name$', # cvs fills this in!
+		  name => ref($m),
+		  revisionNotes => 'make consistent with GUS 3.0',
+		  easyCspOptions => $easycsp,
+		  usage => $usage
+		 });
 
- deleteEvidence    => {
-                       o => 'deleteEvidence!',
-                       h => 'delete evidence foreach RNA if update (more efficient to version/delete with sql if doing all entries)',
-                      },
- doNotVersion      => {
-                       o => 'doNotVersion!',
-                       h => 'Sets globalDoNotVersion to 1',
-                      },
- addEvidence       => {
-                       o => 'addEvidence!',
-                       h => 'evidence to support description',
-                      },
- use_mrna          => {
-                       o => 'use_mrna',
-                       t => 'boolean',
-                       h => 'use contained_mrna to assign description if Assembly',
-                      },
- idSQL             => {
-                       o => 'idSQL=s',
-                       h => 'SQL statement:  should return table,query_table primary_key list from --table',
-                      },
-  ignoreAlgInv      => {
-                        o => 'ignoreAlgInv',
-                        t => 'string',
-                        h => 'includes " and s.row_alg_invocation_id not in (ignoreAlgInv)" in similarity query',
-                       },
-  sim_mod_date     => {
-                        o => 'sim_mod_date',
-                        t => 'string',
-                        h => 'includes " and s.modification_date >= \'sim_mod_date\'" in similarity query',
-                       },
- query_table       => {
-                       o => 'query_table=s',
-                       h => 'query table which contains similarities',
-                      },
- table             => {
-                       o => 'table=s',
-                       h => 'table to  update description',
-                      },
- nrdb_ext_db_id    => {
-                       o => 'nrdb_ext_db_id',
-                       t => 'int',
-                       h => 'table to  update description',
-                       d => '4194',
-                      },
- attribute         => {
-                       o => 'attribute',
-                       t => 'string',
-                       h => 'name of attribute to udpate',
-                       d => 'description',
-                      },
- dots_mgi_file      => {
-                       o => 'dots_mgi_file',
-                       t => 'string',
-                       h => 'name of a file to output iformation for Carol Bult...hack',
-                      },
- update_rna_descriptions   => {
-                       o => 'update_rna_descriptions!',
-                       h => 'Update the RNA.description field',
-		      },
- taxon_id            => {
-                       o => 'taxon_id',
-                       t => 'int',
-                       h => 'taxon_id, required for update_rna_descriptions and copy_manual_descriptions',
-		      },
- copy_manual_descriptions   => {
-                       o => 'copy_manual_descriptions!',
-                       h => 'scopy the  manually reviewed descriptions back to Assembly',
-		      },
-                    }
+  return $m;
 }
 
 my $ctx;
@@ -185,11 +171,13 @@ sub Run {
 
   my $query_table_id = $ctx->{self_inv}->getTableIdFromTableName($query_table);
   my $table_pk = $ctx->{self_inv}->getTablePKFromTableId($ctx->{self_inv}->getTableIdFromTableName($ctx->{cla}->{table}));
-  eval("require Objects::".$ctx->{self_inv}->getDatabase()->getDbName()."::$ctx->{cla}->{table}");
+  eval("require $ctx->{cla}->{table}");
 
-  my $protQuery = "select s.similarity_id,ea.aa_sequence_id,ea.external_db_id,ea.source_id,ea.name,ea.description,s.number_identical,s.total_match_length,s.pvalue_mant,s.pvalue_exp,ea.length,s.min_subject_start,s.max_subject_end,s.number_of_matches
-      from Similarity s, ExternalAASequence ea
+  my $protQuery = "select s.similarity_id,ea.aa_sequence_id,edr.external_db_id,ea.source_id,ea.name,ea.description,s.number_identical,s.total_match_length,s.pvalue_mant,s.pvalue_exp,ea.length,s.min_subject_start,s.max_subject_end,s.number_of_matches
+      from DoTS.Similarity s, DoTS.ExternalAASequence ea,
+           SRes.ExternalDatabaseRelease edr
       where query_table_id = $query_table_id 
+      and ea.external_database_release_id = edr.external_database_release_id
       and query_id = ?
       and s.subject_table_id = 83";
 
@@ -197,7 +185,7 @@ sub Run {
   $protQuery .= " and s.modification_date >= '$ctx->{cla}->{sim_mod_date}'" if $ctx->{cla}->{sim_mod_date};
 
   $protQuery .= " and s.subject_id = ea.aa_sequence_id
-      and ea.external_db_id = $ctx->{cla}->{nrdb_ext_db_id}
+      and ea.external_database_release_id = $ctx->{cla}->{nrdb_ext_db_rls_id}
       order by s.pvalue_exp,s.pvalue_mant,s.number_identical/s.total_match_length desc";
 
   print STDERR "debug: protQuery: $protQuery\n" if $debug || $ctx->{cla}->{verbose};
@@ -205,7 +193,7 @@ sub Run {
   my $protStmt = $dbh->prepare($protQuery);
 
   ##need a query to get Similarities if protein as there could be duplicate rows...
-  my $simQuery = "select * from Similarity where
+  my $simQuery = "select * from DoTS.Similarity where
     query_table_id = $query_table_id 
     and query_id = ?
     and subject_table_id = 83
@@ -216,9 +204,11 @@ sub Run {
 
   $simStmt = $dbh->prepare($simQuery);
 
-  my $mRNAQuery = "select e.external_db_id,e.source_id,e.name,e.description 
-  from AssemblySequence aseq, ExternalNASequence e 
+  my $mRNAQuery = "select edr.external_db_id,e.source_id,e.name,e.description 
+  from Dots.AssemblySequence aseq, Dots.ExternalNASequence e,
+       SRes.ExternalDatabaseRelease edr
   where aseq.assembly_na_sequence_id = ? 
+  and e.external_database_release_id = edr.external_database_release_id
   and e.na_sequence_id =  aseq.na_sequence_id 
   and e.sequence_type_id in (2,7) 
   order by e.length desc";
@@ -318,7 +308,7 @@ sub Run {
 }
 
 sub updateAssemblyFromRNA {
-  my($assem,$ext_db_id,$gacc,$gname,$gdesc) = @_;
+  my($assem,$ext_db_rls_id,$gacc,$gname,$gdesc) = @_;
   print STDERR "updateNameFromRNA: ($assem,$gacc,$gname,$gdesc)\n" if $ctx->{cla}->{verbose};
   ##first update name and desc if different from above
 ##  $assem->set('name',$gname) if $gname ne $assem->get('name');
@@ -327,8 +317,9 @@ sub updateAssemblyFromRNA {
   
   ##should do the evidence stuff regardless of whether is modified this time as don't have at all!
   ##external_db_id could be 78 or 22
-  my $fact = ExternalNASequence->new({ 'external_db_id' => $ext_db_id,
-                                       'source_id' => $gacc });
+  my $fact = GUS::Model::DoTS::ExternalNASequence->
+    new({ 'external_database_release_id' => $ext_db_rls_id,
+	  'source_id' => $gacc });
   
   ##if have retrieved fact tehn add evidence..
   if ($ctx->{cla}->{addEvidence}) {
@@ -351,7 +342,7 @@ sub updateNameFromSP {
   ##if the matchlength > sub_end - sub_start (overlapping..) want to compute region covered..
   if ($ml > $sub_end - $sub_start + 1 || $ctx->{cla}->{addEvidence}) {
     print STDERR "\nEXTRACTING \% coverage from similarity...num_matches = $num_matches\n\n" if $debug;
-    my $simF = Similarity->new({'similarity_id' => $sim_id});
+    my $simF = GUS::Model::DoTS::Similarity->new({'similarity_id' => $sim_id});
     $simF->retrieveFromDB();
     $obj->addEvidence($simF,1,$ctx->{cla}->{attribute}) if $ctx->{cla}->{addEvidence};
     if($ml > $sub_end - $sub_start + 1){

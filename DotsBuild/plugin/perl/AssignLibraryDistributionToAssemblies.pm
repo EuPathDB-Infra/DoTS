@@ -1,66 +1,53 @@
-############################################################
-## Change Package name....
-############################################################
-package AssignLibraryDistributionToAssemblies;
+package DoTS::DotsBuild::Plugin::AssignLibraryDistributionToAssemblies;
 
+@ISA = qw(GUS::PluginMgr::Plugin);
 use strict;
-use DBI;
+use GUS::Model::DoTS::AssemblyAnatomyPercent;
 
-############################################################
-# Add any specific objects (GUSdev::) here
-############################################################
-use Objects::GUSdev::AssemblyAnatomyPercent;
-
+# ----------------------------------------------------------------------
+# create and initalize new plugin instance.
 
 sub new {
-	my $Class = shift;
+  my $Class = shift;
 
-	return bless {}, $Class;
-}
+  my $m = bless {}, $Class;
 
-sub Usage {
-	my $M   = shift;
-	return 'Assigns library distribution to DOTS Assemblies';
-}
+  my $usage = 'assign library distribution to assemblies';
 
-############################################################
-# put the options in this method....
-############################################################
-sub EasyCspOptions {
-  my $M   = shift;
-  {
+  my $easycsp =
+    [
+     {o => 'testnumber',
+      t => 'int',
+      h => 'number of iterations for testing',
+     },
+     {o => 'taxon_id',
+      t => 'int',
+      h => 'taxon_id',
+     },
+     {o => 'restart',
+      t => 'string',
+      h => 'restarts: ignores assembies in the AssemblyAnatomyPercent table >= this date',
+     },
+     {o => 'idSQL',
+      t => 'string',
+      h => 'SQL query that returns Assembly na_sequence_ids, deletes these from AssemblyAnatomyPercent unless >= restart date and then creates new entries for each na_sequence_id',
+     },
+     {o => 'update',
+      t => 'boolean',
+      h => 'Deletes existing rows from AssemblyAnatomyPercent for these na_sequence_ids',
+     },
+   ]
 
-    #		test_opt1 => {
-    #									o => 'opt1=s',
-    #									h => 'option 1 for test application',
-    #									d => 4,
-    #									l => 1,	ld => ':',
-    #									e => [ qw( 1 2 3 4 ) ],
-    #								 },
+  $m->initialize({requiredDbVersion => {},
+		  cvsRevision => '$Revision$', # cvs fills this in!
+		  cvsTag => '$Name$', # cvs fills this in!
+		  name => ref($m),
+		  revisionNotes => 'make consistent with GUS 3.0',
+		  easyCspOptions => $easycsp,
+		  usage => $usage
+		 });
 
-    testnumber        => {
-                          o => 'testnumber=i',
-                          h => 'number of iterations for testing',
-                         },
-    taxon_id           => {
-	                  o => 'taxon_idd=i',
-                          h => 'taxon_id',
-		         },
-
-                           restart           => {
-                                                 o => 'restart=s',
-                                                 h => 'restarts: ignores assembies in the AssemblyAnatomyPercent table >= this date',
-                                                },
-
-                                                  idSQL            => {
-                                                                       o => 'idSQL=s',
-                                                                       h => 'SQL query that returns Assembly na_sequence_ids, deletes these from AssemblyAnatomyPercent unless >= restart date and then creates new entries for each na_sequence_id',
-                                                                      },
-                                                                        update           => {
-                                                                                             o => 'update!',
-                                                                                             h => 'Deletes existing rows from AssemblyAnatomyPercent for these na_sequence_ids',
-                                                                                            },
-                                                                                          }
+  return $m;
 }
 
 my $debug = 0;
@@ -92,7 +79,7 @@ sub Run {
 
   my %ignore;
   if ($ctx->{'restart'}) {
-    $stmt = $dbh->prepare("select distinct na_sequence_id from AssemblyAnatomyPercent where modification_date >= '$ctx->{cla}->{restart}'");
+    $stmt = $dbh->prepare("select distinct na_sequence_id from DoTS.AssemblyAnatomyPercent where modification_date >= '$ctx->{cla}->{restart}'");
     $stmt->execute();
     while ( my($id) = $stmt->fetchrow_array()) {
       $ignore{$id} = 1;
@@ -103,7 +90,7 @@ sub Run {
   ##now need to step through the assemblies and get the source_library for each EST
   ##calculating the % contribution...
 
-  $stmt = $dbh->prepare("select anatomy_id,parent_id,hier_level from Anatomy");
+  $stmt = $dbh->prepare("select anatomy_id,parent_id,hier_level from SRes.Anatomy");
   $stmt->execute();
   while (my ($anatomy_id,$parent_id,$hier_level) = $stmt->fetchrow_array()) {
     print STDERR "$anatomy_id: parent=$parent_id, level=$hier_level\n" if $debug;
@@ -114,7 +101,7 @@ sub Run {
 
   ##could get those things that are assigned to multiple anat_ids...track number
   ##and when processing take into account somehow...
-  $stmt = $dbh->prepare("select dbest_library_id,anatomy_id from AnatomyLibrary order by dbest_library_id");
+  $stmt = $dbh->prepare("select dbest_library_id,anatomy_id from DoTS.AnatomyLibrary order by dbest_library_id");
 	
   $stmt->execute();
 
@@ -155,8 +142,8 @@ sub Run {
 
   ##prepare the library query statment to reuse in following loop
   my $libQuery = " select seq.accession,al.dbest_library_id,al.anatomy_id
-        from AssemblySequence ass,
-        AnatomyLibrary al, LENSSequence seq, Clone c, Library l
+        from DoTS.AssemblySequence ass,
+        DoTS.AnatomyLibrary al, LENSSequence seq, DoTS.Clone c, DoTS.Library l
         where ass.assembly_na_sequence_id = ?
         and seq.na_sequence_id = ass.na_sequence_id
         and c.clone_id = seq.clone_id
@@ -165,7 +152,7 @@ sub Run {
 
   $stmt = $dbh->prepare($libQuery);
 
-  my $updateStmt = $dbh->prepare('select * from AssemblyAnatomyPercent where na_sequence_id = ?');
+  my $updateStmt = $dbh->prepare('select * from DoTS.AssemblyAnatomyPercent where na_sequence_id = ?');
 
   foreach my $na_sequence_id (@todo) {
     my %library;
@@ -182,7 +169,7 @@ sub Run {
       $updateStmt->execute($na_sequence_id);
       my @del;
       while (my $row = $updateStmt->fetchrow_hashref()) {
-        push(@del,AssemblyAnatomyPercent->new($row));
+        push(@del,GUS::Model::DoTS::AssemblyAnatomyPercent->new($row));
       }
       if (@del) {
         $ctx->{'self_inv'}->manageTransaction(undef,'begin'); ##starts a transaction...
@@ -295,12 +282,13 @@ sub analyzeLib{
 
 sub makeLibDist {
   my($na_sequence_id,$taxon_id,$anat_id,$percent,$anatomy_ests,$est_count) = @_;
-  my$libH = AssemblyAnatomyPercent->new({'na_sequence_id' => $na_sequence_id,
-                                         'anatomy_id' => $anat_id,
-                                         'est_count' => $est_count,
-                                         'anatomy_ests' => $anatomy_ests,
-                                         'percent' => $percent,
-                                         'taxon_id' => $taxon_id});
+  my$libH = GUS::Model::DoTS::AssemblyAnatomyPercent->
+    new({'na_sequence_id' => $na_sequence_id,
+	 'anatomy_id' => $anat_id,
+	 'est_count' => $est_count,
+	 'anatomy_ests' => $anatomy_ests,
+	 'percent' => $percent,
+	 'taxon_id' => $taxon_id});
   return $libH;
 }
 

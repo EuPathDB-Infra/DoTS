@@ -3,96 +3,85 @@
 # Author: Shannon McWeeney         # 
 ###################################
 
+@ISA = qw(GUS::PluginMgr::Plugin);
 use strict;
-use DBI;
-use Objects::GUSdev::EPCR;
+use GUS::Model::DoTS::EPCR;
 use FileHandle;
 use DirHandle;
 
-my $Cfg;  ##global configuration object....passed into constructor as second arg
+sub new {
+  my ($class) = @_;
 
+  my $self = {};
+  bless($self,$class);
 
-sub new{
-	my $Class = shift;
-	$Cfg = shift;  ##configuration object...
-	return bless {}, $Class;
+  my $usage = 'Parses epcr output files for EPCR table in GUS. No notion of updates currentl';
+
+  my $easycsp =
+    [
+     {o => 'maptable',
+      t => 'string',
+      h => 'Name of mapping source table',
+      d => 'GeneMap',
+     },
+     {o => 'idcol',
+      h => 'Name of column from NASequenceImp to search for external ids',
+      t => 'string', 
+      d => 'string1'
+     },
+     {o => 'file',
+      t => 'string',
+      h => 'File name to load data from',
+     },
+     {o => 'dir',
+      t => 'string',
+      h => 'Working directory',
+     },
+     {o => 'log',
+      t => 'string',
+      h => 'Log file location (full path).',
+     },
+     {o => 'maptableid',
+      t => 'string',
+      h => 'Id for mapping table, 471 for plasmo, 366 for genemap ',
+      d => '366',
+     },
+     {o => 'seqsubclassview',
+      t => 'string',
+      h =>  'Subclass view: Assembly for DoTS, ExternalNASequence for others',
+      d => 'Assembly',
+     },
+     {o => 'testnumber',
+      t => 'int',
+      h => 'number of iterations for testing',
+     },
+     {o => 'start',
+      t => 'string',
+      h => 'Line number to start entering from',
+      d => '1',
+     },
+    ];
+
+  $self->initialize({requiredDbVersion => {},
+		     cvsRevision => '$Revision$', # cvs fills this in!
+		     cvsTag => '$Name$', # cvs fills this in!
+		     name => ref($self),
+		     revisionNotes => 'make consistent with GUS 3.0',
+		     easyCspOptions => $easycsp,
+		     usage => $usage
+		    });
+
+  return $self;
 }
 
-sub Usage {
-	my $M   = shift;
-	return 'Parses epcr output files for EPCR table in GUS. No notion of updates currently';
-}
-
-############################################################
-# put the options in this method....
-############################################################
-sub EasyCspOptions {
-	my $M   = shift;
-	{
-		maptable => {
-			o => 'maptable=s',
-			t => 'string',
-			h => 'Name of mapping source table',
-			d => 'GeneMap',
-		},
-				
-		idcol => {
-			o => 'idcol=s',
-			h => 'Name of column from NASequenceImp to search for external ids',
-			d => 'string1'
-				},
-		file => {
-						 o => 'file=s',
-						 h => 'File name to load data from',
-						},
-		dir => {
-						o => 'dir=s',
-						h => 'Working directory',
-
-					 },
-		log => {
-						o => 'log=s',
-						h => 'Log file location (full path).',
-					 },
-                maptableid => {            o => 'maptableid=s',
-                                          h => 'Id for mapping table, 471 for plasmo, 366 for genemap ',
-		                          d => '366',
-                
-                              },
-                seqsubclassview =>  {    o => 'seqsubclassview=s',
-                                         h =>  'Subclass view: Assembly for DoTS, ExternalNASequence for others',
-                                         d => 'Assembly', 
-                                    },
-
-		testnumber => {
-									 o => 'testnumber=i',
-									 h => 'number of iterations for testing',
-									},
-	 start => {
-						 o => 'start=s',
-						 h => 'Line number to start entering from',
-                                                 d => '1',
-						},
-	}
-}
-
-my $ctx;
 my $debug = 0;
 
 sub Run {
 	my $M   = shift;
-	$ctx = shift;
+	my $ctx = shift;
 
   print $ctx->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
   print "Testing on $ctx->{'testnumber'}\n" if $ctx->{'testnumber'};
-
-# open dbi database connection
-## note that the login and password are coming from the .GUS.cfg file.
-
-  	print STDERR "Establishing dbi login\n" if $debug || $ctx->{cla}->{verbose};
-  	my $dblogin    = $Cfg->lookup( '',    'gus/login' );
-  	my $dbpassword = $Cfg->lookup( '',    'gus/password' );
-  	my $dbh = DBI->connect(undef, "$dblogin","$dbpassword")|| die $DBI::errstr;
 
 	############################################################
 	# Put loop here...remember to undefPointerCache()!
@@ -126,7 +115,7 @@ sub Run {
                 
 
 		## Build entry
-		my $sgm = EPCR->new( {'start_pos' => $locs[0], 'stop_pos' => $locs[1]});
+		my $sgm = GUS::Model::DoTS::EPCR->new( {'start_pos' => $locs[0], 'stop_pos' => $locs[1]});
 			$sgm->setIsReversed($is_reversed);
 			$sgm->setMapId($map_id);
 		
@@ -157,7 +146,6 @@ sub Run {
 		print STDERR "ENTERED: $count \n" if ($count % 1000 == 0);
 	} #end while()
 
-	$dbh->disconnect(); ##close database connection
 	print STDERR "ENTERED: $count\n";
 	return "Entered $count.";
 }

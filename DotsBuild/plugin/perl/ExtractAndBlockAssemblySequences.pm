@@ -1,69 +1,52 @@
-############################################################
-## Change Package name....
-############################################################
-package ExtractAndBlockAssemblySequences;
+package DoTS::DotsBuild::Plugin::ExtractAndBlockAssemblySequences;
 
+@ISA = qw(GUS::PluginMgr::Plugin);
 use strict;
-
-############################################################
-# Add any specific objects (GUSdev::) here
-############################################################
-
-use Objects::GUSdev::AssemblySequence;
-##for query handle on database....
-use DBI;
+use GUS::Model::DoTS::AssemblySequence;
+use CBIL::Bio::SequenceUtils;
 
 sub new {
   my $Class = shift;
 
-  return bless {}, $Class;
-}
+  my $m = bless {}, $Class;
 
-sub Usage {
-  my $M   = shift;
-  return 'Extracts unprocessed AssembySequences, blocks them and  writes to a file for clustering';
-}
+  my $usage = 'Extract unprocessed AssembySequences, block them and write to a file for clustering';
 
-############################################################
-# put the options in this method....
-############################################################
-sub EasyCspOptions {
-  my $M   = shift;
-  {
+  my $easycsp =
+    [
+     {o => 'testnumber=i',
+      h => 'number of iterations for testing',
+     },
+     {o => 'taxon_id=i',
+      h => 'taxon_id for sequences to process: 8=Hum, 14=Mus.',
+     },
+     {o => 'outputfile=s',
+      h => 'Name of file for output sequences',
+     },
+     {o => 'rm_options',
+      t => 'string',
+      h => 'RepeatMasker options',
+     },
+     {o => 'idSQL',
+      t => 'string',
+      h => 'SQL query that returns assembly_sequence_ids to be processed',
+     },
+     {o => 'extractonly',
+      t => 'boolean',
+      h => 'if true then does not Block extracted sequences',
+     }
+    ];
 
-  testnumber        => {
-                        o => 'testnumber=i',
-                        h => 'number of iterations for testing',
-                       },
-                         
-  taxon_id          => {
-                        o => 'taxon_id=i',
-                        h => 'taxon_id for sequences to process: 8=Hum, 14=Mus.',
-                       },
+  $m->initialize({requiredDbVersion => {},
+		  cvsRevision => '$Revision$', # cvs fills this in!
+		  cvsTag => '$Name$', # cvs fills this in!
+		  name => ref($m),
+		  revisionNotes => 'make consistent with GUS 3.0',
+		  easyCspOptions => $easycsp,
+		  usage => $usage
+		 });
 
-  outputfile        => {
-                        o => 'outputfile=s',
-                        h => 'Name of file for output sequences',
-                       },
-                         
-  rm_options        => {
-                        o => 'rm_options',
-                        t => 'string',
-                        h => 'RepeatMasker options',
-                       },
-                         
-  idSQL             => {
-                        o => 'idSQL',
-                        t => 'string',
-                        h => 'SQL query that returns assembly_sequence_ids to be processed',
-                       },
-  extractonly       => {
-                        o => 'extractonly',
-                        t => 'boolean',
-                        h => 'if true then does not Block extracted sequences',
-                       },
-                         
-                     }
+  return $m;
 }
 
 my $ctx;
@@ -116,9 +99,12 @@ sub Run {
   if ($ctx->{cla}->{idSQL}) {
     $getSeqs = $ctx->{cla}->{idSQL};
   } else {
-    $getSeqs = "select a.assembly_sequence_id from AssemblySequence a, ExternalNASequence e
-  where a.have_processed = 0 and a.na_sequence_id = e.na_sequence_id
-  and e.taxon_id = $ctx->{'taxon_id'} and a.quality_end - a.quality_start >= 50";
+    $getSeqs = "select a.assembly_sequence_id 
+  from dots.AssemblySequence a, dots.ExternalNASequence e
+  where a.have_processed = 0 
+  and a.na_sequence_id = e.na_sequence_id
+  and e.taxon_id = $ctx->{'taxon_id'} 
+  and a.quality_end - a.quality_start >= 50";
   }
 
   print STDERR "$getSeqs\n" if $debug;
@@ -144,7 +130,8 @@ sub Run {
   my $reset = 0;
   foreach my $id (@todo) {
     print STDERR "Processing $id\n" if $debug;
-    my $ass = AssemblySequence->new( { 'assembly_sequence_id' => $id } );
+    my $ass = GUS::Model::DoTS::AssemblySequence->
+      new( { 'assembly_sequence_id' => $id } );
     $ass->retrieveFromDB();
 
     ##want to set the sequence_start = quality_start etc here....has not been assembled...
@@ -231,7 +218,8 @@ sub processBlockedSequence{
     my $ass = $ctx->{'self_inv'}->getFromDbCache('AssemblySequence',$ass_seq_id);
     if (!$ass) {
       print STDERR "ERROR: $ass_seq_id not in cache...retrieving from Database\n";
-      $ass = AssemblySequence->new( { 'assembly_sequence_id' => $ass_seq_id });
+      $ass = GUS::Model::DoTS::AssemblySequence->
+	new( { 'assembly_sequence_id' => $ass_seq_id });
       $ass->retrieveFromDB();
       if (!$ass->get('assembly_strand')) {
 				##this is invalid sequence.....is reverse strand..
