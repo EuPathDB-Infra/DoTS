@@ -296,6 +296,8 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
 
 #   &makeEpconFastaFiles();
 
+#   &prepareEPConBlastSiteFiles();
+
 $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &copySimilaritiesFromLiniac();
@@ -342,7 +344,7 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &prepareDownloadSiteFiles();      
 
-&prepareBlastSiteFiles();      
+&prepareBlastSiteFiles(); 
 
 &versionGeneTrapAssembly();
 
@@ -404,9 +406,9 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 #&updatePancreasAssembliesTable();
 
-&createManuallyReviewedDoTSFile();
+#&createManuallyReviewedDoTSFile();
 
-#&createPredTranslDetailsFile();
+&createPredTranslDetailsFile();
 
 &makeStatisticsPage();
 
@@ -1796,12 +1798,11 @@ sub makeEpconFastaFiles {
   my $dotsRelease = $propertySet->getProp('dotsRelease');
 
   my $speciesNickname = $propertySet->getProp('speciesNickname');
+  my $prefix = "EPConDB_rel${dotsRelease}_${speciesNickname}";
 
-  my $prefix = "EPConDB_${dotsRelease}_${speciesNickname}";
+  my $logFile ="$pipelineDir/logs/${signal}.log"; 
 
-  my $logfile ="$pipelineDir/logs/${signal}.log"; 
-
-  my $outputfile  = "$pipelineDir/misc/${prefix}_input_seqs.txt";
+  my $outputFile  = "$pipelineDir/misc/${prefix}_input_seqs.txt";
 
   my $taxonId = $propertySet->getProp('taxonId');
 
@@ -1815,19 +1816,21 @@ sub makeEpconFastaFiles {
 
   my $epconDB_makefile = $propertySet->getProp('epcon_makefile');
 
+  my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
   my $sql = "select 'DT.' ||a.na_sequence_id, '[ $species ]', a.description ,'('||number_of_contained_sequences || ' sequences)', 'length=' || a.length ,sequence from dots.assembly a, dots.assemblyanatomypercent p where p.anatomy_id in ($epconDB_anatomy_ids) and p.percent>0 and a.na_sequence_id=p.na_sequence_id and p.taxon_id=a.taxon_id and a.taxon_id=$taxonId";
 
-  my $cmd = "dumpSequencesFromTable.pl --verbose --gusConfigFile $gusConfigFile --outputFile $outputfile --idSQL \"$sql\" 2>>  $logFile";
+  my $cmd = "dumpSequencesFromTable.pl --verbose --gusConfigFile $gusConfigFile --outputFile $outputFile --idSQL \"$sql\" 2>>  $logFile";
 
   $mgr->runCmd($cmd);
 
-  my $outputfile  = "$pipelineDir/misc/${prefix}_${epconDB_chip}_input_seqs.txt";
+  my $outputFile  = "$pipelineDir/misc/${prefix}_${epconDB_chip}_input_seqs.txt";
 
-  my $sql = "select 'DT.' ||a.na_sequence_id, '[ $species]', a.description ,'(' ||number_of_contained_sequences || ' sequences)' , 'length=' ||a.length, sequence from rad3.elementassembly_mv ea , rad3.spot s, dots.assembly a where s.array_id = $epconDB_array and s.element_id = ea.element_id and ea.assembly_na_sequence_id = a.na_sequence_id";
+  my $sql = "select 'DT.' ||a.na_sequence_id, '[ $species ]', a.description ,'(' ||number_of_contained_sequences || ' sequences)' , 'length=' ||a.length, sequence from rad3.elementassembly_mv ea , rad3.spot s, dots.assembly a where s.array_id = $epconDB_array and s.element_id = ea.element_id and ea.assembly_na_sequence_id = a.na_sequence_id";
 
-  my $cmd = "dumpSequencesFromTable.pl --verbose --gusConfigFile $gusConfigFile --outputFile $outputfile --idSQL \"$sql\" 2>>  $logFile";
+  my $cmd = "dumpSequencesFromTable.pl --verbose --gusConfigFile $gusConfigFile --outputFile $outputFile --idSQL \"$sql\" 2>>  $logFile";
 
-  $mgr->runCmd($cmd) unless ;
+  $mgr->runCmd($cmd);
 
   $mgr->endStep($signal);
 
@@ -2082,6 +2085,36 @@ sub updateHtaccessFile {
   my $cmd = print F ("$htaccessString");
   close(F);
 }
+sub prepareEPConBlastSiteFiles {
+
+  my $signal = "prepareBlastSiteFiles";
+  return if $mgr->startStep("Preparing EPConDB files for blast site", $signal);
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  my $prefix = "EPConDB_rel${dotsRelease}_${speciesNickname}";
+  my $blastBinDir = $propertySet->getProp('wuBlastBinPath');
+
+  my $outputFile1  = "$pipelineDir/misc/${prefix}_input_seqs.txt";
+  my $fastalink1 = "$pipelineDir/blastSite/$outputFile1";
+
+  $mgr->runCmd("ln -s $outputFile1 $fastalink1");
+  $mgr->runCmd("$blastBinDir/xdformat -n $fastalink1");
+  $mgr->runCmd("rm -rf $fastalink1");
+  $mgr->runCmd("gzip $outputFile1");
+
+  my $epconDB_chip = $propertySet->getProp('epcon_chip');
+  my $outputFile2  = "$pipelineDir/misc/${prefix}_${epconDB_chip}_input_seqs.txt";
+  my $fastalink2 = "$pipelineDir/blastSite/$outputFile2";
+
+  $mgr->runCmd("ln -s $outputFile2 $fastalink2");
+  $mgr->runCmd("$blastBinDir/xdformat -n $fastalink2");
+  $mgr->runCmd("rm -rf $fastalink2");
+  $mgr->runCmd("gzip $outputFile2");
+
+  $mgr->endStep($signal);
+
+}
 
 sub prepareBlastSiteFiles {
     my $signal = "prepareBlastSiteFiles";
@@ -2095,12 +2128,12 @@ sub prepareBlastSiteFiles {
 
     my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
     my $fastafile = "$pipelineDir/downloadSite/${prefix}.fasta.gz";
-    #my $cmd = " gunzip $pipelineDir/downloadSite/${prefix}.fasta.gz";
-    #$mgr->runCmd($cmd);
+    my $cmd = " gunzip $pipelineDir/downloadSite/${prefix}.fasta.gz";
+    $mgr->runCmd($cmd);
     $fastafile = "$pipelineDir/downloadSite/${prefix}.fasta";
     my $fastalink = "$pipelineDir/blastSite/${speciesNickname}DoTS";
-    #$mgr->runCmd("ln -s $fastafile $fastalink");
-    #$mgr->runCmd("$blastBinDir/xdformat -n $fastalink");
+    $mgr->runCmd("ln -s $fastafile $fastalink");
+    $mgr->runCmd("$blastBinDir/xdformat -n $fastalink");
 
     # make blast files for all species.  combine this build w/ latest of other species
     my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
@@ -2110,11 +2143,11 @@ sub prepareBlastSiteFiles {
     my $otherPipelineDir = "$dotsBuildDir/$otherSpeciesBuildName";
     my $prefix = "${otherSpeciesNickname}DoTS_rel${otherSpeciesRelease}";
 
-    #my $cmd = "gunzip $otherPipelineDir/downloadSite/${prefix}.fasta.gz";
-    #$mgr->runCmd($cmd);
+    my $cmd = "gunzip $otherPipelineDir/downloadSite/${prefix}.fasta.gz";
+    $mgr->runCmd($cmd);
     my $fastafile2 = "$otherPipelineDir/downloadSite/${prefix}.fasta";
     my $fastalink2 = "$pipelineDir/blastSite/${otherSpeciesNickname}DoTS";
-    #$mgr->runCmd("ln -s $fastafile2 $fastalink2");
+    $mgr->runCmd("ln -s $fastafile2 $fastalink2");
     $mgr->runCmd("cat $fastalink $fastalink2 > $pipelineDir/blastSite/allDoTS");
     $mgr->runCmd("$blastBinDir/xdformat -n $pipelineDir/blastSite/allDoTS");
     $mgr->runCmd("gzip $fastafile2");
@@ -2554,14 +2587,12 @@ sub makeStatisticsPage {
   my $signal = "makeStatisticsPage";
 
   return if $mgr->startStep("Making statistics html file", $signal,'makeStatPage');
-  my $login  = $propertySet->getProp('allgenesLogin');
-  my $password  = $propertySet->getProp('allgenesPassword');
 
   my $output = "$pipelineDir/misc/statistics.html.in";
 
   my $logfile = "$pipelineDir/logs/${signal}.log";
 
-  my $cmd = "dotsStatistics --dbLogin $login --dbPassword $password --templateFile $ENV{GUS_HOME}/data/DoTS/DotsBuild/statsTemplate.html.in --goRowTemplateFile $ENV{GUS_HOME}/data/DoTS/DotsBuild/statsGoRowTemplate.txt --goBarGraphWidth 200 > $output 2>> $logfile"; 
+  my $cmd = "dotsStatistics --templateFile $ENV{GUS_HOME}/data/DoTS/DotsBuild/statsTemplate.html.in --goRowTemplateFile $ENV{GUS_HOME}/data/DoTS/DotsBuild/statsGoRowTemplate.txt --goBarGraphWidth 200 > $output 2>> $logfile"; 
 
   $mgr->runCmd($cmd);
 
