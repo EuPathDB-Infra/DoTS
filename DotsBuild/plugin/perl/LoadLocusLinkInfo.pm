@@ -85,7 +85,7 @@ sub updateDbRef {
 
     next if $line[7] != $ncbiTaxId;
 
-    my $newDbRef = GUS::Model::SRes::DbRef->new({'primary_identifier'=>$line[0],'external_database_release_id'=>$externalDBRel});
+    my $newDbRef = GUS::Model::SRes::DbRef->new({'primary_identifier'=>$line[0],'external_database_release_id'=>$externalDbRel});
 
     $newDbRef->retrieveFromDB;
 
