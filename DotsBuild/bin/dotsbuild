@@ -163,15 +163,15 @@ my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFil
 
    &unpackCDD();
 
-   &insertNRDB();
-
-   &extractNRDB();
-
    &insertCDD();
 
    &insertProdom();
 
    &extractProdom();
+
+   &insertNRDB();
+
+   &extractNRDB();
 
    &copyProteinDBsToLiniac();
 
@@ -198,7 +198,7 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
 
 &startSimilaritiesOnLiniac();
 
-&cluster("gene", "finalDots-finalDots");
+   &cluster("gene", "finalDots-finalDots");
 
    &sortClusters();
 
@@ -412,7 +412,6 @@ sub createDotsPipelineDir {
 		       $wuBlastBinPathLiniac,
 		       "prodom.fsa", '(\S+)', 'blastx', 
 		       '-wordmask=seg+xnu', 'W=3', 'T=1000','B=$bsBparam','V=$bsVparam','E=$bsEparam');
-
     &makeSimilarityDir("finalDots", "cdd", $buildName, $dotsBuildDir, 
 		       $serverPath, $nodePath, $bsTaskSize, 
 		       $ncbiBlastBinPathLiniac,
@@ -1030,15 +1029,27 @@ sub unpackCDD {
 
     my $downloadSubDir = "$externalDbDir/cdd/$date";
 
-    $mgr->runCmd("gunzip $downloadSubDir/cdd.tar.gz");
-	
+    $mgr->runCmd("gunzip $downloadSubDir/cdd.tar.gz") unless (-e "$downloadSubDir/cdd.tar");
+
     $mgr->runCmd("tar --extract --file $downloadSubDir/cdd.tar -C $downloadSubDir");
 
-    $mgr->runCmd("cat $downloadSubDir/LOAD*.csq >$downloadSubDir/LOAD");
+    if (-e "$downloadSubDir/LOAD") {
+      $mgr->runCmd("rm -f $downloadSubDir/LOAD");
+    }
 
-    $mgr->runCmd("cat $downloadSubDir/pfam*.csq >$downloadSubDir/PFAM");
+    $mgr->runCmd("catFiles --fileGlob  '$downloadSubDir/LOAD*.csq' --outFile $downloadSubDir/LOAD");
+ 
+    if (-e "$downloadSubDir/PFAM") {
+      $mgr->runCmd("rm -f $downloadSubDir/PFAM");
+    }
 
-    $mgr->runCmd("cat $downloadSubDir/smart*.csq >$downloadSubDir/SMART");
+    $mgr->runCmd("catFiles --fileGlob '$downloadSubDir/pfam*.csq' --outFile $downloadSubDir/PFAM");
+
+    if (-e "$downloadSubDir/SMART") {
+      $mgr->runCmd("rm -f $downloadSubDir/SMART");
+    }
+    
+    $mgr->runCmd("catFiles --fileGlob '$downloadSubDir/smart*.csq' --outFile $downloadSubDir/SMART");
     
     $mgr->runCmd("rm -r $downloadSubDir/cdd.tar");
 	
@@ -1135,7 +1146,12 @@ sub insertProdom {
 
     my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-    my $prodomFile = "$externalDbDir/prodom/$prodomRelease.forblast";
+    my $date = $propertySet->getProp('buildDate');
+    
+    my $downloadSubDir = "$externalDbDir/prodom/$date";
+
+    my $prodomFile = "$downloadSubDir/prodom.cons";
+
     my $logFile = "$pipelineDir/logs/insertProdom.log";
 
     my $prodomDB = $propertySet->getProp('prodom_db_rls_id');
