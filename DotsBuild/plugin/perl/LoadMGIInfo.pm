@@ -110,7 +110,7 @@ sub makeDataHash {
 		print STDERR ("Duplicate entries for $id\n");
 	    }
 	    
-	    $dataHash->{$id}= [$chrom,$cm,$symbol,$descr];
+	    $dataHash{$id}= [$chrom,$cm,$symbol,$descr];
 
 	    $num++;
 
