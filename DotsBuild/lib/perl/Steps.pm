@@ -584,7 +584,7 @@ sub loadGenomeAlignments {
 
   my $taxonId = $propertySet->getProp('taxonId');
   my $genomeId = $propertySet->getProp('genome_db_rls_id');
-  my $gapTabSpace = $propertySet->getProp('tempLogin');
+  my $gapTabSpace = $propertySet->getProp('genomeGapLogin');
   my $pipelineDir = $mgr->{'pipelineDir'};
   my $pslDir = "$pipelineDir/genome/$queryName-$targetName/per-chr";
 
