@@ -480,6 +480,6 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &createManuallyReviewedDoTSFile($mgr);
 
-#&makeStatisticsPage();
+&makeStatisticsPage($mgr);
 
 $mgr->goodbye("Pipeline complete!\n");
