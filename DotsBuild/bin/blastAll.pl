@@ -17,7 +17,7 @@ use strict;
 use Objects::GUS_utils::Sequence;
 use Getopt::Long;
 
-my ($BLASTN,$SEQFILE,$,$MUSDOTS,$TARGETDIR);
+my ($BLASTN,$SEQFILE,$MUSDOTS,$TARGETDIR);
 &GetOptions("blastn=s"=> \$BLASTN,
             "seqfile=s" => \$SEQFILE, 
             "musdots=s" => \$MUSDOTS,
