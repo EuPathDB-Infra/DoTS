@@ -28,30 +28,44 @@ my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
 my $dbh = $db->getQueryHandle();
 
 
-my $sql = "select /*+ RULE */ ass.assembly_na_sequence_id,e.source_id from dots.ExternalNASequence e, dots.AssemblySequence ass, dots.Assembly a where e.na_sequence_id = ass.na_sequence_id and ass.assembly_na_sequence_id is not null and ass.assembly_na_sequence_id = a.na_sequence_id and a.taxon_id = $taxon_id and e.sequence_type_id in (2,7) order by ass.assembly_na_sequence_id";
+#my $sql = "select /*+ RULE */ ass.assembly_na_sequence_id,e.source_id from dots.ExternalNASequence e, dots.AssemblySequence ass, dots.Assembly a where e.na_sequence_id = ass.na_sequence_id and ass.assembly_na_sequence_id is not null and ass.assembly_na_sequence_id = a.na_sequence_id and a.taxon_id = $taxon_id and e.sequence_type_id in (2,7) order by ass.assembly_na_sequence_id";
+
+my $sql = "select na_sequence_id from dots.assembly where taxon_id = $taxon_id and contains_mrna = 1";
 
 print STDERR "Query: $sql\n" if $verbose;
 
 my $stmt = $dbh->prepareAndExecute($sql);
 
-my $prev_DT;
-my @ids;
-my $ct = 0;
-while(my($DT,$mRNA) = $stmt->fetchrow_array()){
-  if($DT!= $prev_DT){
-    print &generateOutput($prev_DT,@ids) if defined $prev_DT;
-    undef @ids;
-    $ct++;
-    print STDERR "Processed $ct\n" if $verbose && $ct % 1000 == 0;
-  }
-  push(@ids,$mRNA);
-  $prev_DT = $DT;
+my @dt;
+
+while(my($DT) = $stmt->fetchrow_array()){
+  push (@dt,$DT);
 }
-print &generateOutput($prev_DT,@ids); ##do the last one
+
+$stmt->finish();
+
+my $sql = "select /*+ RULE */ e.source_id from dots.ExternalNASequence e, dots.AssemblySequence ass where  ass.assembly_na_sequence_id = ? and e.na_sequence_id = ass.na_sequence_id and e.sequence_type_id in (2,7)";
+
+print STDERR "Query: $sql\n" if $verbose;
+
+my $stmt = $dbh->prepare($sql);
+
+my $ct = 0;
+
+foreach my $dtId (@dt) {
+  my @acc;
+  $stmt->execute($dtId);
+  while(my($mRNA) = $stmt->fetchrow_array()){
+    push(@acc,$mRNA);
+  }
+  $ct++;
+  print STDERR "Processed $ct\n" if $verbose && $ct % 1000 == 0;
+  print &generateOutput($dtId,@acc);
+}
 
 $db->logout();
 
 sub generateOutput {
-  my($DT,@ids) = @_;
-  return ">DT.$DT (".scalar(@ids)." mRNA\): \(".join(', ',@ids)."\)\n";
+  my($dtId,@acc) = @_;
+  return ">DT.$DT (".scalar(@acc)." mRNA\): \(".join(', ',@acc)."\)\n";
 }
