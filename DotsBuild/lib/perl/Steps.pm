@@ -2679,7 +2679,7 @@ sub prepareDownloadSiteFiles {
   # Brain Anatomy terms
   my $brainFile = "${prefix}_brainTerms.dat";
   my $logFile = "$mgr->{pipelineDir}/logs/brainTerms.log";
-  my $cmd = "makeAnatomyCountFile --taxonId 8 --root brain --rootLevel level_4 --estCount 2 --percent 10 --outputfile $mgr->{pipelineDir}/misc/$brainFile 2>> $logFile";
+  my $cmd = "makeAnatomyCountFile --taxonId $taxonId --root brain --rootLevel level_4 --estCount 2 --percent 10 --outputfile $mgr->{pipelineDir}/misc/$brainFile 2>> $logFile";
   $mgr->runCmd($cmd);
   push(@files, "$mgr->{pipelineDir}/misc/$brainFile");
   $descrip = "Brain anatomy terms for which there are DoTS Transcripts.  (Tab delimited: term, term ID, count of DTs)";
