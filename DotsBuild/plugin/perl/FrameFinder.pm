@@ -1,4 +1,4 @@
-package DoTS::DotsBuild::Plugin::FrameFinder
+package DoTS::DotsBuild::Plugin::FrameFinder;
 
 # Run framefinder on Assemblies, storing the results in the database.
 #
@@ -88,7 +88,6 @@ sub run {
   if (!(-e $Framefinder))
         {die "Framefinder: No Framefinder program at the site mentioned\n";}
 
-
   my %ignore;                   # skipping entries already processed
   ## want to be able to ignore entries already done!!
   # current key is non-zero tranlation score: if non-zero, then processed.
@@ -141,7 +140,6 @@ and tf.row_alg_invocation_id in ($ctx->{cla}->{'restart'})";
   #
 #  my $wordprob='embl59.wordprob'; #for human and mouse.
 #  my $wordprob='hum_GB_123.wordprob'; #for human
-
 
   # creating single algorithm object;
   my $alg = GUS::Model::Core::Algorithm->new({'name'=>'FrameFinder'});
@@ -198,7 +196,7 @@ and tf.row_alg_invocation_id in ($ctx->{cla}->{'restart'})";
     my $flag = 0;
     my $contt = 0;
     my $cont2 = 0;
-			
+
     # Rtun framefinder
     foreach my $line (@F) {
       if ($line =~/number of segments\s+(\d+)/) {
@@ -349,11 +347,12 @@ if ($stpos<=0)
         $triv_flag = 1;
       }
     }
+
     # Set results into table
     #
     my @trSeqs = $naSeq->getTranslatedAASequences(1);
     my $tr_AASeq;  # TranslatedAASequence object
-    my @transsegs; # TranslatedAAFeatureSeg objects;
+    my @transsegs; # TranslatedAAFeatSeg objects;
     if (scalar(@trSeqs) > 1) {  # check if there is prediction_algo
       ##want to only use the one that has  correct prediction_algo...
       print STDERR "ERROR:  There is more than one translatedaasequence for $naSeqId\n";
@@ -368,15 +367,14 @@ if ($stpos<=0)
     my $translate = $tr_AASeq->getChild('DoTS::TranslatedAAFeature'); #should be already there
     if ($updating)              #for now it is abundant
       {
-        foreach my $seg ($translate->getChildren('DoTS::TranslatedAAFeatureSeg',1)) {
+        foreach my $seg ($translate->getChildren('DoTS::TranslatedAAFeatSeg',1)) {
           $seg->markDeleted();  #deleting all old segments
         }
       }
     
     $translate->setIsPredicted(1) unless $translate->getIsPredicted() == 1;
-    $translate->setReviewedStatusId(0) unless $translate->getReviewedStatusId() == 0;
+    $translate->setReviewStatusId(0) unless $translate->getReviewStatusId() == 0;
     $translate->setPValue($clev) unless $translate->getPValue()==$clev;
-
 
     if ($triv_flag) {                 #trivial case
 
@@ -459,7 +457,7 @@ if ($stpos<=0)
       
       my $currpos =0;
 #      my @transsegs;
-      # Set children TranslatedAAFeatureSeg objects;
+      # Set children TranslatedAAFeatSeg objects;
       
       # checking if there are pseudo segments consisting only of XXX or empty string (framefinder artifact)
       my $realsegs = $numofsegs;
@@ -595,9 +593,9 @@ else {
     ##put in the sanity check here to make certain that the locations are correct
     my @failed = 0;
     my $i = 0;
-    print "Number of segments is ".$translate->getChildren('DoTS::TranslatedAAFeatureSeg')."\n" if $verbose;
+    print "Number of segments is ".$translate->getChildren('DoTS::TranslatedAAFeatSeg')."\n" if $verbose;
     foreach my $seg(@transsegs) {
-#           ($translate->getChildren('DoTS::TranslatedAAFeatureSeg')){
+#           ($translate->getChildren('DoTS::TranslatedAAFeatSeg')){
     
 #   print " NA and AA positions ".$seg->getStartPos()."  ".$seg->getEndPos()." ".$seg->getAaStartPos()."  ".$seg->getAaEndPos()."\n";
     my $naseg = $seg->getNASequenceSegment(); 
