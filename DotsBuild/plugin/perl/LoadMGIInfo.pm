@@ -11,12 +11,11 @@ $| = 1;
 
 sub new {
     my ($class) = @_;
-    
     my $self = {};
     bless($self,$class);
-    
+
     my $usage = 'Plug_in to load additional information from MGI files to entries in DbRef';
-    
+
     my $easycsp =
 	[{o => 'testnumber',
 	  t => 'int',
@@ -31,7 +30,7 @@ sub new {
 	  h => 'file downloaded from MGI containing additional information for rows in DbRef',
          }
 	 ];
-    
+
     $self->initialize({requiredDbVersion => {},
 		       cvsRevision => '$Revision$',  # cvs fills this in!
 		     cvsTag => '$Name$', # cvs fills this in!
@@ -40,7 +39,6 @@ sub new {
 		       easyCspOptions => $easycsp,
 		       usage => $usage
 		       });
-    
     return $self;
 }
 
@@ -73,15 +71,15 @@ sub run {
 }
 
 sub makeDataHash {
-  
+
     my ($inputfile, $testnum) = @_;
-    
+
     my %dataHash;
-    
+
     my %entryHash;
 
     my $num = 0;
-    
+
     open (FILE, $inputfile) || die "Can't open the input file\n"; 
 
     while (<FILE>) {
@@ -89,7 +87,7 @@ sub makeDataHash {
       my $line = $_;
 
       my @arr = split(/\t/,$line);
-      
+
       my $id = $arr[0];
       my $chrom = $arr[4];
       my $cm = $arr[3];
@@ -98,75 +96,55 @@ sub makeDataHash {
       my $descr = $arr[2];
       $descr =~ s/^(\s+)//;
       $descr =~ s/(\s+)$//;
-      
+
       $entryHash{$id}++;
-      
+
       if ($entryHash{$id} > 1) {
 	print STDERR ("Duplicate entries for $id\n");
       }
-      
+
       $dataHash{$id}= [$chrom,$cm,$symbol,$descr];
-      
       $num++;
-      
+
       if ($testnum && $num >= $testnum) {
-	
 	last;
       }
+    }
 
-    }		  
-     
     close(FILE);
-    
+
     print STDERR ("$num MGI entries will be processed\n");
-    
     return \%dataHash;
 }
 
 sub updateDbRef($dataHash) {
-    
     my ($dataHash,$external_db_release_id) = @_;
-    
-    
+
     my $num = 0;
-    
+
     foreach my $id (keys %$dataHash) {
-	
 	my $chromosome = $dataHash->{$id}->[0];
 	my $centimorgans = $dataHash->{$id}->[1];
-	my $secondary_identifier = $dataHash->{$id}->[2];
+	my $ysmbol = $dataHash->{$id}->[2];
 	my $remark = $dataHash->{$id}->[3];
-	my $lowercase_secondary_identifier = lc($secondary_identifier);
-	
 	my $newDbRef = GUS::Model::SRes::DbRef->new({'primary_identifier'=>$id,'external_database_release_id'=>$external_db_release_id});
 	$newDbRef->retrieveFromDB;
 
 	if ($chromosome ne $newDbRef->get('chromosome')) {
-	    
 	    $newDbRef->setChromosome($chromosome);
 	}
 	if ($centimorgans ne $newDbRef->get('centimorgans')) {
-	    
 	    $newDbRef->setCentimorgans($centimorgans);
 	}
-	if ($secondary_identifier ne $newDbRef->get('secondary_identifier')) {
-	    
-	    $newDbRef->setSecondaryIdentifier($secondary_identifier);
-	}
-	if ($lowercase_secondary_identifier ne $newDbRef->get('lowercase_secondary_identifier')) {
-	    
-	    $newDbRef->setLowercaseSecondaryIdentifier($lowercase_secondary_identifier);
+	if ($symbol ne $newDbRef->get('gene_symbol')) {
+	    $newDbRef->setSecondaryIdentifier($symbol);
 	}
 	if ($remark ne $newDbRef->get('remark')) {
-	    
 	    $newDbRef->setRemark($remark);
 	}
-	
 	$num += $newDbRef->submit();
-	
 	$newDbRef->undefPointerCache();
     }
-    
     print STDERR ("$num DbRef rows processed\n");
 }
 
