@@ -74,6 +74,8 @@ sub run {
 
   ##don't delete evidence
   $algoInvo->setGlobalDeleteEvidenceOnDelete(0);
+
+  $algoInvo->setMaximumNumberOfObjects(100000);
     
   ##get entries already processed
   my %done;
