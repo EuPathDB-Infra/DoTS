@@ -2935,7 +2935,7 @@ sub updateHtaccessFile {
   close(F);
 }
 
-sub downloadGeneID {
+sub downloadGeneId {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
   my $signal = "downloadGeneId";
@@ -2963,7 +2963,7 @@ sub deleteGeneIdToNaSeq {
   my $gusConfigFile = $propertySet->getProp('gusConfigFile');
   my $geneIdDbRlsId = $propertySet->getProp('gene_db_rls_id');
   my $logFile = "$pipelineDir/logs/${signal}.log";
-  my $sql = "select n.db_ref_na_sequence_id from sres.dbref d, dots.dbrefnasequence n, dots.externalnasequence a where d.external_database_release_id = $GeneIdDbRlsId and d.db_ref_id = n.db_ref_id and n.na_sequence_id = a.na_sequence_id and a.taxon_id = $taxonId";
+  my $sql = "select n.db_ref_na_sequence_id from sres.dbref d, dots.dbrefnasequence n, dots.externalnasequence a where d.external_database_release_id = $geneIdDbRlsId and d.db_ref_id = n.db_ref_id and n.na_sequence_id = a.na_sequence_id and a.taxon_id = $taxonId";
   my $cmd = "deleteEntries.pl --table DoTS::DbRefNASequence --idSQL \"$sql\" --verbose 2>> $logFile";
   $mgr->runCmd($cmd);
   $mgr->endStep($signal);
@@ -2997,7 +2997,7 @@ sub loadGeneIdToNaSeq {
   my $geneIdDeleteDbRef = $propertySet->getProp('deleteGeneId');
   my $delete = $geneIdDeleteDbRef eq "yes" ? "--delete" : "";
   my $args = "--mappingfiles $file $delete --pattern1 '^(\\d+)\\t' --pattern2 '\\t(\\d+)' --db_id $geneIdDbId --db_rel_id $geneIdDbRlsId";
-  $mgr->runPlugin("loadGeneIdToNaSeq", "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence", $args, "loading GeneId to NaSeq mapping"\);
+  $mgr->runPlugin("loadGeneIdToNaSeq", "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence", $args, "loading GeneId to NaSeq mapping");
 }
 
 sub loadGeneIdInfo {
