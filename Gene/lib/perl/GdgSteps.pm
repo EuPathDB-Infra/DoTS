@@ -471,7 +471,7 @@ sub createGenomeDotsGene {
     my $dotsVer = $propertySet->getProp('dotsRelease');
     my $tmpLogin = $propertySet->getProp('tempLogin');
 
-    my $args = "--taxon_id $taxonId --genome_db_rls_id $genomeId --temp_login $tmpLogin --est_pair_cache EstClonePair --copy_table_suffix dt$dotsVer$genomeVer";
+    my $args = "--taxon_id $taxonId --genome_db_rls_id $genomeId --temp_login $tmpLogin --est_pair_cache EstClonePair --copy_table_suffix _dt$dotsVer$genomeVer";
     # $args .= ' --skip_chrs 1,2';
 
     $mgr->runPlugin('CreateGenomeDotsGene', "DoTS::Gene::Plugin::CreateGenomeDotsGene",
@@ -561,11 +561,21 @@ sub integrateWithGus {
     my $genomeId = $propertySet->getProp('genome_db_rls_id');
     my $tmpLogin = $propertySet->getProp('tempLogin');
 
+    my $signal = "IntegrateGenomeDotsGeneWithGus";
+
+    return if $mgr->startStep("integrate genome dots gene info into GUS", $signal);
+
     my $args = "--taxon_id $taxonId --genome_db_rls_id $genomeId --temp_login $tmpLogin --genome_dots_gene_cache GenomeDotsGene --genome_dots_transcript_cache GenomeDotsTranscript";
 
-    $mgr->runPlugin('IntegrateGenomeDotsGeneWithGus',
-		    "DoTS::Gene::Plugin::IntegrateGenomeDotsGeneWithGus",
-		    $args, "integrate genome dots gene info into GUS");
+    $mgr->runPlugin($signal . 'delete', "DoTS::Gene::Plugin::IntegrateGenomeDotsGeneWithGus",
+		    $args . ' --only_delete',
+		    "integrate genome dots gene info into GUS: delete old results");
+
+    $mgr->runPlugin($signal . 'insert', "DoTS::Gene::Plugin::IntegrateGenomeDotsGeneWithGus",
+		    $args . ' --only_insert',
+		    "integrate genome dots gene info into GUS: insert new results");
+
+    $mgr->endStep($signal);
 }
 
 sub makeReleaseFiles {
