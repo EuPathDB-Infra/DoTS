@@ -124,7 +124,7 @@ sub run {
   print "Testing on $ctx->{cla}->{'testnumber'}\n" if $ctx->{cla}->{'testnumber'};
 
   if (!(-e "$cap4Dir/cap4")) {
-    die "cap4 does not exist";
+    die "$cap4Dir/cap4 does not exist";
   }
 
   ##set no version on if not committing
