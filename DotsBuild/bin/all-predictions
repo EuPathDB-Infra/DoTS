@@ -1,0 +1,47 @@
+#!@perl@
+
+use strict;
+use lib "$ENV{GUS_HOME}/lib/perl";
+use DirHandle;
+
+my $ifile = shift @ARGV;
+my $ofile = shift @ARGV;
+
+# point to the things we need.
+my $TmhmmFormat = "$ENV{HOME}/Pkg/TMHMM2.0a/bin/tmhmmformat.pl";
+my $TmhmmDecode = "$ENV{HOME}/Pkg/TMHMM2.0a/bin/decodeanhmm";
+
+my $SignalP     = "$ENV{HOME}/Pkg/signalp-2.0/signalp";
+
+# point to TMHMM resources.
+my $matpath     = "$ENV{HOME}/Pkg/TMHMM2.0a/lib";
+
+# do the do.
+do_cmd("Going to make TMHMM2 output for $ifile...\n",
+			 "cat $ifile  | $TmhmmDecode -f $matpath/TMHMM2.0.options -modelfile $matpath/TMHMM2.0.model | $TmhmmFormat | compress >  $ofile.tmhmm.Z"
+			);	
+
+if ( my $dh = DirHandle->new($ifile)) {
+	 while (my $stub = $dh->read) {
+			next unless $stub =~ /\.fa$/;
+			my $i_f = "$ifile/$stub";
+			do_cmd("Making SignalP (NN) prediction for $i_f....\n",
+						 "$SignalP -t euk -m nn -trunc 70 $i_f | compress > $ofile/$stub.sgp.Z"
+						);
+			
+			do_cmd("Making SignalP (HMM) prediction for $i_f....\n",
+						 "$SignalP -t euk -m hmm -trunc 70 $i_f | compress > $ofile/$stub.sgphmm.Z",
+						);
+	 }
+}
+
+# ----------------------------------------------------------------------
+
+sub do_cmd {
+	 my $Msg = shift;
+	 my $Cmd = shift;
+
+	 print STDERR $Msg;
+	 system $Cmd;
+}
+
