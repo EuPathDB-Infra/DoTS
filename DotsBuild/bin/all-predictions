@@ -6,10 +6,10 @@ my $ifile = shift @ARGV;
 my $ofile = shift @ARGV;
 
 # point to the things we need.
-my $TmhmmFormat = "$ENV{HOME}/Pkg/TMHMM2.0a/bin/tmhmmformat.pl";
-my $TmhmmDecode = "$ENV{HOME}/Pkg/TMHMM2.0a/bin/decodeanhmm";
+my $TmhmmFormat = "perl $ENV{HOME}/Pkg/TMHMM2.0a/bin/tmhmmformat.pl";
+my $TmhmmDecode = "perl $ENV{HOME}/Pkg/TMHMM2.0a/bin/decodeanhmm";
 
-my $SignalP     = "$ENV{HOME}/Pkg/signalp-2.0/signalp";
+my $SignalP     = "perl $ENV{HOME}/Pkg/signalp-2.0/signalp";
 
 # point to TMHMM resources.
 my $matpath     = "$ENV{HOME}/Pkg/TMHMM2.0a/lib";
