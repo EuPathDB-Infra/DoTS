@@ -92,9 +92,6 @@ while (my @row = $stmt->fetchrow_array()) {
 print STDERR "Committing\n";
 $dbh->commit();
 
-print STDERR "Analyzing\n";
-my $analyzeSql = "ANALYZE TABLE $tableName compute statistics";
-$dbh->do($analyzeSql) || die "Analyze failed.\nSQL: $analyzeSql";
 
 
 
