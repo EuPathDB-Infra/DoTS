@@ -82,3 +82,5 @@ sub getDTEffective {
   return $self->{dtRaw}/$self->{ESTCount};
 
 }
+
+1;
