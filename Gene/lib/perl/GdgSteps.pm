@@ -411,11 +411,11 @@ sub loadGenomeAlignments {
   my @pslFiles = $pslReader->getPSLFiles();
 
   my $qFile = "$pipelineDir/repeatmask/$queryName/master/mainresult/blocked.seq";
-  #$qFile = "$pipelineDir/seqfiles/finalDots.fsa" if $queryName =~ /dots/i;
-  $qFile = "/tmp/genome/$queryName-$targetName/finalDots.fsa" if $queryName =~ /dots/i;
-  $mgr->runCmd("makedir -p /tmp/genome");
+  $qFile = "$pipelineDir/seqfiles/finalDots.fsa" if $queryName =~ /dots/i;
+  $mgr->runCmd("mkdir -p /tmp/genome");
   $mgr->runCmd("cp $qFile /tmp/genome");
-  $qFile = "/tmp/genome/$qFile";
+  $qFile = "/tmp/genome/blocked.seq";
+  $qFile = "/tmp/genome/finalDots.fsa" if $queryName =~ /dots/i;
   my $qTabId = ($queryName =~ /dots/i ? 56 : 57);
 
   my $args = "--query_file $qFile --keep_best 2 "
@@ -491,8 +491,8 @@ sub computeQualityScore {
 
     my $args = "--taxon_id $taxonId --genome_db_rls_id $genomeId --temp_login $tmpLogin --blat_signals_cache BlatAlignmentSignals --subset_selector 0";
 
-    # restart
-    # $args .= " --skip_chrs 1,2,3";
+    restart
+    $args .= " --skip_chrs 1";
 
     $mgr->runPlugin('ComputeGenomeDotsGeneScore',
 		    "DoTS::Gene::Plugin::ComputeGenomeDotsGeneScore",
