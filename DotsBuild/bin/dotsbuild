@@ -149,7 +149,7 @@ my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFil
 
 &extractAssemSeqs();
 
-&extractDots("prev", "'DT.||'");
+&extractDots("prev", "'DT.'||");
 
 &copyPipelineDirToLiniac();
 
@@ -182,7 +182,7 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
 
 &assemble("", $propertySet->getProp('reassemble'), "initial");
 
-&extractDots("intermed", "'DT.||'");
+&extractDots("intermed", "'DT.'||");
 
 &matrix("intermed");
 
@@ -715,9 +715,9 @@ sub extractDots {
 
 sub copyPipelineDirToLiniac {
 
-    my $serverPath = $propertySet->getProp('serverPath');
+    my $serverPath = $propertySet->getProp('serverPath') . "$buildName";
     my $liniacServer = $propertySet->getProp('liniacServer');
-
+    
     my $signal = "dir2liniac";
     return if $mgr->startStep("Copying $pipelineDir/ to $serverPath on $liniacServer", $signal);
 
