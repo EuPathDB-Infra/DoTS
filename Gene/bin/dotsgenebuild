@@ -6,6 +6,7 @@ use GUS::Pipeline::Manager;
 use GUS::Pipeline::MakeTaskDirs;
 use CBIL::Util::PropertySet;
 use CBIL::Util::GenomeDir;
+use CBIL::Bio::BLAT::PSLDir;
 use File::Basename;
 use DoTS::Gene::GdgSteps;
 
@@ -36,14 +37,20 @@ my @properties =
  ["gusConfigFile",           "",  ""],
  ["tempLogin" , "","login for temp table space, e.g. ygan\@cbilrw"],
  ["tempPassword" , "","password for temp table space"],
+ ["dbi_str", "DBI string for connection to database"],
  ["externalDbDir", "", "directory for download data from external databases"],
  ["serverExternalDbDir", "", "directory on liniac server for external data downloads"],
- ["genome_db_rls_id", "","the external_database_release_id for the human genome for this species"],
+ ["genome_db_id", "","the external_database_id for the genome for this species"],
+ ["genome_db_rls_id", "","the external_database_release_id for the gneome for this species"],
+ ["genome_db_rls_date", "","the date of the release of this version of genome"],
+ ["genome_db_rls_note", "","short release note for the release of this version of genome"],
+ ["genome_download_url", "","the URL from where this version of genome can be downloaded"],
  ["genomeGapLogin", "","login for table space for genome gap tables"],
  ["genome.options",   "",  "options to genome-align executable"],
  ["genome.path",      "",  "path on node of genome-align executable"],
  ["genome.taskSize",  "",  "number of seqs to process per genome-align subtask"],
  ["genomeVersion",      "",  "Golden Path genome assembly version, eg hg16, mm4"],
+ ["isNewGenome",   "",  "yes or no"],
  ); 
 
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
@@ -64,15 +71,33 @@ $mgr->{propertySet} = $propertySet;
 
 &createGenomeDir($mgr); 
 
+&downloadGenome($mgr);
+
+&createGenomeDbRelease($mgr);
+
+&useNewGenomeDbRelease($mgr);
+
 &copyPipelineDirToLiniac($mgr);
 
 &extractDots($mgr);
 
 &copyDotsToLiniac('final', $mgr);
 
+&copyGenomeToLiniac($mgr);
+
+&prepareGenomeAlignmentOnLiniac($mgr);
+
 &startGenomicAlignmentOnLiniac($mgr);
 
 &deleteBlatAlignment($mgr);
+
+&createGenomeVirtualSequence($mgr);
+
+&downloadGenomeGaps($mgr);
+
+&insertGenome($mgr);
+
+&loadGenomeGaps($mgr);
 
 &cacheEstClonePairs($mgr);
 
@@ -81,6 +106,8 @@ $mgr->waitForLiniac("genomic alignments of Dots", "waitGenomeAlignDots");
 &copyGenomeDotsFromLiniac($mgr);
 
 &loadGenomeAlignments($mgr, "dots", "genome");
+
+$mgr->waitForAction("FrameFinder annotation", "waitFrameFinder");
 
 &findGenomicSignals($mgr);
 

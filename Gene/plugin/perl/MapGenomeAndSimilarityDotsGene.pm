@@ -182,7 +182,7 @@ sub initMapping {
     
     my $selSql = "select distinct taxon_id, genome_external_db_release_id, "
 	. "genome_dots_gene_id, similarity_dots_gene_id, 0 as selected from $gdtTab "
-        . "where gdg.taxon_id = $taxonId and gdg.genome_external_db_release_id = $genomeId";
+        . "where taxon_id = $taxonId and genome_external_db_release_id = $genomeId";
 
     my $sql = "create table $tmpTab as ($selSql)";
     $self->log("creating $tmpTab with initial id mapping: sql = $sql");
@@ -196,7 +196,7 @@ sub uniqueMapOneToOne {
     
     my $sql = "select genome_dots_gene_id from $tmpTab "
 	. "where taxon_id = $taxonId and genome_external_db_release_id = $genomeId "
-	. "group by genome_dots_gene_id having count(distinct gene_id) = 1 "
+	. "group by genome_dots_gene_id having count(distinct similarity_dots_gene_id) = 1 "
 	. " intersect  "
 	. "select max(genome_dots_gene_id) as genome_dots_gene_id from $tmpTab "
 	. "where taxon_id = $taxonId and genome_external_db_release_id = $genomeId "
@@ -312,7 +312,7 @@ sub transferGeneId {
     $self->log("found " . scalar(@id_pairs) . " to transfer");
 
     my $c = 0;    
-    while (@id_pairs) {
+    foreach (@id_pairs) {
 	my ($gdg_id, $sdg_id) = @$_;
         my $sql = "update $gdgTab set gene_id = $sdg_id "
             . "where taxon_id = $taxonId and genome_external_db_release_id = $genomeId "

@@ -55,10 +55,13 @@ sub getChromsInfo {
   my ($dbh, $ext_db_rel_id, $skipChrs) = @_;
 
   my $sql = "select na_sequence_id, chromosome, length(sequence) from DoTS.VirtualSequence "
-    . "where external_database_release_id = $ext_db_rel_id order by chromosome_order_num";
+    . "where external_database_release_id = $ext_db_rel_id";
   if (scalar(@$skipChrs) > 0) {   
     $sql .= " and chromosome not in (" . join(', ', map { "'" . $_ . "'" } @$skipChrs). ")";
   }
+
+  $sql .= " order by chromosome_order_num";
+
   my $sth = $dbh->prepareAndExecute($sql);
 
   my @chroms;
@@ -72,15 +75,17 @@ sub getChromsInfo {
 sub getCoordSelectAndSkip {
     my ($dbh, $genomeId, $opt) = @_;
 
-    if ($opt->{test}) {
-	my $chr = '1';
-	my ($chr_id) = &getChromIdAndLen($dbh, $genomeId, $chr);
-	return [{chr=>$chr, chr_id=>$chr_id, start=>5e6, end=>10e6}];
-    }
-
     my $chr = $opt->{chr}; $chr =~ s/^chr//i;
     my $start = $opt->{start};
     my $end = $opt->{end};
+
+    if ($opt->{test}) {	
+	$chr = '1' unless $chr;
+	$start = 5e6 unless $start;
+	$end = 10e6 unless $end;
+	my ($chr_id) = &getChromIdAndLen($dbh, $genomeId, $chr);
+	return [{chr=>$chr, chr_id=>$chr_id, start=>$start, end=>$end}];
+    }
 
     die "start or end set while chr is not defined" if (defined($start) || $end) && !$chr;
     if ($chr) {

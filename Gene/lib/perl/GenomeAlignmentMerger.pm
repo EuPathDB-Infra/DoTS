@@ -85,7 +85,8 @@ sub _seed {
 	my @coords = $aln->getTargetCoordinates();
 	my $isRev = $aln->getIsReversed();
 
-	my $seed = { id => $id, coords => \@coords, alns => [$aln], qseqs => { $q_seq_id => 1 } };
+	my $seed = { id => $id, coords => \@coords, alns => [$aln], qseqs => { $q_seq_id => 1 },
+		 omc => 0, cmc => 0, pmc => 0 };
 	if ($isRev) {
 	    push @{ $self->{cacheMinus} }, $seed;
 	} else {
@@ -145,19 +146,23 @@ sub _doMerge {
     my $old_tot =  scalar(@$old_seeds);
 
     for (my $i=0; $i<$old_tot-1; $i++) {
+	my $localBoundR;
+	my @localRecurseQ = ();
 	for (my $j=$i+1; $j<$old_tot; $j++) {
 	    # TRICKY: seed of outer loop needs to be refreshed since it can change!
-	    my $os1 = $old_seeds->[$i]; last unless $os1; 
+	    my $os1 = $old_seeds->[$i]; last unless $os1;
 	    my $id1 = $os1->{id}; my $crd1 = $os1->{coords};
+	    $localBoundR = (reverse @$crd1)[0]->[1];
 	    my $os2 = $old_seeds->[$j]; next unless $os2;
 	    my $id2 = $os2->{id}; my $crd2 = $os2->{coords};
 
 	    print "coord1: " . join(':', map { $_->[0] . '-' . $_->[1] } @$crd1) . "\n" if $vl >= 3;
 	    print "coord2: " . join(':', map { $_->[0] . '-' . $_->[1] } @$crd2) . "\n" if $vl >= 3;
-
 	    print "_doMerge::[$i, $j], seeds [$id1, $id2]\n" if $vl >= 3;
 
-	    my ($merge, $stop) = $self->_detectMerge($os1, $os2, $merge_mode, $merge_param);
+	    my ($merge, $bounds) = $self->_detectMerge($os1, $os2, $merge_mode, $merge_param);
+	    last if $bounds->[2] - $localBoundR > $merge_param;
+	    $localBoundR = ($bounds->[1] > $bounds->[3] ? $bounds->[1] : $bounds->[3]);
 	    if($merge) {
 		my $mc = DoTS::Gene::CompositeGenomeFeature::mergeCoordinateSets($crd1, $crd2);
 		$os1->{coords} = $mc;
@@ -166,12 +171,41 @@ sub _doMerge {
 
 		push @{ $os1->{alns} }, @{ $os2->{alns} };
 		foreach (keys %{ $os2->{qseqs} }) { $os1->{qseqs}->{$_} = 1; }
+		$os1->{"${merge_mode}c"}++; # increment merge count
 		$old_seeds->[$j] = undef;
 		print "mered seed at index $j to $i\n" if $vl >= 2;
 	    } else {
+		push @localRecurseQ, $j;
 		print "no merge detected\n" if $vl >= 3; 
 	    }
-	    last if $stop;
+	}
+
+	# localRecurse
+	my $changed = scalar(@localRecurseQ);
+	while ($changed) {
+	    $changed = 0;
+	    my $os1 = $old_seeds->[$i];
+	    my $id1 = $os1->{id}; my $crd1 = $os1->{coords};
+
+	    foreach my $j (@localRecurseQ) {
+		my $os2 = $old_seeds->[$j]; next unless $os2;
+		my $id2 = $os2->{id}; my $crd2 = $os2->{coords};
+
+		my ($merge) = $self->_detectMerge($os1, $os2, $merge_mode, $merge_param);
+		if($merge) {
+		    $changed = 1;
+		    my $mc = DoTS::Gene::CompositeGenomeFeature::mergeCoordinateSets($crd1, $crd2);
+		    $os1->{coords} = $mc;
+		    print "merged: detected in local recurse over " . scalar(@localRecurseQ)
+			. " indices not merged in first pass\n";
+
+		    push @{ $os1->{alns} }, @{ $os2->{alns} };
+		    foreach (keys %{ $os2->{qseqs} }) { $os1->{qseqs}->{$_} = 1; }
+		    $os1->{"${merge_mode}c"}++; # increment merge count
+		    $old_seeds->[$j] = undef;
+		    print "mered seed at index $j to $i\n" if $vl >= 2;
+		}
+	    }
 	}
     }
 
@@ -191,20 +225,63 @@ sub _detectMerge {
     my ($c2s, $c2e) = $gf2->getGenomicBoundaries();
 
     my $shouldMerge = 0;
-    my $stopHere = ($c2s - $c1e > $merge_param);
-
-    if ($merge_mode eq 'om' && !$stopHere) {
+    if ($merge_mode eq 'om') {
 	my $overlap = DoTS::Gene::GenomeFeature::getSpanOverlap($coords1, $coords2);
 	$shouldMerge = ($overlap >= $merge_param);
-    } elsif ($merge_mode eq 'cm') {
-	my @clonelinks = $self->_getCloneLinks($seed1, $seed2, $merge_param);
-	$shouldMerge = (scalar(@clonelinks) >= 1 && ($c2e-$c1s) <= $merge_param);
     } else {
-	# do not merge intertwined seeds (e.g. seed2start < seed1end - "negative" distance)
-	$shouldMerge = ($c2s-$c1e>=0 && $c2s-$c1e<=$merge_param);
+	if ($merge_mode eq 'cm') {
+	    my @clonelinks = $self->_getCloneLinks($seed1, $seed2, $merge_param);
+	    $shouldMerge = (scalar(@clonelinks) >= 1 && ($c2e-$c1s) <= $merge_param);
+	} else {
+	    # do not merge intertwined seeds (e.g. seed2start < seed1end - "negative" distance)
+	    $shouldMerge = ($c2s-$c1e>=0 && $c2s-$c1e<=$merge_param);
+	}
+	if ($shouldMerge) {
+	    my $hasFlc1 = $self->_hasFullLengthClone($seed1);
+	    my $hasFlc2 = $self->_hasFullLengthClone($seed2);
+	    if ($hasFlc1 && $hasFlc2) {
+		$shouldMerge = 0;
+		print "merge disqualified: both seeds contain full length clone(s)\n";
+	    }
+	}
     }
 
-    return ($shouldMerge, $stopHere);
+    return ($shouldMerge, [$c1s, $c1e, $c2s, $c2e]);
+}
+
+sub _hasFullLengthClone {
+    my ($self, $seed) = @_;
+
+    my $dbh = $self->{db}->getQueryHandle();
+    my @qseqs = keys %{ $seed->{qseqs} };
+    my $c = scalar(@qseqs);
+
+    my @bin = ();
+    for (my $i=0; $i<$c; $i++) {
+	push @bin, $qseqs[$i];
+	unless ($i % 253) {
+	    my $sql = "select count(*) from DoTS.AssemblySequence s, DoTS.ExternalNaSequence e "
+		. "where s.na_sequence_id = e.na_sequence_id "
+		. "and s.assembly_na_sequence_id in (" . join(',', @bin) . ") "
+		. "and e.external_database_release_id = 992";
+	    my $sth = $dbh->prepareAndExecute($sql);
+	    my $hasRefseq = $sth->fetchrow_array();
+	    return 1 if $hasRefseq;
+
+	    $sql = "select count(*) from DoTS.AssemblySequence s, "
+		. "dots.dbrefnasequence dbrn, sres.dbref dbr "
+		. "where s.na_sequence_id = dbrn.na_sequence_id "
+		. "and dbrn.db_ref_id = dbr.db_ref_id "
+		. "and s.assembly_na_sequence_id in (" . join(',', @bin) . ") "
+		. "and dbr.external_database_release_id in (8494, 8495, 7414)";
+	    $sth = $dbh->prepareAndExecute($sql);
+	    my $hasMgcOrFantom = $sth->fetchrow_array();
+	    return 1 if $hasMgcOrFantom;
+
+	    @bin = ();
+	}
+    }
+    return 0;
 }
 
 sub _getCloneLinks {
@@ -295,7 +372,11 @@ sub _packOneStrand {
 		push @parts, { id=>$pid, na_sequence_id=>$pSeqId, coords=>\@coords };
 	    }
 
-	    push @res, DoTS::Gene::CompositeGenomeFeature->new($gf_args, \@parts);
+	    my $cgf = DoTS::Gene::CompositeGenomeFeature->new($gf_args, \@parts);
+	    $cgf->setAnnotationProperty('omc', $seed->{omc});
+	    $cgf->setAnnotationProperty('cmc', $seed->{cmc});
+	    $cgf->setAnnotationProperty('pmc', $seed->{pmc});
+	    push @res, $cgf;
 	}
     }
 

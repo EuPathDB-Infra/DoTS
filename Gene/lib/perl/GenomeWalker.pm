@@ -10,9 +10,9 @@ use DoTS::Gene::CompositeGenomeFeature;
 # constructor
 #
 sub new {
-    my($class, $db, $select_criteria, $merge_criteria) = @_;
+    my($class, $db, $select_criteria, $merge_criteria, $debug) = @_;
 
-    my $self = { db => $db, sc => $select_criteria, mc => $merge_criteria };
+    my $self = { db => $db, sc => $select_criteria, mc => $merge_criteria, debug=>$debug };
 
     bless $self, $class;
     return $self;
@@ -68,6 +68,7 @@ sub walkGenome {
     }
 
     my $aln_mgr = DoTS::Gene::GenomeAlignmentMerger->new($db, $srt_alns, $self->{mc});
+    $aln_mgr->setVerboseLevel(3) if $self->{debug};
     $aln_mgr->getCompositeGenomeFeatures();
 }
 

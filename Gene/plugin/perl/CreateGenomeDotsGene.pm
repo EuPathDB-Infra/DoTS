@@ -92,14 +92,6 @@ NOTES
 		isList => 0
 		}),
 
-     integerArg({name => 'initial_gdg_id',
-		 descr => 'the initial id number to use for genome dots gene (if restart, get max in db + 1)',
-		 constraintFunc=> undef,
-		 reqd => 0,
-		 default => 1,
-		 isList => 0 
-		 }),
-
      stringArg({name => 'skip_chrs',
 		descr => 'comma separated chromosomes for which analysis should be skipped, for whole genome analysis in restart mode',
 		constraintFunc=> undef,
@@ -205,7 +197,7 @@ sub run {
     my $isTest = $self->getArg('test');
 
     $self->log("Clean out or create temp tables to hold genome dots gene analysis result...");
-    my @tmpMeta = &createTempTables($dbh, $tempLogin) unless $isRerun || $isTest;
+    my @tmpMeta = &createTempTables($dbh, $tempLogin, $isRerun || $isTest);
 
     $self->log("Creating genome-based DoTS genes...");
     my ($coords, $skip_chrs) = &DoTS::Gene::Util::getCoordSelectAndSkip($dbh, $genomeId, $args);
@@ -216,8 +208,8 @@ sub run {
     my $optQSel = $self->getOptionalQuerySelector();
     my $sel_criteria = { baseQ=>$baseQSel, baseT=>$baseTSel, optQ=>$optQSel };
     my $mrg_criteria = $self->getMergeCriteria();
+    my ($gdgId, $gdtId) = $self->getInitialGeneAndTranscriptIds($dbh, \@tmpMeta);
 
-    my $gdgId = $self->getArg('initial_gdg_id');
     foreach my $coord (@$coords) {
         $self->log("processing chr$coord->{chr}:$coord->{start}-$coord->{end}"); 
         $sel_criteria->{baseT}->{target_na_sequence_id} = $coord->{chr_id};
@@ -226,25 +218,48 @@ sub run {
 	my $genes = $gdg_wkr->getCompositeGenomeFeatures();
 	$self->log("number of genes in this region: " . scalar(@$genes));
 	foreach (@$genes) {
-	    $self->saveGene($gdgId++, $_, \@tmpMeta);
+	    $gdtId += $self->saveGene($gdgId++, $gdtId, $_, \@tmpMeta);
 	}
 	$dbh->commit();
 	push @done_chrs, $coord->{chr};
 	$self->log("completed/skipped chromosomoes: " . join(', ', @done_chrs));
     }
+
+    $self->log("analyze table statistics");
     $dbh->do("analyze table ${tempLogin}." . $tmpMeta[0] . " compute statistics");
     $dbh->do("analyze table ${tempLogin}." . $tmpMeta[3] . " compute statistics");
 
-    my $sum = "finished gDG creation for chromosomes: " . join(', ', @done_chrs);
-    $sum = substr($sum, 0, 254) if length($sum) > 255;
+    return "finished genome-based dots gene creation";
 }
 
 ##########################
 
+sub getInitialGeneAndTranscriptIds {
+    my ($self, $dbh, $tmpMeta) = @_;
+    my $gdg_tab= $tmpMeta->[0];
+    my $gdg_id_col= $tmpMeta->[1]->[0];
+    my $gdt_tab= $tmpMeta->[3];
+    my $gdt_id_col= $tmpMeta->[4]->[0];
+
+    my $sql = "select min($gdg_id_col), max($gdg_id_col) from $gdg_tab";
+    my $sth = $dbh->prepareAndExecute($sql);
+    my ($min_gid, $max_gid) = $sth->fetchrow_array;
+    my $gid = 1;
+    $gid = $max_gid if ($min_gid && $min_gid < 10e6);
+
+    $sql = "select min($gdt_id_col), max($gdt_id_col) from $gdt_tab";
+    $sth = $dbh->prepareAndExecute($sql);
+    my ($min_tid, $max_tid) = $sth->fetchrow_array;
+    my $tid = 1;
+    $tid = $max_tid if ($min_tid && $min_tid < 100e6);
+
+    return ($gid, $tid);
+}
+
 sub getBaseQuerySelector {
     my $self = shift;
     my $taxonId = $self->getArg('taxon_id');
-    return { query_taxon_id => $taxonId, query_table_id => 56 };
+    return { query_taxon_id => $taxonId, query_table_id => 56, is_best_alignment => 1 };
 }
 
 sub getBaseTargetSelector {
@@ -277,7 +292,7 @@ sub getMergeCriteria {
 }
 
 sub createTempTables {
-  my ($dbh, $tmpLogin) = @_;
+  my ($dbh, $tmpLogin, $donotCreate) = @_;
 
   my $gdg_tab = 'GenomeDotsGene';
   my @gdg_cols = ('genome_dots_gene_id', 'taxon_id', 'genome_external_db_release_id',
@@ -287,7 +302,8 @@ sub createTempTables {
 		  'number_of_splice_signals', 'has_human_mouse_orthology',
 		  'polya_signal_type', 'has_polya_track', 'number_of_est_libraries',
 		  'number_of_est_clones', 'number_of_est_p53pairs', 'confidence_score',
-		  'number_of_rnas', 'contains_mrna', 'max_orf_length', 'max_orf_score', 'min_orf_pval', 'gene_id');
+		  'number_of_rnas', 'contains_mrna', 'max_orf_length', 'max_orf_score', 'min_orf_pval',
+		  'gene_id', 'overlap_merge_count', 'clonelink_merge_count', 'proximity_merge_count');
   my @gdg_types = ('NUMBER(10) NOT NULL', 'NUMBER(10) NOT NULL', 'NUMBER(10)',
 		   'VARCHAR2(32)', 'NUMBER(12)', 'NUMBER(12)', 'CHAR(1)', 'NUMBER(8)',
 		   'NUMBER(4)', 'NUMBER(8)', 'NUMBER(8)', 'NUMBER(8)', 'NUMBER(8)',
@@ -295,34 +311,35 @@ sub createTempTables {
 		   'NUMBER(4)', 'NUMBER(1)',
 		   'NUMBER(1)', 'NUMBER(1)', 'NUMBER(4)',
 		   'NUMBER(6)', 'NUMBER(4)', 'NUMBER(3)',
-		   'NUMBER(4)', 'NUMBER(1)', 'NUMBER(8)', 'FLOAT(126)', 'FLOAT(126)', 'NUMBER(10)');
+		   'NUMBER(4)', 'NUMBER(1)', 'NUMBER(8)', 'FLOAT(126)', 'FLOAT(126)',
+		   'NUMBER(10)', 'NUMBER(6)', 'NUMBER(4)', 'NUMBER(4)');
   my @gdg_csts = ("alter table ${tmpLogin}.$gdg_tab add constraint PK_" . uc($gdg_tab) . " primary key ($gdg_cols[0])",
-		  "create index " . uc($gdg_tab) . "_IND01 on ${tmpLogin}.$gdg_tab($gdg_cols[1],$gdg_cols[2])",
                   "create index " . uc($gdg_tab) . "_IND02 on ${tmpLogin}.$gdg_tab($gdg_cols[1],$gdg_cols[2])"); 
 
   my $gdt_tab = 'GenomeDotsTranscript';
-  my @gdt_cols = ('taxon_id', 'genome_external_db_release_id', $gdg_cols[0], 'blat_alignment_id', 'na_sequence_id');
-  my @gdt_types = ('NUMBER(10) NOT NULL', 'NUMBER(10)',$gdg_types[0], 'NUMBER(10)', 'NUMBER(10)');
-  my @gdt_csts = ("alter table ${tmpLogin}.$gdt_tab add constraint " . uc($gdt_tab)
-		  . "_FK01 foreign key ($gdt_cols[2]) references ${tmpLogin}.$gdg_tab ($gdg_cols[0])",
-		  "create index GENOME_DG_TRANS_IND01 on ${tmpLogin}.$gdt_tab($gdt_cols[3],$gdt_cols[4])",
-                  "create index GENOME_DG_TRANS_IND02 on ${tmpLogin}.$gdt_tab($gdt_cols[4])",
+  my @gdt_cols = ('genome_dots_transcript_id', 'taxon_id', 'genome_external_db_release_id',
+		  $gdg_cols[0], 'blat_alignment_id', 'na_sequence_id');
+  my @gdt_types = ('NUMBER(10) NOT NULL', 'NUMBER(10) NOT NULL', 'NUMBER(10)',$gdg_types[0],
+		   'NUMBER(10)', 'NUMBER(10)');
+  my @gdt_csts = ("alter table ${tmpLogin}.$gdt_tab add constraint PK_" . uc($gdt_tab) . " primary key ($gdt_cols[0])",
+		  "alter table ${tmpLogin}.$gdt_tab add constraint " . uc($gdt_tab)
+		  . "_FK01 foreign key ($gdt_cols[3]) references ${tmpLogin}.$gdg_tab ($gdg_cols[0])",
+		  "create index GENOME_DG_TRANS_IND01 on ${tmpLogin}.$gdt_tab($gdt_cols[4],$gdt_cols[5])",
+                  "create index GENOME_DG_TRANS_IND02 on ${tmpLogin}.$gdt_tab($gdt_cols[5])",
                    ); 
 
-#  my $g2s_tab = 'GdgSdgMap';
-#  my @g2s_cols = ('taxon_id', 'genome_external_db_release_id', $gdg_cols[0], 'similarity_dots_gene_id', 'selected');
-#  my $g2s_types = ('NUMBER(10) NOT NULL', 'NUMBER(10)', $gdg_types[0], 'NUMBER(10)', 'NUMBER(1)');
-#  my @g2s_csts = ("alter table ${tmpLogin}.$g2s_tab add constraint " . uc($g2s_tab)
-#		  . "_FK01 foreign key ($g2s_cols[2]) references ${tmpLogin}.$gdg_tab ($gdg_cols[0])",
-#		  "create index " . uc($g2s_tab) . "_IND01 on ${tmpLogin}.$g2s_tab($g2s_cols[0],$g2s_cols[1])"); 
-
-#  $dbh->do("drop table ${tmpLogin}.$g2s_tab");
-  $dbh->do("drop table ${tmpLogin}.$gdt_tab") or print "";
-  $dbh->do("drop table ${tmpLogin}.$gdg_tab") or print "";
+  unless ($donotCreate) {
+    #  $dbh->do("drop table ${tmpLogin}.$g2s_tab");
+      $dbh->do("drop table ${tmpLogin}.$gdt_tab") or print "";
+      $dbh->do("drop table ${tmpLogin}.$gdg_tab") or print "";
+      $dbh->do("drop index " . uc($gdg_tab) . "_IND01") or print "";
+      $dbh->do("drop index GENOME_DG_TRANS_IND01") or print "";
+      $dbh->do("drop index GENOME_DG_TRANS_IND02") or print "";
   
-  &createTable($dbh, $tmpLogin, $gdg_tab, \@gdg_cols, \@gdg_types, \@gdg_csts);
-  &createTable($dbh, $tmpLogin, $gdt_tab, \@gdt_cols, \@gdt_types, \@gdt_csts);
- # &createTable($dbh, $tmpLogin, $g2s_tab, \@g2s_cols, \@g2s_types, \@g2s_csts);
+      &createTable($dbh, $tmpLogin, $gdg_tab, \@gdg_cols, \@gdg_types, \@gdg_csts);
+      &createTable($dbh, $tmpLogin, $gdt_tab, \@gdt_cols, \@gdt_types, \@gdt_csts);
+      # &createTable($dbh, $tmpLogin, $g2s_tab, \@g2s_cols, \@g2s_types, \@g2s_csts);
+  }
 
   return ($gdg_tab, \@gdg_cols, \@gdg_types, $gdt_tab, \@gdt_cols, \@gdt_types);
 }
@@ -345,7 +362,7 @@ sub createTable {
 }
 
 sub saveGene {
-    my ($self, $id, $gene, $tmpMeta) = @_;
+    my ($self, $dgid, $dtid, $gene, $tmpMeta) = @_;
 
     my ($gdg_tab, $gdg_cols, $gdg_types, $gdt_tab, $gdt_cols, $gdt_types) = @$tmpMeta;
 
@@ -359,13 +376,17 @@ sub saveGene {
 	. "$gdg_cols->[2], $gdg_cols->[3], $gdg_cols->[4], $gdg_cols->[5], "
 	. "$gdg_cols->[6], $gdg_cols->[7], $gdg_cols->[8], $gdg_cols->[9], "
 	. "$gdg_cols->[10], $gdg_cols->[11], $gdg_cols->[12], $gdg_cols->[13], "
-	. "$gdg_cols->[14]) values ($id, $taxonId, $genomeId, " . "'" . $gene->getChrom . "',"
+	. "$gdg_cols->[14], $gdg_cols->[31], $gdg_cols->[32], $gdg_cols->[33]) "
+	. "values ($dgid, $taxonId, $genomeId, " . "'" . $gene->getChrom . "',"
 	. $gene->getChromStart . "," . $gene->getChromEnd . ",'" . $gene->getStrand . "',"
 	. $gene->getTotalSpanSize . "," . $gene->getNumberOfSpans . ","
 	. $gene->getMinSpanSize . "," . $gene->getMaxSpanSize . ","
 	. $gene->getMinInterspanSize. "," . $gene->getMaxInterspanSize. ","
 	. "'" . join(',', $gene->getSpanStarts) . "',"
-	. "'" . join(',', $gene->getSpanEnds) . "')";
+	. "'" . join(',', $gene->getSpanEnds) .  "',"
+	. $gene->getAnnotationProperties->{'omc'} . ","
+	. $gene->getAnnotationProperties->{'cmc'} . ","
+	. $gene->getAnnotationProperties->{'pmc'} . ")";
     if ($isTest) {
 	$self->log("In testing mode, o.w. would run $sql");
     } else {
@@ -378,14 +399,15 @@ sub saveGene {
         my $dots = $t->getAnnotationProperties()->{na_sequence_id};
 
 	my $sql = "insert into ${tmpLogin}.$gdt_tab "
-	    . "($gdt_cols->[0], $gdt_cols->[1], $gdt_cols->[2], $gdt_cols->[3], $gdt_cols->[4]) "
-	    . "values ($taxonId, $genomeId, $id, $bid, $dots)";
+	    . "($gdt_cols->[0], $gdt_cols->[1], $gdt_cols->[2], $gdt_cols->[3], $gdt_cols->[4], "
+	    . "$gdt_cols->[5]) values (" . $dtid++ . ", $taxonId, $genomeId, $dgid, $bid, $dots)";
 	if ($isTest) {
 	    $self->log("In testing mode, o.w. would run $sql");
 	} else {
 	    $dbh->sqlexec($sql);
 	}
     }
+    return scalar(@transcripts);
 }
 
 1;

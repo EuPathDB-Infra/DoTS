@@ -97,7 +97,7 @@ FAILURE_CASES
 		descr => 'minimum exonic overlap required to make a call. eg 15bp, 0.25 (25\% of the smaller)',
 		constraintFunc=> undef,
 		reqd  => 0,
-		default => '0.55',
+		default => '0.10',
 		isList => 0 
 		}),
     ];
@@ -180,7 +180,7 @@ sub getTheQuery {
     my $genomeId = $self->getArg('genome_db_rls_id');
 
     my $sql = "select genome_dots_gene_id, gene_size, exonstarts, exonends, number_of_rnas, polya_signal_type "
-	    . "from $tab where taxon_id = $taxonId and and genome_external_db_release_id = $genomeId "
+	    . "from $tab where taxon_id = $taxonId and genome_external_db_release_id = $genomeId "
 	    . "and chromosome = '$chr' and strand = '$strand' "
 	    . ($start ? "and chromosome_end >= $start " : "")
             . ($end ? "and chromosome_start <= $end " : "")
@@ -254,7 +254,7 @@ sub pickAntisense {
 sub getReverseOverlapPairs {
     my ($self, $genesp, $genesm) = @_;
 
-    my $overlap_cutoff = $self->{'overlap_cutoff'}; 
+    my $overlap_cutoff = $self->getArg('exon_overlap_cutoff'); 
     my ($cutoff, $by_bases);
     if ($overlap_cutoff =~ /(\d+)bp/) {
 	$cutoff = $1;
@@ -287,6 +287,10 @@ sub getReverseOverlapPairs {
 	    }
 
 	    if ($isRev) {
+		if ($self->getArg('debug')) {
+		    $self->log("gDG $idp ($gsp bp) & $idm ($gsm bp), $overlap bp exon overlap,"
+			       . "this does" . ($isRev ? '' : ' not') . " meet $cutoff cutoff");
+		}
 		my @ngp = @$gp; push @ngp, $pct_p;
 		my @ngm = @$gm; push @ngm, $pct_m;
 		push @rev_pairs, [\@ngp, \@ngm];

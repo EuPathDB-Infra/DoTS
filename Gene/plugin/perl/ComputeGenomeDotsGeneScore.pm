@@ -146,15 +146,16 @@ sub run {
     my $genomeId = $self->getArg('genome_db_rls_id');
 
     my ($coords, $skip_chrs) = &DoTS::Gene::Util::getCoordSelectAndSkip($dbh, $genomeId, $args);
-    my @done_chrs = @$skip_chrs;
+    my @done_chrs; push @done_chrs, @$skip_chrs;
 
     my $c = 0;
     foreach my $coord (@$coords) {
         print "processing chr" . $coord->{chr} . ":" . $coord->{start} . "-" . $coord->{end} . "\n"; 
 	$c += $self->processRegion($dbh, $coord, $args);
 	$dbh->commit;
+	$self->getDb->undefPointerCache();
 	push @done_chrs, $coord->{chr};
-	print "completed/skipped chromosomoes: " . join(', ', @done_chrs) . "\n";
+	print "completed/skipped chromosomoes: " . join(',', @done_chrs) . "\n";
     }
     return "finished gDG score calculation for $c genome-based dots genes";
 }
@@ -178,35 +179,35 @@ sub processRegion {
     my $c = 0;
     for (my $i=0; $i<$tot; $i++) {
 	my $gid = $gdgids->[$i];
-	# $self->log("processing GDG.$gid ...");
+	$self->log("processing GDG.$gid ...") if $self->getArg('debug');
 	
 	# confidence score info
 	my $cs_info = {};
 	# 1. splice signal, polya signal, polya track
-	# $self->log("\tsignals ...");
+	$self->log("\tsignals ...") if $self->getArg('debug');
 	DoTS::Gene::ConfidenceScore::Signals::setSignals($dbh, $gdt_tab, $bs_tab,
 							 $gid, $cs_info);
 	# 2. input seq composition (mRNA, total RNA, EST clones, EST libs, EST 5-3 pairs)
-	# $self->log("\tcomposition ...");
+	$self->log("\tcomposition ...") if $self->getArg('debug');
 	DoTS::Gene::ConfidenceScore::Composition::setComposition($dbh, $gdg_tab, $gdt_tab,
 								 $gid, $cs_info);
 	# 3. protein coding potential
-	# $self->log("\tcoding potential ...");
+	$self->log("\tcoding potential ...") if $self->getArg('debug');
 	DoTS::Gene::ConfidenceScore::Coding::setCoding($dbh, $gdg_tab, $gdt_tab,
 						       $gid, $cs_info);
 	# 4. EST 5'-3' plot score
-	# $self->log("\tEST plot score ...");
+        $self->log("\tEST plot score ...") if $self->getArg('debug');
 	DoTS::Gene::ConfidenceScore::ESTPlotScore::setESTPlotScore($dbh, $gdg_tab, $gdt_tab,
 						       $gid, $chr_id, $cs_info);
 	# overall score
-	# $self->log("\toverall score ...");
+	$self->log("\toverall score ...") if $self->getArg('debug');
 	DoTS::Gene::ConfidenceScore::Overall::setScore($dbh, $gdg_tab,
 						       $gid, $cs_info, $stats);
-	# $self->log("\tdb update ...");
+	$self->log("\tdb update ...") if $self->getArg('debug');
 	&dbUpdate($dbh, $gdg_tab, $gid, $cs_info);
 
 	unless (++$c % 100) {
-	    print "# processed $c entries\n";
+	    $self->log("processed $c");
 	    $dbh->commit;
 	}
     }
@@ -232,7 +233,8 @@ sub selectGenomeDotsGenes {
 	    . ($end ? "and chromosome_start <= $end " : "")
 	    . ($isRerun ? "and confidence_score is null" : "");
     if ($ss_sel) {
-	$sql .= " and " . ($ss_sel == 1 ? '' : 'not') . " (max_intron >= 47 or contains_mrna = 1)";
+	$sql .= " and " . ($ss_sel == 1 ? "(max_intron >= 47 or contains_mrna = 1)"
+                                        : "max_intron < 47 and (contains_mrna = 0 or contains_mrna is null)"); 
     }
     print "running sql: $sql ...\n";
     my $sth = $dbh->prepareAndExecute($sql);
