@@ -2710,9 +2710,11 @@ sub downloadLocusLink {
 
   $mgr->runCmd("mkdir -p $downloadSubDir");
 
-  my $cmd = "wget -t5 -o $logfile -m -np -nd -nH --cut-dirs=2 -A \"loc2acc,loc2ref,LL.out.gz\"  -P $downloadSubDir  ftp://ftp.ncbi.nlm.nih.gov/refseq/LocusLink/";
+  my $cmd = "wget -t5 -o $logfile -m -np -nd -nH --cut-dirs=2 -A \"loc2acc,loc2ref,LL.out.gz\"  -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/refseq/LocusLink/";
 
   $mgr->runCmd($cmd);
+
+  $mgr->runCmd("gunzip LL.out.gz");
 
   $mgr->endStep($signal);
 }
@@ -2848,7 +2850,7 @@ sub loadLocusLinkInfo {
 
   my $date = $propertySet->getProp('buildDate');
 
-  my $infoFile = "$externalDbDir/locuslink/$date/LL.out.gz";
+  my $infoFile = "$externalDbDir/locuslink/$date/LL.out";
 
   my $externalDbRel = $propertySet->getProp('locuslink_db_rls_id');
 
@@ -3010,6 +3012,7 @@ sub parseGeneCardsToDoTS {
 sub loadGeneCardsToDoTS {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet}; 
+
   my $externalDbDir = $propertySet->getProp('externalDbDir');
   
   my $date = $propertySet->getProp('buildDate');
@@ -3024,6 +3027,99 @@ sub loadGeneCardsToDoTS {
   
   $mgr->runPlugin("loadGeneCardsMapping", "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence", $args, "loading GeneCards to DoTS mapping",'loadGeneCards');
 }
+
+sub deleteGEAToDoTS {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "deleteGEAToDoTS";
+
+  return if $mgr->startStep("Deleting GEA to DoTS entries from DbRefNASequence", $signal);
+
+  my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
+  my $pipelineDir = $mgr->{pipelineDir}; 
+
+  my $geaDbRlsId = $propertySet->getProp('gea_db_rls_id');
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $sql = "select n.db_ref_na_sequence_id from sres.dbref d, dots.dbrefnasequence n where d.external_database_release_id in ($geaDbRlsId) and d.db_ref_id = n.db_ref_id";
+
+  my $cmd = "deleteEntries.pl --table DoTS::DbRefNASequence --idSQL \"$sql\" --gusConfigFile $gusConfigFile --verbose 2>> $logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+}
+
+sub parseGEA {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "parseGEAToDots";
+
+  return if $mgr->startStep("Parsing GEA to DoTS entries from file", $signal);
+
+  my $pipelineDir = $mgr->{pipelineDir};
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+
+  my $downloadSubDir = "$externalDbDir/gea";
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my @geaFiles = split(/,/, $propertySet->getProp('geaFiles'));
+  
+  foreach my $file (@geaFiles) {
+
+    my ($geaFile, $id, $regex) = split(/:/, $file);
+
+    my $inputfile = "$downloadSubDir/$geaFile";
+  
+    my $outputfile = "$pipelineDir/misc/${geaFile}2DoTS.txt";
+
+    my $cmd = "makeGEA2DoTSfile --inputFile $inputfile --taxon_id $taxonId --regex \"$regex\" > $outputfile 2>>$logFile";
+
+    $mgr->runCmd($cmd);
+
+  }
+
+
+  $mgr->endStep($signal);
+}
+    
+sub loadGEA {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $pipelineDir = $mgr->{pipelineDir};
+
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+
+  my $downloadSubDir = "$externalDbDir/gea";
+
+  my $geaDbId = $propertySet->getProp('gea_db_id');
+
+  my $species = $propertySet->getProp('speciesNickname');
+
+  my @geaFiles = split(/,/, $propertySet->getProp('geaFiles'));
+
+  foreach my $file (@geaFiles) {
+
+    my ($geaFile, $relId) = split(/:/, $file);
+
+    my $file = "$pipelineDir/misc/${geaFile}2DoTS.txt";
+
+    my $args = "--mappingfiles $file --pattern1 '(\\S+)\\t' --pattern2 '\\tDT\.(\\d+)' --db_id $geaDbId --db_rel_id $relId";
+
+    $mgr->runPlugin("loadGEA${geaFile}Mapping", "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence", $args, "loading GEA to DoTS mapping");
+  }
+}
+
 
 
 sub makeProjectLink {
