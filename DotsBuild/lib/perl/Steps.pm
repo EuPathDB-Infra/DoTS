@@ -585,7 +585,7 @@ sub loadGenomeAlignments {
   my $taxonId = $propertySet->getProp('taxonId');
   my $genomeId = $propertySet->getProp('genome_db_rls_id');
   my $gapTabSpace = $propertySet->getProp('tempLogin');
-
+  my $pipelineDir = $mgr->{'pipelineDir'};
   my $pslDir = "$pipelineDir/genome/$queryName-$targetName/per-chr";
 
   my $qFile = "$pipelineDir/repeatmask/$queryName/master/mainresult/blocked.seq";
