@@ -1,5 +1,5 @@
+Preparations
   - copy to allgenes site:
-     - statistics page
      - blastable files
      - downloadSite files
   - servlet-config:
@@ -9,12 +9,16 @@
       - update manually curated stats
       - update count of aligned transcripts
       - mention new release
+      - update Citing Allgenes section
   - credit.html:
       - update
   - InstallConfig:
       - update external db rel ids
-  - remove all cached values on allgenes site
-  - redirect download site current/ to point to new release
   - update blatTargetDBP.Labels in dotsgenes-config if new genome release
   - update GUS/perl/servlet/dotsgenes/blatLink.pl.in if new genome release
   - remind EpCon to deal with the new release
+
+Final
+  - copy statistics page to allgenes site
+  - remove all cached values on allgenes site
+  - redirect download site current/ to point to new release
