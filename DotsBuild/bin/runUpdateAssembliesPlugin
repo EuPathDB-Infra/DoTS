@@ -13,8 +13,12 @@ use strict;
 use Getopt::Long;
 
 my ($debug,$pluginCmd,$cap4_machine,$taxon_id,$reassemble,$clusterFile);
-&GetOptions("clusterFile=s" => \$clusterFile,"taxon_id=i" => \$taxon_id,'reassembly1' => \$reassemble,
-            "debug!" => \$debug,"pluginCmd=s" => \$pluginCmd,'cap4_machine=s' => \$cap4_machine);
+&GetOptions("clusterFile=s" => \$clusterFile,
+	    "taxon_id=i" => \$taxon_id,
+	    'reassembly1' => \$reassemble,
+            "debug!" => \$debug,
+	    "pluginCmd=s" => \$pluginCmd,
+	    'cap4_machine=s' => \$cap4_machine);
 
 die "usage: runUpdateAssembliesPlugin.pl --debug --pluginCmd [entire command  for running plugin] --clusterFile\n" unless (-e $clusterFile && $pluginCmd);
 

@@ -9,6 +9,7 @@
 use strict;
 use Getopt::Long;
 use GUS::ObjRelP::DbiDatabase;
+use GUS::Common::GusConfig;
 
 my ($querySQL,$subjectSQL,$verbose,$nrdbFile, $gusConfigFile);
 &GetOptions("querySQL=s" => \$querySQL,

@@ -7,6 +7,7 @@
 use strict;
 use Getopt::Long;
 use GUS::ObjRelP::DbiDatabase;
+use GUS::Common::GusConfig;
 
 ##wannt to change so that does essentailly a graph analysis (allthought without graphs!)
 ##first build cliques where all members of a click have the threshhold cutoffs to all the other members.

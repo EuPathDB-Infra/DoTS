@@ -5,13 +5,14 @@
 ##Deborah Pinney 2002-07-19
 
 use strict;
-use DBI;
 use Getopt::Long;
-use Objects::GUS::ObjRelP::DbiDatabase;
+use GUS::ObjRelP::DbiDatabase;
+use GUS::Common::GusConfig;
 
 my ($debug,$verbose,$outFile,$idSQL,$gusConfigFile);
 &GetOptions("verbose!"=> \$verbose,
-            "outputFile=s" => \$outFile,"idSQL=s" => \$idSQL, 
+            "outputFile=s" => \$outFile,
+	    "idSQL=s" => \$idSQL, 
             "gusConfigFile=s" => \$gusConfigFile );
 
 if(!$idSQL || !$outFile){

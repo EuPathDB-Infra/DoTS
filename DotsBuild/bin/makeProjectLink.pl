@@ -7,6 +7,7 @@ use strict;
 
 use Getopt::Long;
 use GUS::ObjRelP::DbiDatabase;
+use GUS::Common::GusConfig;
 
 
 my ($gusConfigFile,$verbose,$allgenes_num,$restart,$commit,$imcloneDbRlsId,$taxon);
@@ -19,7 +20,7 @@ my ($gusConfigFile,$verbose,$allgenes_num,$restart,$commit,$imcloneDbRlsId,$taxo
 	    "taxon=i" => \$taxon);
 
 if($allgenes_num){
-	die "usage: makeProjectLink.pl --verbose --commit <commit inserts> --restart <optional, if restart required> --allgenes_num <version num of allgenes> --gusConfigFile [$GUS_CONFIG_FILE] --\n";
+	die "usage: makeProjectLink.pl --verbose --commit <commit inserts> --restart <optional, if restart required> --allgenes_num <version num of allgenes> --gusConfigFile [\$GUS_CONFIG_FILE] --\n";
 }
 
 
