@@ -13,6 +13,7 @@ sub new {
 
     my $self = {};
     bless($self,$class);
+    my $usage = 'A package to update sres.DBRef from a tab delimited LocusLink file.';
 
     my $easycsp =
 	[{o => 'testnumber',
@@ -52,11 +53,11 @@ sub run {
 
   $self->log ($self->getArgs()->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n");
 
-  $self->log ("Testing on". $self->getArgs()->{'testnumber'}."insertions\n") if $self->getArgs()->{'testnumber';
+  $self->log ("Testing on". $self->getArgs()->{'testnumber'}."insertions\n") if $self->getArgs()->{'testnumber'};
 
-  if (!$self->getArgs()->{'infoFile'} || !$self->getArgs()->{'ncbiTaxId'}) {
+  if (!$self->getArgs()->{'infoFile'} || !$self->getArgs()->{'ncbiTaxId'} || !$self->getArgs()->{'externalDbRel'}) {
 
-    die "--infoFile --ncbiTaxId must be supplied\n";
+    die "--infoFile --ncbiTaxId --externalDbRel must be supplied\n";
 
   }
 
@@ -72,6 +73,8 @@ sub updateDbRef {
   my $ncbiTaxId = $self->getArgs()->{'ncbiTaxId'};
 
   my $externalDbRel = $self->getArgs()->{'externalDbRel'};
+
+  my $testnumber = $self->getArgs()->{'testnumber'} if $self->getArgs()->{'testnumber'};
 
   my $fh = new FileHandle($infoFile) || die "Could not open". $self->getArgs()->{'infoFile'};
 
@@ -102,6 +105,8 @@ sub updateDbRef {
     $newDbRef->undefPointerCache();
 
     $num += $newDbRef->submit();
+
+    exit if ($testnumber && $testnumber >= $num);
   }
 
     $self->log ("$num DbRef rows updated\n");
