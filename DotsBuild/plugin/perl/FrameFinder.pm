@@ -1,4 +1,4 @@
-package DoTS::DotsBuild::Plugin::FrameFinder;
+package DoTS::DotsBuild::Plugin::FrameFinder
 
 # Run framefinder on Assemblies, storing the results in the database.
 #
@@ -323,7 +323,7 @@ if ($stpos<=0)
 	{
       #checking against trivial frame
       ($triv_aa_length, $triv_seq, $triv_trans_start, $triv_trans_revcomp) 
-        = Trivial($seq);        #caculating the trivial length;
+        = CBIL::Bio::TrivTrans::Trivial($seq);        #caculating the trivial length;
 #	print "triv trans options start $triv_trans_start lenght $triv_aa_length  reverse $triv_trans_revcomp\n";
       #			die "Triv_trans made";
 
