@@ -5,6 +5,7 @@ use DoTS::Gene::Util;
 use DoTS::Gene::GenomeFeature;
 use DoTS::Gene::CompositeGenomeFeature;
 use CBIL::Util::Disp;
+use Carp;
 
 # constructor
 #
@@ -97,13 +98,14 @@ sub _seed {
 
 sub _doOverlapMerge {
     my $self = shift;
+    my $om = $self->{om};
 
-    print "(+) overlap merge: before count " . scalar(@{ $self->{cachePlus} })  . "\n";
-    $self->_doMerge('+', 'om', 0);
+    print "(+) overlap (of at least $om bp) merge: before count " . scalar(@{ $self->{cachePlus} })  . "\n";
+    $self->_doMerge('+', 'om', $om);
     print "(+) overlap merge: after count " . scalar(@{ $self->{cachePlus} }). "\n";
 
-    print "(-) overlap merge: before count " . scalar(@{ $self->{cacheMinus} })  . "\n";
-    $self->_doMerge('-', 'om', 0);
+    print "(-) overlap (of at least $om bp) merge: before count " . scalar(@{ $self->{cacheMinus} })  . "\n";
+    $self->_doMerge('-', 'om', $om);
     print "(-) overlap merge: after count " . scalar(@{ $self->{cacheMinus} }). "\n";
 }
 
@@ -216,6 +218,8 @@ sub _doMerge {
 
 sub _detectMerge {
     my ($self, $seed1, $seed2, $merge_mode, $merge_param) = @_;
+
+    &confess("merge param is required") unless $merge_param;
 
     my $coords1 = $seed1->{coords};
     my $gf1 = DoTS::Gene::GenomeFeature->new({ coords => $coords1 });
