@@ -1,4 +1,4 @@
-package DoTS::DotsBuild::Plugin::MakeGenesForRNA;
+package DoTS::DotsBuild::Plugin::MakesGenesForRNA;
 
 
 
