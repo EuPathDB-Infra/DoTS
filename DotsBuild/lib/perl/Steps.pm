@@ -2010,9 +2010,7 @@ sub makePredictedProteinFile {
 
   my $logFile = "$mgr->{pipelineDir}/logs/${predictedProteinsFile}Extract.log";
 
-  my $sql = "select /*+ RULE */ 'DT.'||a.na_sequence_id,'length of predicted protein sequence ='||aas.length,aas.sequence from dots.assembly a, dots.rnafeature rf, dots.rnainstance ri, dots.protein p, dots.translatedaafeature taf, dots.proteininstance pi, dots.aasequenceimp aas where a.taxon_id = $taxonId and a.na_sequence_id = rf.na_sequence_id and rf.na_feature_id = ri.na_feature_id and ri.rna_id = p.rna_id and p.protein_id = pi.protein_id and pi.is_reference = 1 and pi.aa_feature_id = taf.aa_feature_id and taf.aa_sequence_id = aas.aa_sequence_id";
- 
-  my $cmd = "dumpSequencesFromTable.pl --outputFile $mgr->{pipelineDir}/seqfiles/$predictedProteinsFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"$sql\" 2>>  $logFile";
+  my $cmd = "dumpPreferredAssemblyTranslationSequences.pl --taxon $taxonId --outputFile $mgr->{pipelineDir}/seqfiles/$predictedProteinsFile --gusConfigFile $gusConfigFile  2>>  $logFile";
   
   $mgr->runCmd($cmd);
   
