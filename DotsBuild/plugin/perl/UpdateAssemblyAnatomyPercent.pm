@@ -84,7 +84,7 @@ sub run {
     last if ($testnumber && $count > $testnumber);
   }
 
-  $self->setResult("Updated $count rows");
+  $self->setResultDescr("Updated $count rows");
 }
 
 #########################################################################
