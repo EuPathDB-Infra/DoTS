@@ -605,10 +605,6 @@ sub loadGenomeAlignments {
   my ($mgr, $queryName, $targetName) = @_;
   my $propertySet = $mgr->{propertySet};
 
-  my $signal = "$queryName-$targetName" . 'Load';
-
-  return if $mgr->startStep("Loading $queryName-$targetName alignments", $signal);
-
   my $taxonId = $propertySet->getProp('taxonId');
   my $genomeId = $propertySet->getProp('genome_db_rls_id');
   my $gapTabSpace = $propertySet->getProp('genomeGapLogin');
@@ -632,16 +628,12 @@ sub loadGenomeAlignments {
   $mgr->runPlugin("LoadBLATAlignments", 
 			  "GUS::Common::Plugin::LoadBLATAlignments",
 			  $args, "loading genomic alignments of $queryName vs $targetName");
-  $mgr->endStep($signal);
 }
 
 sub clusterByGenome {
     my ($mgr, $name) = @_;
     my $propertySet = $mgr->{propertySet};
 
-    my $signal = "${name}ClusterByGenome";
-
-    return if $mgr->startStep("Clustering $name by genome", $signal);
     my $pipelineDir = $mgr->{'pipelineDir'};
     my $taxonId = $propertySet->getProp("taxonId");
     my $extDbRelId = $propertySet->getProp("genome_db_rls_id");
@@ -658,7 +650,6 @@ sub clusterByGenome {
 		    "DoTS::DotsBuild::Plugin::ClusterByGenome",
 		    $args, "$name clustering by genome alignment");
 
-    $mgr->endStep($signal);
 }
 
 
