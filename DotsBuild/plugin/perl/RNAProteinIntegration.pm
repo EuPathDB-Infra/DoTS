@@ -154,7 +154,7 @@ sub makeRNAInstance {
   my ($rnafeat) = @_;
   my $is_reference = 0;
   my $review_status_id = 0;
-  my $rna_instance_category_id = ?;####################### get this
+  my $rna_instance_category_id = 1;
   my %attHash = ('is_reference'=>$is_reference, 'review_status_id'=>$review_status_id, 'rna_instance_category_id'=>$rna_instance_category_id);
   my $newRNAInstance = GUS::Model::DoTS::RNAInstance->new(\%attHash);
   
@@ -226,7 +226,7 @@ sub makeTransAAFeat {
 sub makeProteinInstance {
   my ($transaafeat) = @_;
   my $is_reference = 0;
-  my $protein_instance_category_id = ?;#################get this
+  my $protein_instance_category_id = 2;
   my $review_status_id = 0;
   my %attHash =('is_reference'=>$is_reference, 'review_status_id'=>$review_status_id, 'protein_instance_category_id'=>$protein_instance_category_id);
   my $newProteinInstance = GUS::Model::DoTS::ProteinInstance->new(\%attHash);
