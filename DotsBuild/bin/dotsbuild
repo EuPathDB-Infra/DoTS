@@ -44,7 +44,7 @@ my @properties =
  ["taxonId",              "",  "eg 14 for mus"],
  ["speciesFullname",              "",  "eg Home sapiens"],
  ["speciesNickname",              "",  "eg mus, hum"],
- ["dbPassword",           "",  ""],
+ ["gusConfigFile",           "",  ""],
  ["initialCluster.length",          "",  "length cutoff"],
  ["initialCluster.percent",         "",  "percent ident cutoff"],
  ["initialCluster.logbase",         "",  ""],
@@ -604,14 +604,14 @@ sub extractDots {
 
     return if $mgr->startStep("Extracting $name assemblies from GUS", $signal);
 
-    my $dbPassword = $propertySet->getProp('dbPassword');
+    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
     my $taxonId = $propertySet->getProp('taxonId');
     my $species = $propertySet->getProp('speciesFullname');
 
     my $seqFile = "$pipelineDir/seqfiles/$name.fsa";
     my $logFile = "$pipelineDir/logs/${name}Extract.log";
 
-    my $cmd = "dumpSequencesFromTable.pl --outputFile $seqFile --verbose --password $dbPassword --idSQL \"select $DTprefix na_sequence_id,'[$species]',description,'('||number_of_contained_sequences||' sequences)','length='||length,sequence from Assembly where taxon_id = $taxonId\" 2>>  $logFile";
+    my $cmd = "dumpSequencesFromTable.pl --outputFile $seqFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"select $DTprefix na_sequence_id,'[$species]',description,'('||number_of_contained_sequences||' sequences)','length='||length,sequence from Assembly where taxon_id = $taxonId\" 2>>  $logFile";
 
     $mgr->runCmd($cmd);
 
@@ -872,12 +872,12 @@ sub extractProteinSeqs {
 
     return if $mgr->startStep("Extracting $name protein sequences from GUS", $signal);
 
-    my $dbPassword = $propertySet->getProp('dbPassword');
+    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
 
     my $seqFile = "$pipelineDir/seqfiles/$name.fsa";
     my $logFile = "$pipelineDir/logs/${name}Extract.log";
 
-    my $cmd = "dumpSequencesFromTable.pl --password $dbPassword --outputFile $seqFile --idSQL \"$sql\" --verbose 2>> $logFile";
+    my $cmd = "dumpSequencesFromTable.pl --gusConfigFile $gusConfigFile  --outputFile $seqFile --idSQL \"$sql\" --verbose 2>> $logFile";
 
     $mgr->runCmd($cmd);
 
@@ -1296,9 +1296,9 @@ sub getImcloneOnlyAssemblies {
 
     my $logfile = "$pipelineDir/logs/${signal}.log";
 
-    my $dbPassword = $propertySet->getProp('dbPassword');
+    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
 
-    my $cmd = "getPrimaryIds --outputfile $output --password $dbPassword --idSQL \"$sql\" --verbose 2>> $logfile";
+    my $cmd = "getPrimaryIds --outputfile $output --gusConfigFile $gusConfigFile  --idSQL \"$sql\" --verbose 2>> $logfile";
 
     $mgr->runCmd($cmd);
 
@@ -1323,12 +1323,13 @@ sub prepareDownloadSiteFiles {
 
     my $predictedProteinsFile = "${prefix}_predictedProteins.fasta";
 
-    my $dbPassword = $propertySet->getProp('dbPassword');
+    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
     my $taxonId = $propertySet->getProp('taxonId');
 
     my $logFile = "$pipelineDir/logs/${fastaFile}Extract.log";
 
-    my $cmd = "dumpSequencesFromTable.pl --outputFile $pipelineDir/seqfiles/$fastaFile --verbose --password $dbPassword --idSQL \"select 'DT.'||na_sequence_id,'[$species]',description,'('||number_of_contained_sequences||' sequences)','length='||length,sequence from Assembly where taxon_id = $taxonId\" 2>>  $logFile";
+    my $cmd = "dumpSequencesFromTable.pl --outputFile $pipelineDir/seqfiles/$fastaFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"select 'DT.'||na_sequence_id,'[$species]',description,'('||number_of_contained_sequences||' sequences)','length='||length,sequence from Assembly where taxon_id = $taxonId\" 2>>  $logFile";
 
 
     $mgr->runCmd($cmd);
@@ -1491,13 +1492,13 @@ sub extractMarkers {
 
     my $taxonId = $propertySet->getProp('taxonId');
 
-    my $dbPassword = $propertySet->getProp('dbPassword');
+    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
 
     my $dbUser = $propertySet->getProp('dbUser');
 
     my $markerFile = "$pipelineDir/epcr/rh.sts";
 
-    my $cmd = "extractMarkers $taxonId $dbUser $dbPassword > $markerFile";
+    my $cmd = "extractMarkers $taxonId $gusConfigFile > $markerFile";
 
     $mgr->runCmd($cmd);
 
@@ -1814,7 +1815,8 @@ sub extractGeneTrapTags {
 
     return if $mgr->startStep("Extracting gene trap tags from GUS", $signal, 'loadGeneTrapAssembly');
 
-    my $dbPassword = $propertySet->getProp('dbPassword');
+    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
     my $taxonId = $propertySet->getProp('taxonId');
     my %external_databases = $propertySet->getProp('geneTagDB');
 
@@ -1822,7 +1824,7 @@ sub extractGeneTrapTags {
 	my $database_name = $external_databases{$db_id};
 	my $seqFile = "$pipelineDir/genetrap/${database_name}.fsa";
 	my $logFile = "$pipelineDir/logs/geneTrapTag{database_name}.log";
-	my $cmd = "dumpSequencesFromTable.pl --outputFile $seqFile --verbose --password $dbPassword --idSQL \"select na_sequence_id,sequence from ExternalNASequence where taxon_id = 14 and external_db_id = $db_id\" 2>>  $logFile";
+	my $cmd = "dumpSequencesFromTable.pl --outputFile $seqFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"select na_sequence_id,sequence from ExternalNASequence where taxon_id = 14 and external_db_id = $db_id\" 2>>  $logFile";
 
 	$mgr->runCmd($cmd);
     }
@@ -2038,17 +2040,17 @@ sub makeProjectLink {
 
     my $allgenesVer = $propertySet->getProp('allgenesVersion');
 
-    my $dbPassword = $propertySet->getProp('dbPassword');
+    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
 
     my $args;
 
     if ($propertySet->getProp('projectLinkRestart') eq "yes") {
 
-	$args = "--commit --verbose --restart --allgenes_num $allgenesVer --password $dbPassword --taxon $taxonId";
+	$args = "--commit --verbose --restart --allgenes_num $allgenesVer --gusConfigFile $gusConfigFile  --taxon $taxonId";
     }
     else {
 
-	$args = "--commit --verbose --allgenes_num $allgenesVer --password $dbPassword --taxon $taxonId";
+	$args = "--commit --verbose --allgenes_num $allgenesVer --gusConfigFile $gusConfigFile  --taxon $taxonId";
     }
 
     my $cmd = "makeProjectLink.pl $args";
