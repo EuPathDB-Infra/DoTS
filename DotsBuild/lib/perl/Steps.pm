@@ -101,7 +101,7 @@ sub createDotsPipelineDir {
   &makeSimilarityDir("finalDots", "cdd", $buildName, $dotsBuildDir,
 		     $serverPath, $nodePath, $bsTaskSize,
 		     $ncbiBlastBinPathCluster,
-		     "cdd/All", "$serverPath/$buildName/seqfiles", 'finalDots.fsa',
+		     "cdd/Cdd", "$serverPath/$buildName/seqfiles", 'finalDots.fsa',
 		     '\w+\|\w+\|\d+\s+(\w+)', 'rpsblast', "-a 2 -e .1 -p F");
 
   &makeAssemblyDir("initial", $buildName, $dotsBuildDir, $mgr);
