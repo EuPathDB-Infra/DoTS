@@ -4,8 +4,23 @@ package DoTS::Gene::Plugin::IntegrateGenomeDotsGeneWithGus;
 use strict 'vars';
 
 use CBIL::Util::PropertySet;
+use DoTS::Gene::Util;
 
 use GUS::PluginMgr::Plugin;
+
+use GUS::Model::DoTS::Gene;
+use GUS::Model::DoTS::GeneInstance;
+use GUS::Model::DoTS::GeneInstanceCategory;
+use GUS::Model::DoTS::GeneFeature;
+use GUS::Model::DoTS::ExonFeature;
+
+use GUS::Model::DoTS::RNA;
+use GUS::Model::DoTS::RNAInstance;
+use GUS::Model::DoTS::RNAInstanceCategory;
+use GUS::Model::DoTS::RNAFeature;
+
+use GUS::Model::DoTS::RNAFeatureExon;
+use GUS::Model::DoTS::NALocation;
 
 sub new {
     my ($class) = @_;
@@ -68,6 +83,13 @@ FAILURE_CASES
 		     constraintFunc=> undef,
 		     reqd  => 1,
 		     isList => 0 
+		     }),
+
+	 integerArg({name => 'test_number',
+		     descr => 'number of entries to do test on',
+		     constraintFunc=> undef,
+		     reqd  => 0,
+		     isList => 0
 		     })
 	 ];
 
@@ -96,13 +118,10 @@ sub run {
     my $genomeId = $self->getArg('genome_db_rls_id');
     my $gdgTab = $tempLogin . '.' . $self->getArg('genome_dots_gene_cache');
     my $gdtTab = $tempLogin . '.' . $self->getArg('genome_dots_transcript_cache');
+    my $testNum = $self->getArg('test_number');
 
-    # HAC for now, just copy to allgenes schema
-    $self->moveToAllgenes($dbh, $tempLogin, $taxonId, $genomeId, $gdgTab, $gdtTab);
-    return "finished moving $gdgTab and $gdtTab into allgenes";
-
-    # TODO: really integrate with GUS central dogma tables
-    # $self->moveToGus($dbh, $taxonId, $genomeId, $gdgTab, $gdtTab);
+    $self->moveToGus($dbh, $taxonId, $genomeId, $gdgTab, $gdtTab, $testNum);
+    return "finished moving $gdgTab and $gdtTab into GUS central dogma tables";
 }
 
 #----------------
@@ -111,100 +130,141 @@ sub run {
 #
 #----------------
 
-sub moveToAllgenes {
-    my ($self, $dbh, $tempLogin, $taxonId, $genomeId, $gdgTab, $gdtTab) = @_;
+sub moveToGus {
+    my ($self, $dbh, $taxonId, $genomeId, $gdgTab, $gdtTab, $testNum) = @_;
 
-    my $aid = $self->getAnalysisId($dbh, $taxonId, $genomeId);
+    my $sql = "select genome_dots_gene_id from $gdgTab"
+	. " where taxon_id = $taxonId and genome_external_db_release_id = $genomeId";
+    $sql .= " and rownum <= $testNum" if $testNum;
 
-    $self->archiveOldResults($dbh, $tempLogin, $aid);
-
-    my ($maxg, $maxt) = $self->getMaxUsedIds($dbh);
-
-    $self->moveNewResults($dbh, $aid, $taxonId, $genomeId, $gdgTab, $gdtTab, $maxg, $maxt);
-}
-
-sub moveNewResults {
-    my ($self, $dbh, $aid, $taxonId, $genomeId, $gdgTab, $gdtTab, $maxg, $maxt) = @_;
-
-    my $sql = "insert into Allgenes.AlignedGene "
-	. "(select (genome_dots_gene_id + $maxg) as aligned_gene_id, "
-	. " $aid as aligned_gene_analysis_id, '' as aligned_gene_accession, "
-	. "CHROMOSOME, CHROMOSOME_START, CHROMOSOME_END, STRAND, GENE_SIZE, "
-	. "NUMBER_OF_EXONS, MIN_EXON, MAX_EXON, MIN_INTRON, MAX_INTRON, "
-	. "EXONSTARTS, EXONENDS, DEPRECATED, EST_PLOT_SCORE, NUMBER_OF_SPLICE_SIGNALS, "
-	. "HAS_HUMAN_MOUSE_ORTHOLOGY, POLYA_SIGNAL_TYPE, HAS_POLYA_TRACK, "
-	. "NUMBER_OF_EST_LIBRARIES, NUMBER_OF_EST_CLONES, NUMBER_OF_EST_P53PAIRS, "
-	. "CONFIDENCE_SCORE, NUMBER_OF_RNAS, CONTAINS_MRNA, MAX_ORF_LENGTH, "
-	. "MAX_ORF_SCORE, MIN_ORF_PVAL, GENE_ID "
-	. "from $gdgTab where taxon_id = $taxonId "
-	. "and genome_external_db_release_id = $genomeId)";
-    $self->log("moving new gene results to allgenes tables: sql=$sql");
-    $dbh->sqlexec($sql);
-
-    $sql = "insert into Allgenes.AlignedGeneAssembly "
-	. "(select (genome_dots_transcript_id + $maxt) as aligned_gene_assembly_id, "
-	. "(genome_dots_gene_id + $maxg) as aligned_gene_id, na_sequence_id, "
-	. "similarity_dots_gene_id as cluster_id, blat_alignment_id "
-	. "from $gdtTab where taxon_id = $taxonId "
-	. "and genome_external_db_release_id = $genomeId)";
-    $self->log("moving new transcript results: sql=$sql");
-    $dbh->sqlexec($sql);
-    $self->log("finished moving");
-}
-
-sub getMaxUsedIds {
-    my ($self, $dbh) = @_;
-
-    my ($sql, $sth, $maxg, $maxt);
-
-    $sql = "select max(aligned_gene_id) from Allgenes.AlignedGene";
-    $sth = $dbh->prepareAndExecute($sql);
-    $maxg = $sth->fetchrow_array;
-
-    $sql = "select max(aligned_gene_assembly_id) from Allgenes.AlignedGeneAssembly";
-    $sth = $dbh->prepareAndExecute($sql);
-    $maxt = $sth->fetchrow_array;
-
-    ($maxg, $maxt);
-}
-
-sub archiveOldResults {
-    my ($self, $dbh, $tempLogin, $aid) = @_;
-
-    my $sql = "create table ${tempLogin}.AlignedGene_$aid as "
-	. "(select * from Allgenes.AlignedGene where aligned_gene_analysis_id = $aid)";
-    $self->log("saving old genes: sql=$sql");
-    $dbh->sqlexec($sql);
-
-    $sql = "create table ${tempLogin}.AlignedGeneAssembly_$aid as "
-	. "(select * from Allgenes.AlignedGeneAssembly where aligned_gene_id in "
-	. " (select aligned_gene_id from Allgenes.AlignedGene where aligned_gene_analysis_id = $aid))";
-    $self->log("saving old transcripts: sql=$sql");
-    $dbh->sqlexec($sql);
-
-    $sql = "delete Allgenes.AlignedGeneAssembly where aligned_gene_id in "
-	. "(select aligned_gene_id from Allgenes.AlignedGene where aligned_gene_analysis_id = $aid)";
-    $self->log("deleting old transcripts: sql=$sql");
-    $dbh->sqlexec($sql);
-
-    $sql = "delete Allgenes.AlignedGene where aligned_gene_analysis_id = $aid";
-    $self->log("deleting old transcripts: sql=$sql");
-    $dbh->sqlexec($sql);
-}
-
-sub getAnalysisId {
-    my ($self, $dbh, $taxonId, $genomeId) = @_;
-
-    my $sql = "select aligned_gene_analysis_id from Allgenes.AlignedGeneAnalysis "
-	. "where parameters like '%--t $taxonId --dbr $genomeId%'";
     my $sth = $dbh->prepareAndExecute($sql);
-    my @aids = ();
-    while (my $aid = $sth->fetchrow_array) { push @aids, $aid; }
-    my $c = scalar(@aids);
-    die "expecting one analysis id but found $c" unless $c == 1;
-    $self->log("aligned gene analysis id is $aids[0]");
+    my @gdg_ids;
+    while (my ($id) = $sth->fetchrow_array()) { push @gdg_ids, $id; }
+    $sth->finish();
 
-    return $aids[0];
+    my $gi_cat = $self->getGeneInstanceCategory;
+    my $fake_gene = $self->getFakeGene; # place holder for gDGs w/o sDG ids
+    my @chrs = DoTS::Gene::Util::getChromsInfo($dbh, $genomeId);
+    my %chrIds; foreach (@chrs) { $chrIds{$_->{chr}} => $_->{chr_id}; }
+
+    foreach my $gdg_id (@gdg_ids) {
+	$sql = "select gdg.*, gdt.na_sequence_id, gdt.blat_alignment_id,"
+	    . " gdt.genome_dots_transcript_id"
+	    . " from $gdgTab gdg, $gdtTab gdt "
+	    . " where gdg.genome_dots_gene_id = gdt.genome_dots_gene_id"
+	    . " and gdg.genome_dots_gene_id = $gdg_id";
+	$sth = $dbh->prepareAndExecute($sql);
+	my @rows;
+	while (my $row = $sth->fetchrow_hashref('NAMElc')) {  push @rows, $row; }
+	die "unexpected error: not info about gDG.$gdg_id" unless @rows;
+	my $r1 = $rows[0];
+
+	my $gene = $fake_gene;
+	if ($r1->{gene_id}) {
+	    $gene = GUS::Model::DoTS::Gene->new({'gene_id'=>$r1->{gene_id}}); 
+	}
+	my $gf = GUS::Model::DoTS::GeneFeature->new();
+	$gf->setName('gDG.' . $r1->{genome_dots_gene_id});
+	$gf->setNumberOfExons($r1->{number_of_exons});
+	$gf->setScore($r1->{confidence_score});
+	$gf->setNaSequenceId($chrIds{$r1->{chromosome}});
+
+	my $gi = GUS::Model::DoTS::GeneInstance->new();
+	$gi->addChild($gene);
+	$gi->addChild($gi_cat);
+	$gi->addChild($gf);
+	my $success = $gi->sumbit(1);
+	die "could not submit new GeneInstance for " . $gf->getName if !$success;
+
+	my $gfLoc = GUS::Model::DoTS::NALocation->new();
+	$gfLoc->addChild($gf);
+	$gfLoc->setStartMin($r1->{chromosome_start});
+	$gfLoc->setEndMax($r1->{chromosome_end});
+	$gfLoc->setIsReversed($r1->{strand} eq '-' ? 1 : 0);
+	$success = $gfLoc->sumbit(0);
+	die "could not submit new NALocation for " . $gf->getName if !$success;
+
+	my $exoncount = $gf->getNumberOfExons;
+	my @exonstarts = split(/,/, @{ $r1->{exonstarts} });
+	my @exonends = split(/,/, @{ $r1->{exonends} });
+	for (my $i=1; $i<=$exoncount; $i++) {
+	    my $ef = GUS::Model::DoTS::ExonFeature->new();
+	    $ef->setParentId($gf->getGeneFeatureId);
+	    $ef->setName('');
+	    $ef->setNaSequenceId($gf->getNaSequenceId);
+	    $ef->setOrderNumber($i);
+	    my $efLoc = GUS::Model::DoTS::NALocation->new();
+	    $efLoc->addChild($ef);
+	    $efLoc->setStartMin($exonstarts[$i-1]);
+	    $efLoc->setEndMax($exonends[$i-1]);
+	    $efLoc->setIsReversed($gf->getIsReversed);
+	    $success = $efLoc->sumbit(1);
+	    die "could not submit new NALocation and ExonFeature for "
+		. $gf->getName . " exon $i" if !$success;
+	}
+
+	foreach (@rows) {
+	    my $dt = $_->{na_sequence_id}; 
+	    # my $blat = $_->{blat_alignment_id};
+	    my $rf = GUS::Model::DoTS::RnaFeature->new();
+	    $rf->setParentId($gf->getGeneFeatureId);
+	    $rf->setName('');
+	    $rf->setNaSequenceId($dt);
+	    # TODO: make NALocation for coords within dt
+	    # TODO: make RNAInstance, associate with RNAInstanceCategory & RNA
+	    # TODO: make RNAFeatureExon that associate exons with RNAs
+	    # (not yet supported because the current gDG creation process looses this info.)
+	    $success = $rf->sumbit(0);
+	    die "could not submit new RNAFeature for " . $gf->getName . " DT.$dt" if !$success;
+	}
+
+    }
+}
+
+sub getGeneInstanceCategory {
+    my ($self) = @_;
+
+    my $gic = GUS::Model::DoTS::GeneInstanceCategory->new({ 'gene_instance_category_id' => 1 });
+    $gic->setName('gDG');
+    $gic->setDescription('DoTS gene created from genome alignments of DTs');
+    if ($gic->submit()) {
+	$self->log("made/found GeneInstanceCategory " . $gic->getName . '(id=1)');
+	return $gic;
+    } else { 
+	die "not able to make/find GeneInstanceCategory " . $gic->getName . '(id=1)';
+    }
+}
+
+sub getFakeGene {
+    my ($self) = @_;
+    my $gene = GUS::Model::DoTS::Gene->new({'gene_id'=>-1});
+    $gene->setReviewStatusId(0);
+    $gene->submit;
+    return $gene;
+}
+
+
+sub addGene {
+  my ($self,$rnaArray) = @_;
+  my $count;
+  foreach my $rna_id (@$rnaArray) {
+    my $rna = GUS::Model::DoTS::RNA->new({'rna_id' => $rna_id});
+    $rna->retrieveFromDB();
+    $count += $self->makeGene($rna);
+    $self->log ("$count : rna_id : $rna_id\n");
+    $rna->undefPointerCache();
+  }
+  $self->log ("$count total gene rows inserted and rna rows updated\n");  
+}
+
+sub makeGene {
+  my ($self) = shift;
+  my ($rna) = @_;
+  my $review_status_id = 0;  
+  my $gene = GUS::Model::DoTS::Gene->new({'review_status_id'=>$review_status_id});
+  $gene->addChild($rna);
+  my $num = $gene->submit();
+  return $num;
 }
 
 sub _getNotes {
