@@ -114,14 +114,14 @@ sub processIds {
       my $rnainst = $rnafeat->getChild('DoTS::RNAInstance',1) ? $rnafeat->getChild('DoTS::RNAInstance') : $self->makeRNAInstance($rnafeat);
       my $rna = $rnainst->getParent('DoTS::RNA',1) ? $rnainst->getParent('DoTS::RNA') : $self->makeRNA($rnainst);
       $ass->addToSubmitList($rna);
-      my $gene = $rna->getParent('DoTS::Gene',1) ? $rna->getParent('DoTS::Gene',1) : $self->makeGene($rna);
+      my $gene = $rna->getParent('DoTS::Gene',1) ? $rna->getParent('DoTS::Gene') : $self->makeGene($rna);
       $ass->addToSubmitList($gene);
       my $prot = $rna->getChild('DoTS::Protein',1) ? $rna->getChild('DoTS::Protein') : $self->makeProtein($rna);
       my $protInst = $prot->getChild('DoTS::ProteinInstance',1) ? $prot->getChild('DoTS::ProteinInstance') : $self->makeProteinInstance($prot);
       
       my $trAF = $rnafeat->getChild('DoTS::TranslatedAAFeature',1) ? $rnafeat->getChild('DoTS::TranslatedAAFeature') : $self->makeTranAAFeat($rnafeat);
       $trAF->addChild($protInst);
-      my $trAS = $trAF->getParent('DoTS::TranslatedAASequence',1) ?  $trAF->getParent('DoTS::TranslatedAASequence',1) : $self->makeTranAASeq($trAF);
+      my $trAS = $trAF->getParent('DoTS::TranslatedAASequence',1) ?  $trAF->getParent('DoTS::TranslatedAASequence') : $self->makeTranAASeq($trAF);
       $ass->addToSubmitList($trAS);
       $count += $ass->submit();
       $ass->undefPointerCache();
