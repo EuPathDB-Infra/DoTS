@@ -147,7 +147,9 @@ sub downloadGenbank {
   my $rejectFiles = $propertySet->getProp('gbRejectFiles');
   my $acceptFiles = $propertySet->getProp('gbAcceptFiles');
 
-  system ("wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=1 -R \"$rejectFiles\" -A \"$acceptFiles\" -P $downloadSubDir ftp://ftp.ncbi.nih.gov/genbank/");
+  my $cmd = "wget -t5 -o $logfile -m -np -nd -nH --cut-dirs=1 -R \"$rejectFiles\" -A \"$acceptFiles\" -P $downloadSubDir ftp://ftp.ncbi.nih.gov/genbank/";
+
+  $mgr->runCmd($cmd);
 
   $mgr->endStep($signal);
 }
@@ -175,7 +177,9 @@ sub downloadRefSeq {
   my $ftpsite = "ftp://ftp.ncbi.nih.gov/refseq/$subDir/mRNA_Prot/";
   my $ftpfile = "*.gbff.gz";
 
-  system ("wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=3 -A \"$ftpfile\" -P $downloadSubDir $ftpsite");
+  my $cmd = "wget -t5 -o $logfile  -m -np -nd -nH --cut-dirs=3 -A \"$ftpfile\" -P $downloadSubDir $ftpsite";
+
+  $mgr->runCmd($cmd);
 
   $mgr->endStep($signal);
 }
@@ -198,14 +202,14 @@ sub downloadTaxon {
 
   $mgr->runCmd("mkdir -p $downloadSubDir");
 
-  system ("wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=2 -A \"gi_taxid_nucl.dmp.gz,gi_taxid_prot.dmp.gz,taxdump.tar.gz\" -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/pub/taxonomy/");
+  my $cmd = "wget -t5 -o $logfile -m -np -nd -nH --cut-dirs=2 -A \"gi_taxid_nucl.dmp.gz,gi_taxid_prot.dmp.gz,taxdump.tar.gz\" -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/pub/taxonomy/";
+  $mgr->runCmd($cmd);
 
   $mgr->runCmd("gunzip $downloadSubDir/taxdump.tar.gz");
 
   $mgr->runCmd("tar --extract --file $downloadSubDir/taxdump.tar -C $downloadSubDir");
 
   $mgr->runCmd("gunzip $downloadSubDir/gi_taxid_nucl.dmp.gz");
-
   $mgr->runCmd("gunzip $downloadSubDir/gi_taxid_prot.dmp.gz");
 
   $mgr->endStep($signal);
@@ -230,9 +234,9 @@ sub downloadNRDB {
 
   $mgr->runCmd("mkdir -p $downloadSubDir");
 
-  system ("wget -t5 -b -m -np -nd -nH -o $logfile --cut-dirs=4 -A \"nr.gz\"  -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/blast/db/FASTA/");
+  my $cmd = "wget -t5 -m -np -nd -nH -o $logfile --cut-dirs=4 -A \"nr.gz\"  -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/blast/db/FASTA/;gunzip $downloadSubDir/nr.gz";
 
-  $mgr->runCmd("gunzip $downloadSubDir/nr.gz");
+  $mgr->runCmd($cmd);
 
   $mgr->endStep($signal);
 }
@@ -256,21 +260,21 @@ sub downloadGenome {
   $mgr->runCmd("mkdir -p $downloadSubDir");
   $mgr->runCmd("mkdir -p $downloadGapDir");
 
-  my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=1 -P $downloadSubDir "
+  my $cmd = "wget -t5 -o $logfile -m -np -nd -nH --cut-dirs=1 -P $downloadSubDir "
 	. "http://genome.ucsc.edu/goldenPath/$genomeVer/bigZips/chromFa.zip";
-  system ($cmd);
+  $mgr->runCmd($cmd);
   $mgr->runCmd("unzip $downloadSubDir/chromAgp.zip -d $downloadSubDir");
   $mgr->runCmd("rm $downloadSubDir/chromFa.zip");
 
   my $gd = CBIL::Util::GenomeDir->new($downloadSubDir);
   my @chrs = $gd->getChromosomes;
   foreach my $chr (@chrs) {
-    $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=1 -P $downloadGapDir "
+    $cmd = "wget -t5 -o $logfile -m -np -nd -nH --cut-dirs=1 -P $downloadGapDir "
       . "http://genome.ucsc.edu/goldenPath/$genomeVer/database/chr${chr}_gap.txt.gz";
-    system ($cmd);
+    $mgr->runCmd($cmd);
   }
+
   $mgr->runCmd("gunzip $downloadGapDir/*.gz -d $downloadGapDir");
- 
   $mgr->endStep($signal);
 }
 
@@ -874,7 +878,7 @@ sub downloadCDD {
 
   $mgr->runCmd("mkdir -p $downloadSubDir");
 
-  my $cmd = "wget -t5 -b -m -np -nd -nH -o $logfile --cut-dirs=3 -A \"cdd.tar.gz\"  -P $downloadSubDir ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/";
+  my $cmd = "wget -t5 -m -np -nd -nH -o $logfile --cut-dirs=3 -A \"cdd.tar.gz\"  -P $downloadSubDir ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/";
 
   $mgr->runCmd($cmd);
 
@@ -1062,7 +1066,7 @@ sub downloadProdom {
 
   $mgr->runCmd("mkdir -p $downloadSubDir");
 
-  my $cmd = "wget -t5 -b -m -np -nd -nH -o $logfile  --cut-dirs=3 -A \"prodom.cons.gz\"  -P $downloadSubDir ftp://ftp.toulouse.inra.fr/pub/prodom/current_release/";
+  my $cmd = "wget -t5 -m -np -nd -nH -o $logfile  --cut-dirs=3 -A \"prodom.cons.gz\"  -P $downloadSubDir ftp://ftp.toulouse.inra.fr/pub/prodom/current_release/";
 
   $mgr->runCmd($cmd);
   $mgr->runCmd("gunzip $downloadSubDir/prodom.cons.gz");
