@@ -21,9 +21,9 @@ sub new {
       t => 'int',
       h => 'number of iterations for testing',
      },
-     {o => 'taxon_id',
-      t => 'int',
-      h => 'taxon_id for sequences to process: 8=Hum, 14=Mus.',
+     {o => 'taxon_id_list',
+      t => 'string',
+      h => 'comma delimited list of taxon_ids for sequences to process: 8=Hum, 14=Mus.',
      },
      {o => 'outputfile',
       t => 'string',
@@ -70,7 +70,7 @@ sub run {
     my $cla =$self->getCla; 
     
     die "You must enter repeat masker options on the command line to specify minimally the organism to be blocked\n" unless $cla->{rm_options} || $cla->{extractonly};
-    die "You must enter either the --taxon_id or --idSQL on the command line\n" unless $cla->{taxon_id} || $cla->{idSQL};
+    die "You must enter either the --taxon_id_list or --idSQL on the command line\n" unless $cla->{taxon_id_list} || $cla->{idSQL};
     die "You must enter an outputfile name on the command line\n" unless $cla->{'outputfile'};
     
     $self->logAlert ($cla->{'commit'} ? "***COMMIT ON***\n" : "COMMIT TURNED OFF\n");
@@ -106,12 +106,12 @@ sub run {
     if ($cla->{idSQL}) {
 	$getSeqs = $cla->{idSQL};
     } else {
-    my $taxon = $cla->{'taxon_id'};
+    my $taxon = $cla->{'taxon_id_list'};
 	$getSeqs = "select a.assembly_sequence_id 
   from dots.AssemblySequence a, dots.ExternalNASequence e
   where a.have_processed = 0 
   and a.na_sequence_id = e.na_sequence_id
-  and e.taxon_id = $taxon and a.quality_end - a.quality_start >= 50";
+  and e.taxon_id in (". $taxon .") and a.quality_end - a.quality_start >= 50";
     }
     
     $self->logVerbose ("$getSeqs\n");
@@ -130,7 +130,7 @@ sub run {
 	push(@todo,$id);
 	$count++;
     }
-    $self->logAlert ("Extracting",($cla->{extractonly} ? " " : " and blocking "),"$count sequences from taxon_id $cla->{'taxon_id'}\n");
+    $self->logAlert ("Extracting",($cla->{extractonly} ? " " : " and blocking "),"$count sequences from taxon_id(s) $cla->{'taxon_idist'}\n");
     
     $count = 0;
     my $countProc = 0;
