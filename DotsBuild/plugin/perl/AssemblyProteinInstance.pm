@@ -63,7 +63,7 @@ sub run {
   
   my $count = $self->processIds($ids);
   
-  $self->log ("$count entries have been made to the ProteinInstance table: $time\n");
+  $self->log ("$count entries have been made to the ProteinInstance table\n");
   return "$count entries to the ProteinInstance table in GUS\n";
 }
 
@@ -75,13 +75,15 @@ sub getIds {
   my $i=0;
   
   my $dbh = $self->getQueryHandle();
+
+  my $taxon_id = $self->getArgs()->{'taxon_id'};
   
-  my $st1 = $dbh->prepareAndExecute("select  /** RULE */ a.na_sequence_id from dots.assembly a where a.taxon_id = $ctx->{'cla'}->{'taxon_id'} and a.description != 'DELETED'");
+  my $st1 = $dbh->prepareAndExecute("select  /** RULE */ a.na_sequence_id from dots.assembly a where a.taxon_id = $taxon_id and a.description != 'DELETED'");
   
   my $st2 = $dbh->prepare("select /** RULE */ p.protein_sequence_id from dots.proteininstance p, dots.translatedaafeature f, dots.rnafeature r where r.na_sequence_id = ? and r.na_feature_id = f.na_feature_id and f.aa_feature_id = p.aa_feature_id");  
   
   while (my $na_sequence_id = $st1->fetchrow_array) {
-    if ($self->getArgs()->->{'testnumber'} && $i >= $self->getArgs()->{'testnumber'}) {
+    if ($self->getArgs()->{'testnumber'} && $i >= $self->getArgs()->{'testnumber'}) {
       last;
     }
     $st2->execute($na_sequence_id);
@@ -123,7 +125,7 @@ sub processIds {
       $ass->addToSubmitList($trAS);
       $count += $ass->submit();
       $ass->undefPointerCache();
-      $self->log "Processed $count ending with na_sequence_id: $id\n" if $count % 1000 == 0 ;
+      print "Processed $count ending with na_sequence_id: $id\n" if ($count % 1000 == 0);
     }
   }
   
