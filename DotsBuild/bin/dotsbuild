@@ -320,12 +320,12 @@ $mgr->waitForLiniac("genomic alignments of assemSeqs", "waitGenomeAlignAss");
    &deleteAnatomyPercent($mgr);
 
    &insertAnatomyPercent($mgr);
-   #bookmark
+
    &deleteIndexWords($mgr);
 
-   &deleteNRDBIndexWords($mgr);
+   #&deleteNRDBIndexWords($mgr);
 
-   &deleteMotifIndexWords
+   #&deleteMotifIndexWords($mgr)
 
    &makeNRDBIndexWordLink($mgr);
 
