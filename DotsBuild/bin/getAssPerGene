@@ -30,7 +30,7 @@ my $dbh = $db->getQueryHandle();
 
 ##need to dump the input accesions along with a bit to idicate if mrNA
 
-my $sql = "select tu.gene_id,ass.na_sequence_id from rna r, transcriptunit tu, rnasequence rs, rnafeature rf, assembly ass where r.transcript_unit_id = tu.transcript_unit_id and r.rna_id = rs.rna_id and rs.na_feature_id = rf.na_feature_id and rf.na_sequence_id = ass.na_sequence_id and ass.taxon_id = 8 order by tu.gene_id";
+my $sql = "select tu.gene_id,ass.na_sequence_id from rna r, transcriptunit tu, rnasequence rs, rnafeature rf, assembly ass where r.transcript_unit_id = tu.transcript_unit_id and r.rna_id = rs.rna_id and rs.na_feature_id = rf.na_feature_id and rf.na_sequence_id = ass.na_sequence_id and ass.taxon_id = $taxon_id order by tu.gene_id";
 
 
 print STDERR "Query: $sql\n" if $verbose;
