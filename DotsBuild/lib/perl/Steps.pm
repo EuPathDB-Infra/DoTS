@@ -2517,11 +2517,11 @@ sub prepareBlastSiteFiles {
 
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
   my $fastafile = "$mgr->{pipelineDir}/downloadSite/${prefix}.fasta.gz";
-  my $cmd = " gunzip $mgr->{pipelineDir}/downloadSite/${prefix}.fasta.gz" if (! -e "$mgr->{pipelineDir}/downloadSite/${prefix}.fasta");
+  my $cmd = "gunzip $mgr->{pipelineDir}/downloadSite/${prefix}.fasta.gz";
   $mgr->runCmd($cmd);
   $fastafile = "$mgr->{pipelineDir}/downloadSite/${prefix}.fasta";
   my $fastalink = "$mgr->{pipelineDir}/blastSite/${speciesNickname}DoTS";
-  $mgr->runCmd("ln -s $fastafile $fastalink") if (! -e $fastalink);
+  $mgr->runCmd("ln -s $fastafile $fastalink");
   $mgr->runCmd("$blastBinDir/xdformat -n $fastalink");
 
   # make blast files for all species.  combine this build w/ latest of other species
@@ -2828,6 +2828,8 @@ sub deleteLocusLink {
 
 }
 
+
+
 sub parseLocusLink {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
@@ -2942,6 +2944,182 @@ sub loadLocusLinkInfo {
   $mgr->runPlugin("loadLLInfo", "DoTS::DotsBuild::Plugin::LoadLocusLinkInfo", $args, "loading LL information");
 }
 
+sub deleteMGC {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "deleteMGCToNaSeq";
+
+  return if $mgr->startStep("Deleting MGC to na_sequence_id entries from DbRefNASequence", $signal);
+
+  my $pipelineDir = $mgr->{pipelineDir};
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
+  my $MgcDbRlsId = $propertySet->getProp('mgc_db_rel_id');
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $sql = "select n.db_ref_na_sequence_id from sres.dbref d, dots.dbrefnasequence n, dots.externalnasequence x where d.external_database_release_id = $MgcDbRlsId and d.db_ref_id = n.db_ref_id and n.na_sequence_id = x.na_sequence_id and x.taxon_id = $taxonId";
+
+  my $cmd = "deleteEntries.pl --table DoTS::DbRefNASequence --idSQL \"$sql\" --verbose 2>> $logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+}
+
+sub parseMGC {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "parseMGC";
+
+  return if $mgr->startStep("Parsing MGC to DoTS file", $signal);
+
+  my $pipelineDir = $mgr->{pipelineDir};
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $outFile = "$pipelineDir/misc/mgc2naseq";
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+
+  my $date = $propertySet->getProp('buildDate');
+
+  my $downloadSubDir = "$externalDbDir/mgc/$date";
+
+  my $inFile = "${downloadSubDir}/StaticCloneList";
+
+  my $cmd = "makeMGC2NaSeqId --taxon_id $taxonId --inputFile $inFile --verbose > $outFile 2>>$logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
+
+sub loadMGCToNaSeq {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $pipelineDir = $mgr->{pipelineDir};
+
+  my $file = "$pipelineDir/misc/mgc2naseq";
+
+  my $db_rel_id = $propertySet->getProp('mgc_db_rel_id');
+
+  my $db_id = $propertySet->getProp('mgc_db_id');
+
+  my $args = "--mappingfiles $file --delete --pattern1 '(MGC:\\d+)' --pattern2 '\\t(\\d+)' --db_id $db_id --db_rel_id $db_rel_id";
+  
+  $mgr->runPlugin("loadMGCMapping", "GUS::Common::Plugin::InsertDbRefAndDbRefNaSequenceGeneral", $args, "loading MGC to DoTS mapping");
+}
+
+sub loadMGCInfo {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $pipelineDir = $mgr->{pipelineDir};
+  
+  my $logfile = "$pipelineDir/logs/loadMGCInfo.log";
+
+  my $db_rel_id = $propertySet->getProp('mgc_db_rel_id');
+
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+
+  my $date = $propertySet->getProp('buildDate');
+
+  my $downloadSubDir = "$externalDbDir/mgc/$date";
+
+  my $file = "$downloadSubDir/StaticCloneList";
+
+  my $args = "--infoFile $file --externalDbRel $db_rel_id";
+
+  $mgr->runPlugin("loadMGCInfo", "DoTS::DotsBuild::Plugin::LoadMGCInfo", $args, "loading MGC Info from file");
+}
+
+sub deleteFantom {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "deleteFantomToNaSeq";
+
+  return if $mgr->startStep("Deleting Fantom to na_sequence_id entries from DbRefNASequence", $signal,'loadFantom');
+
+  my $pipelineDir = $mgr->{pipelineDir};
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
+  my $FantomDbRlsId = $propertySet->getProp('fantom_db_rel_id');
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $sql = "select n.db_ref_na_sequence_id from sres.dbref d, dots.dbrefnasequence n, dots.externalnasequence x where d.external_database_release_id = $FantomDbRlsId and d.db_ref_id = n.db_ref_id and n.na_sequence_id = x.na_sequence_id and x.taxon_id = $taxonId";
+
+  my $cmd = "deleteEntries.pl --table DoTS::DbRefNASequence --idSQL \"$sql\" --verbose 2>> $logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+}
+
+sub parseFantom {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "parseFantom";
+
+  return if $mgr->startStep("Parsing Fantom to na_sequence_id file", $signal,'loadFantom');
+
+  my $pipelineDir = $mgr->{pipelineDir};
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $outFile = "$pipelineDir/misc/fantom2naseq";
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+
+  my $date = $propertySet->getProp('buildDate');
+
+  my $downloadSubDir = "$externalDbDir/fantom2/$date";
+
+  my $inFile = "${downloadSubDir}/FANTOM2setInfo.txt";
+
+  my $cmd = "makeFantom2ToNaSeqId --taxon_id $taxonId --inputFile $inFile --verbose > $outFile 2>>$logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
+
+sub loadFantomToNaSeq {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $pipelineDir = $mgr->{pipelineDir};
+
+  my $file = "$pipelineDir/misc/fantom2naseq";
+
+  my $db_rel_id = $propertySet->getProp('fantom_db_rel_id');
+
+  my $db_id = $propertySet->getProp('fantom_db_id');
+
+  my $args = "--mappingfiles $file --delete --pattern1 '^(\\S+)' --pattern2 '\\t(\\d+)' --db_id $db_id --db_rel_id $db_rel_id";
+
+  $mgr->runPlugin("loadFantomMapping", "GUS::Common::Plugin::InsertDbRefAndDbRefNaSequenceGeneral", $args, "loading Fantom to na_sequence_id mapping", 'loadFantom');
+}
+
+
 sub downloadMGIInfo {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
@@ -2970,7 +3148,7 @@ sub downloadMGIInfo {
   $mgr->runCmd($cmd);
 
   $mgr->endStep($signal);
-} 
+}
 
 sub deleteMGIToDots {
   my ($mgr) = @_;
@@ -3177,6 +3355,10 @@ sub loadGEA {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
 
+  my $signal = "loadGEA";
+
+  return if $mgr->startStep("Loading GEA to na_sequence_id entries from file", $signal);
+
   my $pipelineDir = $mgr->{pipelineDir};
 
   my $externalDbDir = $propertySet->getProp('externalDbDir');
@@ -3199,6 +3381,7 @@ sub loadGEA {
 
     $mgr->runPlugin("loadGEA${geaFile}Mapping", "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence", $args, "loading GEA to DoTS mapping");
   }
+  $mgr->endStep($signal);
 }
 
 
@@ -3230,6 +3413,225 @@ sub makeProjectLink {
   my $cmd = "makeProjectLink.pl $args 2>> $logFile";
 
   $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
+
+sub updateProteinAssemblyTable {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "updateProteinAssemblyTable";
+
+  return if $mgr->startStep("Insert entries in allgenes ProteinAssembly table ", $signal);
+
+  my $pipelineDir = $mgr->{pipelineDir};
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $allgenesSchema = $propertySet->getProp('allgenesSchema');
+
+  my $args = "--verbose --taxon $taxonId --allgenesSchema $allgenesSchema";
+
+  my $cmd = "updateProteinAssemblyTable $args 2>> $logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+
+}
+
+sub updateCentralDogmaTable {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "updateCentralDogmaTable";
+
+  return if $mgr->startStep("Insert entries in allgenes CentralDogma table ", $signal);
+
+  my $pipelineDir = $mgr->{pipelineDir};
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $allgenesSchema = $propertySet->getProp('allgenesSchema');
+
+  my $args = "--verbose --taxon $taxonId --allgenesSchema $allgenesSchema";
+
+  my $cmd = "updateCentralDogmaTable $args 2>> $logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+
+}
+
+sub updateDTOrfPValueTable {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "updateDTOrfPValueTable";
+
+  return if $mgr->startStep("Insert entries in allgenes makeDTOrfPValue table", $signal);
+
+  my $pipelineDir = $mgr->{pipelineDir};
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $allgenesSchema = $propertySet->getProp('allgenesSchema');
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $args = "--verbose --taxon $taxonId --allgenesSchema $allgenesSchema";
+
+  my $cmd = "updateDTOrfPvalueTable $args 2>> $logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+}
+
+sub updatePromoterRegionTable {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "updatePromoterRegionTable";
+
+  return if $mgr->startStep("Insert entries into Allgenes.PromoterRegion table", $signal);
+
+  my $pipelineDir = $mgr->{pipelineDir};
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $allgenesSchema = $propertySet->getProp('allgenesSchema');
+
+  my $genome_rls_id = $propertySet->getProp('genome_db_rls_id');
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $args = "--taxon $taxonId --genomeExtRelDbId $genome_rls_id --allgenesSchema $allgenesSchema";
+
+  my $cmd = "updatePromoterRegionTable $args 2>> $logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+}
+
+sub updatePancreasAssembliesTable {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "updatePancreasAssembliesTable";
+
+  return if $mgr->startStep("Insert entries in Allgenes.PancreasAssemblies table", $signal);
+
+  my $pipelineDir = $mgr->{pipelineDir};
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $allgenesSchema = $propertySet->getProp('allgenesSchema');
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $args = "--verbose --taxon $taxonId --allgenesSchema $allgenesSchema";
+
+  my $cmd = "updatePancreasAssembliesTable $args 2>> $logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+}
+
+sub updateAssemblySignalPSummaryTable {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "updateAssemblySignalPSummaryTable";
+
+  return if $mgr->startStep("Insert entries in allgenes makeAssemblySignalPSummary table", $signal);
+
+  my $pipelineDir = $mgr->{pipelineDir};
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $allgenesSchema = $propertySet->getProp('allgenesSchema');
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $args = "--verbose --taxon $taxonId --allgenesSchema $allgenesSchema";
+
+  my $cmd = "updateAssemblySignalPSummaryTable $args 2>> $logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+}
+
+sub updateAssemblyTMDomainSummaryTable {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "updateAssemblyTMDomainSummaryTable";
+
+  return if $mgr->startStep("Insert entries in allgenes makeAssemblyTMDomainSummary table", $signal);
+
+  my $pipelineDir = $mgr->{pipelineDir};
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $allgenesSchema = $propertySet->getProp('allgenesSchema');
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $args = "--verbose --taxon $taxonId --allgenesSchema $allgenesSchema";
+
+  my $cmd = "updateAssemblyTMDomainSummaryTable $args 2>> $logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+}
+
+sub createPredTranslDetailsFile {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "createPredTranslDetailsFile";
+
+  return if $mgr->startStep("Preparing predicted translation details file", $signal);
+
+  my $pipelineDir = $mgr->{pipelineDir};
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+  my $predTranslDetailsFile = "$pipelineDir/downloadSite/${prefix}_predictedProteinDetails.txt";
+
+  my $taxonId = $propertySet->getProp('taxonId');
+  
+  my $cmd = "getAssTranslATGStartStop --taxon_id $taxonId >$predTranslDetailsFile";  
+  $mgr->runCmd($cmd);
+
+  my $cmd = "gzip $predTranslDetailsFile";
+  $mgr->runCmd($cmd);
+
+  my $descrip = "A tab delimited file of the translation details for proteins predicted using FrameFinder";
+  &updateHtaccessFile("AddDescription \"$descrip\" *Details*\n");
+  &addFileToReadme("${prefix}_predictedProteinDetails.txt.gz", $descrip);
 
   $mgr->endStep($signal);
 }
