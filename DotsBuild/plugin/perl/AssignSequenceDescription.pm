@@ -394,7 +394,7 @@ sub manualDescriptions {
      and rs.na_feature_id = rf.na_feature_id and rs.rna_id = r.rna_id )
      where taxon_id = $ctx->{cla}->{taxon_id}
      and na_sequence_id in ( select rf1.na_sequence_id from dots.rnafeature rf1, dots.rnainstance rs1, dots.rna r1
-     where r1.review_status_id = 1 and rs1.rna_id = r1.rna_id
+     where r1.review_status_id = 1 and r1.description != 'No NR protein Similarities' and rs1.rna_id = r1.rna_id
      and rf1.na_feature_id = rs1.na_feature_id)");
     if ($ctx->{cla}->{'commit'}) { $dbh->commit;}
     return $rows;
