@@ -937,7 +937,7 @@ sub matrix {
 
   &startDotsMatrixOnLiniac($name, $mgr);
 
-  &copyDotsMatrixFromLiniac($name, $mgr);
+  #&copyDotsMatrixFromLiniac($name, $mgr);
 }
 
 sub copyDotsToLiniac {
