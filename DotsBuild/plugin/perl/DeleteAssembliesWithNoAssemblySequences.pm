@@ -50,8 +50,10 @@ sub run {
 
   my $taxon_id = $self->getArgs()->{'taxon_id'};
 
-  $self->setGlobalDeleteEvidenceOnDelete(0);
-  $self->setGlobalDeleteSimilarityOnDelete(0);
+  my $algoInvo = $self->getAlgInvocation;
+
+  $algoInvo->setGlobalDeleteEvidenceOnDelete(0);
+  $algoInvo->setGlobalDeleteSimilarityOnDelete(0);
 
   my $query = "select na_sequence_id from dots.Assembly where taxon_id = $taxon_id MINUS select assembly_na_sequence_id from dots.AssemblySequence"; 
   my @ids;
