@@ -78,7 +78,7 @@ sub run {
     die "Error: na_sequence_id '$dt' returned in the result set is not an integer" unless $dt =~ /\d+/;
     count++;
     print STDERR "Updated $count rows\n" if ($count % 10000) == 0;
-    &processDT($dt, $taxonId, $root, $dbh);
+    &processDT($dt, $nodeHash, $taxonId, $root, $dbh);
     $self->undefPointerCache();
     last if ($testnumber && $count > $testnumber);
   }
@@ -100,7 +100,6 @@ sub makeTree {
 
   my $stmt = $dbh->prepareAndExecute($sql) || die "Can't prepareAndExecute  sql: $sql\n";
 
-  my $count = 0;
   my $root;
   my %nodeHash;
 
@@ -134,14 +133,14 @@ sub setESTCounts {
 
 # process a single dt.  
 sub processDT {
-  my ($dt, $taxonId, $root, $dbh) = @_;
+  my ($dt, $nodeHash,$taxonId, $root, $dbh) = @_;
 
   # zero out previous DT's junk
   $root->clearDTValues();
 
   # load this DT's values into the existing anatomy tree
   # return the sum of the effective counts and the sum of the raw counts
-  my ($sum_effective, $sum_raw) = &loadDT($dbh,$dt);
+  my ($sum_effective, $sum_raw) = &loadDT($nodeHash,$dbh,$dt);
 
   # percolate from bottom up and write out the rows
   $root->percolateAndWrite($dbh, $dt, $sum_effective, $sum_raw, $taxonId);
@@ -156,7 +155,7 @@ sub loadDT {
   my ($nodeHash, $dbh, $dtId) = @_;
 
   # issue a query (anatomy_id, count)
-  my $sql = "??????";
+  my $sql = "select al.anatomy_id, count(e.est_id) from dots.anatomylibrary al,dots.library l, dots.assemblysequence a, dots.est e where a.assembly_na_sequence_id =$dtId and a.na_sequence_id = e.na_sequence_id and e.library_id = l.library_id and l.dbest_id = al.dbest_library_id group by al.anatomy_id";
   # 
   my $stmt = $dbh->prepareAndExecute($sql) || die "Can't prepareAndExecute  sql: $sql\n";
 
