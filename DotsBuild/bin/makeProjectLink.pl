@@ -11,10 +11,11 @@ use GUS::ObjRelP::DbiDatabase;
 use GUS::Common::GusConfig;
 
 
-my ($gusConfigFile,$verbose,$allgenes_num,$restart,$commit,$taxon);
+my ($gusConfigFile,$verbose,$allgenes_num,$restart,$commit,$taxon,$project_id);
 &GetOptions("verbose!"=> \$verbose,
 	    "gusConfigFile=s" => \$gusConfigFile,
             "allgenes_num=s" => \$allgenes_num,
+	    "project_id=i" => \$project_id,
 	    "restart!" => \$restart,
 	    "commit!" => \$commit,
 	    "taxon=i" => \$taxon);
@@ -36,7 +37,7 @@ my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
 
 my $dbh = $db->getQueryHandle();
 
-my $project_id = &getProject($dbh);
+my $project_id = $project_id ? $project_id : &getProject($dbh);
 
 my $idHash = &getHash($dbh,$taxon);
 
@@ -48,7 +49,7 @@ my $idHash = &getHash($dbh,$taxon);
 
 sub getProject {
     
-    my ($db) = @_; 
+    my ($db) = @_;
 
     my $sql = "select max(project_id) from core.projectinfo";
     
@@ -73,7 +74,7 @@ sub getProject {
 	    exit;
 	}
     }
-    return \$project;
+    return $project;
 }
 
 sub getHash {
@@ -124,6 +125,7 @@ sub insertProjectLink {
     print STDERR ("$num assembly ids to be entered into ProjectLink\n");
 
     my $sql = "insert into dots.ProjectLink Values (dots.ProjectLink_sq.nextval,$project,56,?,null,SYSDATE,1,1,1,1,1,0,12,0,$project,0)";
+    print STDERR ("$sql\n");
 
     my $stmt = $db->prepare($sql);
 
