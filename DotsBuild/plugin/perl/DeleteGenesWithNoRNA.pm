@@ -41,7 +41,7 @@ sub run {
   
   $self->log ($self->getArgs()->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n");
 
-  $self->log ("Testing on ".$self->getArgs()->{'testnumber'}."\n" if $self->getArgs()->{'testnumber'});
+  $self->log ("Testing on ".$self->getArgs()->{'testnumber'}."\n") if $self->getArgs()->{'testnumber'};
 
   my $rnaHash = $self->getRNA();
 
