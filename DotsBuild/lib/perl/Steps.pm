@@ -96,6 +96,28 @@ sub createDotsPipelineDir {
   $mgr->runCmd("chmod -R g+w $dotsBuildDir/$buildName");
 }
 
+sub createGenomeDir($mgr) {
+  my ($mgr) = @_;
+
+  my $propertySet = $mgr->{propertySet};
+  my $buildName = $mgr->{buildName};
+
+  my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
+  my $serverPath = $propertySet->getProp('serverPath');
+  my $nodePath = $propertySet->getProp('nodePath');
+  my $gaTaskSize = $propertySet->getProp('genome.taskSize');
+  my $gaPath = $propertySet->getProp('genome.path');
+  my $gaOptions = $propertySet->getProp('genome.options');
+  my $genomeVer = 'goldenpath/' . $propertySet->getProp('genomeVersion');
+  my $extGDir = $propertySet->getProp('externalDbDir') . '/' . $genomeVer;
+  my $srvGDir = $propertySet->getProp('serverExternalDbDir') . '/'. $genomeVer;
+
+  &makeGenomeDir("assemSeqs", "genome", $buildName, $dotsBuildDir, $serverPath,
+		   $nodePath, $gaTaskSize, $gaOptions, $gaPath, $extGDir, $srvGDir);
+
+  $mgr->runCmd("chmod -R g+w $dotsBuildDir/$buildName/");
+}
+
 sub makeAssemblyDir {
   my ($name, $buildName, $localDir, $mgr) = @_;
 
@@ -111,8 +133,6 @@ sub downloadGenbank {
 
   return if $mgr->startStep("Downloading Genbank", $signal,'downloadGenbank');
 
-  $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
-
   my $externalDbDir = $propertySet->getProp('externalDbDir');
   my $genbankRel = $propertySet->getProp('genbankRel');
 
@@ -124,7 +144,7 @@ sub downloadGenbank {
 
   my $rejectFiles = $propertySet->getProp('gbRejectFiles');
   my $acceptFiles = $propertySet->getProp('gbAcceptFiles');
-  #    my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=1 -R \"gbest*,gbgss*,gbhtg*,gbpat*,gbphg*,gbpln*,gbvrt*,gbvrl*,gbuna*,gbsts*,gbbct*,gbcon*,gbinv*,gbmam*\" -A \"*.seq.gz,README.genbank\"  -P $downloadSubDir ftp://ftp.ncbi.nih.gov/genbank/";
+
   my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=1 -R \"$rejectFiles\" -A \"$acceptFiles\" -P $downloadSubDir ftp://ftp.ncbi.nih.gov/genbank/";
 
   $mgr->runCmd($cmd);
@@ -132,6 +152,35 @@ sub downloadGenbank {
   $mgr->endStep($signal);
 }
 
+sub downloadRefSeq {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "downloadRefSeq";
+
+  return if $mgr->startStep("Downloading RefSeq", $signal,'downloadGenbank');
+
+  my $logfile = "$pipelineDir/logs/downloadRefSeq.log";
+
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+
+  my $date = $propertySet->getProp('buildDate');
+
+  my $downloadSubDir = "$externalDbDir/refseq/$date";
+    
+  $mgr->runCmd("mkdir -p $downloadSubDir");
+
+  my $subDir = $propertySet->getProp('speciesNickname') eq 'hum' ? 'H_sapiens' : 'M_musculus';
+
+  my $ftpsite = "ftp://ftp.ncbi.nih.gov/refseq/$subDir/mRNA_Prot/";
+  my $ftpfile = "hs.gbff.gz";
+
+  my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=3 -A \"$ftpfile\" -P $downloadSubDir $ftpsite";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
 
 sub downloadTaxon {
   my ($mgr) = @_;
@@ -140,8 +189,6 @@ sub downloadTaxon {
   my $signal = "downloadTaxon";
 
   return if $mgr->startStep("Downloading Taxon", $signal,'downloadTaxon');
-
-  $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
 
   my $logfile = "$mgr->{pipelineDir}/logs/downloadTaxon.log";
 
@@ -177,8 +224,6 @@ sub downloadNRDB {
 
   return if $mgr->startStep("Downloading NRDB", $signal, 'downloadNRDB');
 
-  $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
-
   my $logfile = "$mgr->{pipelineDir}/logs/${signal}.log";
 
   my $externalDbDir = $propertySet->getProp('externalDbDir');
@@ -197,6 +242,44 @@ sub downloadNRDB {
 
   $mgr->endStep($signal);
 }
+
+sub downloadGenome {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "downloadGenome";
+
+  return if $mgr->startStep("Downloading genome", $signal, 'downloadGenome');
+
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+  my $genomeVer = $propertySet->getProp('genomeVersion');
+
+  my $downloadSubDir = "$externalDbDir/goldenpath/$genomeVer";
+  my $downloadGapDir = "$externalDbDir/goldenpath/$genomeVer" . 'gaps';
+
+  my $logfile = "$pipelineDir/logs/downloadGenome.log";
+
+  $mgr->runCmd("mkdir -p $downloadSubDir");
+  $mgr->runCmd("mkdir -p $downloadGapDir");
+
+  my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=1 -P $downloadSubDir "
+	. "http://genome.ucsc.edu/goldenPath/$genomeVer/bigZips/chromFa.zip";
+  $mgr->runCmd($cmd);
+  $mgr->runCmd("unzip $downloadSubDir/chromAgp.zip -d $downloadSubDir");
+  $mgr->runCmd("rm $downloadSubDir/chromFa.zip");
+
+  my $gd = CBIL::Util::GenomeDir->new($downloadSubDir);
+  my @chrs = $gd->getChromosomes;
+  foreach my $chr (@chrs) {
+    $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=1 -P $downloadGapDir "
+      . "http://genome.ucsc.edu/goldenPath/$genomeVer/database/chr${chr}_gap.txt.gz";
+    $mgr->runCmd($cmd);
+  }
+  $mgr->runCmd("gunzip $downloadGapDir/*.gz -d $downloadGapDir");
+ 
+  $mgr->endStep($signal);
+}
+
 
 sub insertTaxon {
   my ($mgr) = @_;
@@ -248,16 +331,14 @@ sub parseGenbank {
   }
 
   my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
-  foreach my $file (@gbFiles) {
 
-    my $dotsRelease = "release" . $propertySet->getProp('dotsRelease');
+  foreach my $file (@gbFiles) {
 
     my $buildName = &makeBuildName($propertySet->getProp('speciesNickname'),
 				   $propertySet->getProp('dotsRelease'));
-
     my $subDir = "gbParse_".$file;
 
-    my $failFiles = "$dotsBuildDir/$dotsRelease/$buildName/plugins/$subDir/gbparserFaiures/*.gb";
+    my $failFiles = "$dotsBuildDir/$buildName/plugins/$subDir/gbparserFailures/*.gb";
 
     my @fileArr = <$failFiles>;
 
@@ -270,6 +351,47 @@ sub parseGenbank {
 
 }
 
+sub parseRefSeq {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "parseRefSeq";
+
+  my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
+
+  my $refseqRel = $propertySet->getProp('refseqRel');
+  
+  my $refseq_rel_id = $propertySet->getProp('refseq_rel_id');
+  
+  my $refseqFile = $propertySet->getProp('refseqFile');
+  
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+
+  my $date = $propertySet->getProp('buildDate');
+
+  my $dirAndFile = "$externalDbDir/refseq/$date/$refseqFile";
+    
+  my $args = "--gbRel $refseqRel --file $dirAndFile --db_rel_id $refseq_rel_id";
+    
+  my $signal = "refseq_${refseqFile}";
+    
+  $mgr->runPlugin($signal, "GUS::Common::Plugin::GBParser", $args, "Loading RefSeq files into GUS");
+
+  my $dotsRelease = "release" . $propertySet->getProp('dotsRelease');
+
+  my $buildName = &makeBuildName($propertySet->getProp('speciesNickname'));
+
+  my $failFiles = "$dotsBuildDir/$dotsRelease/$buildName/plugins/$refseqFile/gbparserFailures/*.gb";
+  
+  my @fileArr = <$failFiles>;
+    
+  if ((scalar @fileArr) >= 1) {
+    die "There are RefSeq entry failures - evaluate and run GBParser manually - then restart dotsbuild\n";
+  }
+
+  $mgr->endStep($signal);
+
+}
 
 sub parsedbEST {
   my ($mgr) = @_;
@@ -347,6 +469,25 @@ sub extractDots {
 
   $mgr->endStep($signal);
 }
+
+sub copyGenomeToLiniac {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet}; 
+  my $signal = "genome2liniac";
+
+  my $gVer = $propertySet->getProp('genomeVersion');
+  my $fromDir = $propertySet->getProp('externalDbDir') . '/goldenpath';
+  my $serverPath = $propertySet->getProp('serverExternalDbDir') . '/goldenpath';
+  my $liniacServer = $propertySet->getProp('liniacServer');
+  my $liniacUser = $propertySet->getProp('liniacUser');
+  return if $mgr->startStep("Copying $fromDir/$gVer to $serverPath on $liniacServer",
+			      $signal, 'copyGenomeToLiniac');
+
+  $mgr->copyToLiniac($fromDir, $gVer, $liniacServer, $serverPath, $liniacUser);
+
+  $mgr->endStep($signal);
+}
+
 
 
 sub copyPipelineDirToLiniac {
