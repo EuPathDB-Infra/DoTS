@@ -66,6 +66,9 @@ $mgr->{buildName} = $buildName;
 $mgr->{pipelineDir} = $pipelineDir;
 $mgr->{propertiesFile} = $propertiesFile;
 $mgr->{propertySet} = $propertySet;
+$mgr->{releaseFilePrefix} = $propertySet->getProp('speciesNickname') . '_dots_gene_';
+$mgr->{releaseFileSuffix} = '_dots' . $propertySet->getProp('dotsRelease')
+	 . $propertySet->getProp('genomeVersion');
 
 &createDotsGenePipelineDir($mgr);
 
@@ -123,4 +126,9 @@ $mgr->waitForAction("FrameFinder annotation", "waitFrameFinder");
 
 &integrateWithGus($mgr);
 
-&makeReleaseFiles($mgr);
+&makeGffFiles($mgr);
+&addUcscHeaders($mgr);
+&dumpCodingGeneSeqs($mgr);
+&dumpNoncodingGeneSeqs($mgr);
+
+$mgr->goodbye("DoTS gene pipeline completed!\n");
