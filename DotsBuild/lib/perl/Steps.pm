@@ -1098,7 +1098,71 @@ sub deleteGeneTrapAssembly {
   $mgr->runCmd($cmd);
 
   $mgr->endStep($signal);
-} 
+}
+
+
+sub downloadGeneTrapTags {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "downloadGeneTrapTags";
+
+  return if $mgr->startStep("Download gene trap tags manually", $signal,'loadGeneTrapAssembly');
+
+  $mgr->manualTask("download gene trap tags using bulk download on Entrez",$signal);
+
+  $mgr->endStep($signal);
+}
+
+
+
+sub  updateGeneTrapTags {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "updateGeneTrapTags";
+
+  return if $mgr->startStep("Updating gene trap tags in GUS", $signal,'loadGeneTrapAssembly');
+
+  my $genbankRel = $propertySet->getProp('genbankRel');
+
+  my @DBs = split(/,/, $propertySet->getProp('geneTrapDbRls'));
+
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+
+  foreach my $db (@DBs) {
+    my ($file, $id) = split(/:/, $db);
+
+    my $dirAndFile = "$externalDbDir/genetags/genbank/$genbankRel/$file";
+
+    my $args = "--gbRel $genbankRel --file $dirAndFile  --db_rel_id $id";
+
+    my $indivSignal = "gbParse_${file}";
+
+    $mgr->runPlugin($indivSignal, "GUS::Common::Plugin::GBParser", $args,
+		    "Loading GenBank gene trap files into GUS", 'insertGenbank');
+
+  }
+
+  foreach my $db (@DBs) {
+    my ($file, $id) = split(/:/, $db);
+
+    my $subDir = "gbParse_".$file;
+
+    my $failFiles = "$mgr->{pipelineDir}/plugins/$subDir/gbparserFailures/*.gb";
+
+    my @fileArr = <$failFiles>;
+
+    if ((scalar @fileArr) >= 1) {
+      die "There are Genbank gene trap tag  entry failures - evaluate and run GBParser manually - then restart dotsbuild\n";
+    }
+  }
+
+  $mgr->endStep($signal);
+
+}
+
+
 
 sub extractGeneTrapTags {
   my ($mgr) = @_;
