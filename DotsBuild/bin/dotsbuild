@@ -5,6 +5,7 @@ use lib "$ENV{GUS_HOME}/lib/perl";
 use GUS::Pipeline::Manager;
 use GUS::Pipeline::MakeTaskDirs;
 use CBIL::Util::PropertySet;
+use CBIL::Util::GenomeDir;
 use File::Basename;
 
 $| = 1;
@@ -20,6 +21,7 @@ my @properties =
 (
  # properties required by Pipeline API
  ["liniacServer",         "",  "full name of liniac server"],
+ ["liniacUser",         "",  "user name for logon to liniac server"],
  ["stopBefore",   "none",  "the step to stop before.  uses the signal name"],
 
  # properties used by dotsbuild
@@ -29,9 +31,13 @@ my @properties =
  ["reassemble",           "",  "yes or no"],
  ["serverPath",           "",  "full path of dots update dir on liniac server"],
  ["nodePath",             "",  "full path of scratch dir on liniac node"],
+ ["genomeVersion",      "",  "Golden Path genome assembly version, eg hg16, mm4"],
  ["repeatmask.taskSize",  "",  "number of seqs to process per repeatmask subtask"],
  ["repeatmask.path",      "",  "path on node of repeatmask executable"],
  ["repeatmask.options",   "",  "number of seqs to process per blastmatrix subtask"],
+ ["genome.taskSize",  "",  "number of seqs to process per genome-align subtask"],
+ ["genome.path",      "",  "path on node of genome-align executable"],
+ ["genome.options",   "",  "options to genome-align executable"],
  ["blastmatrix.taskSize", "",  "number of seqs to process per blastmatrix subtask"],
  ["blastsimilarity.taskSize", "",  "number of seqs to process per blastsimilarity subtask"],
  ["blastsimilarity.Bparam", "", "paramter B for blastsimilarity"], 
@@ -62,6 +68,8 @@ my @properties =
  ["geneCluster.consistentEnds",         "",  ""],
  ["geneCluster.cliqueSzArray",  "",  ""],
  ["geneCluster.logbaseArray",   "",  ""],
+ ["downloadGenome",   "",  "yes or no"],
+ ["copyGenomeToLiniac",   "",  "yes or no"],
  ["downloadGenbank",   "",  "yes or no"],
  ["downloadTaxon",   "",  "yes or no"],
  ["downloadNRDB",   "",  "yes or no"],
@@ -112,6 +120,7 @@ my @properties =
  ["projectLinkRestart", "", "yes or no"],
  ["allgenesVersion", "", "version number for allgenes, e.g. 5.0"],
  ["externalDbDir", "", "directory for download data from external databases"],
+ ["serverExternalDbDir", "", "directory for external databases on compute cluster server"],
  ["genbankRel", "", "GenBank release number found in the README file"],
  ["gb_db_rel_id", "", "external_database_release_id for GenBank"],
  ["gbFiles", "", "list of comma delinieated genbank files to be parsed into GUS"],
@@ -164,7 +173,6 @@ my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
 my $buildName = &makeBuildName($propertySet->getProp('speciesNickname'));
 my $pipelineDir = "$dotsBuildDir/$buildName";
 
-
 ###################  The Pipeline  ##########################
 
 my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFile);
@@ -195,9 +203,15 @@ my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFil
 
 &extractAssemSeqs();
 
+&downloadGenome();
+
+&copyGenomeToLiniac();
+
 &copyPipelineDirToLiniac();
 
-&startBlastMatricesOnLiniac(); 
+# TODO make this step to only run repeatMask while ommit Blasts
+# &startBlastMatricesOnLiniac(); 
+&startGenomicAlignmentOnLiniac();
 
    &qualityStart();
  
@@ -219,12 +233,19 @@ my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFil
 
    &copyProteinDBsToLiniac();
 
-$mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
+   &insertGenome();
 
-&copyBlastMatricesFromLiniac();
+# $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
+$mgr->waitForLiniac("genomic alignments of assemSeqs", "waitGenomeAlignAss");
 
-&cluster("initial", 
-  	 "prevDots-prevDots", "assemSeqs-assemSeqs", "prevDots-assemSeqs");
+# &copyBlastMatricesFromLiniac();
+&copyGenomeAssemSeqsFromLiniac();
+
+&loadGenomeAlignments("assemSeqs", "genome");
+
+# &cluster("initial", 
+#  	 "prevDots-prevDots", "assemSeqs-assemSeqs", "prevDots-assemSeqs");
+&clusterByGenome("initial");
 
 &splitCluster("initial");
 
@@ -438,6 +459,9 @@ sub createDotsPipelineDir {
     my $rmPath = $props->getProp('repeatmask.path');
     my $rmOptions = $props->getProp('repeatmask.options');
     my $dangleMax = $props->getProp('repeatmask.dangleMax');
+    my $gaTaskSize = $props->getProp('genome.taskSize');
+    my $gaOptions = $props->getProp('genome.options');
+    my $gaPath = $props->getProp('genome.path');
     my $bmTaskSize = $props->getProp('blastmatrix.taskSize');
     my $bsTaskSize = $props->getProp('blastsimilarity.taskSize');
     my $bsBparam = $props->getProp('blastsimilarity.Bparam');
@@ -445,6 +469,10 @@ sub createDotsPipelineDir {
     my $bsEparam = $props->getProp('blastsimilarity.Eparam');
     my $wuBlastBinPathLiniac = $props->getProp('wuBlastBinPathLiniac');
     my $ncbiBlastBinPathLiniac = $props->getProp('ncbiBlastBinPathLiniac');
+
+    my $genomeVer = 'goldenpath/' . $props->getProp('genomeVersion');
+    my $extGDir = $props->getProp('externalDbDir') . '/' . $genomeVer;
+    my $srvGDir = $props->getProp('serverExternalDbDir') . '/'. $genomeVer;
 
     return if (-e "$dotsBuildDir/$buildName/seqfiles");
 
@@ -467,6 +495,9 @@ sub createDotsPipelineDir {
     &makeRMDir("finalDots", $buildName, $dotsBuildDir,
 	       $serverPath,  $nodePath, $rmTaskSize, $rmOptions, $dangleMax, $rmPath);
 
+    &makeGenomeDir("assemSeqs", "genome", $buildName, $dotsBuildDir, $serverPath,
+		   $nodePath, $gaTaskSize, $gaOptions, $gaPath, $extGDir, $srvGDir);
+
     &makeMatrixDir("assemSeqs", "assemSeqs", $buildName, $dotsBuildDir, 
 		   $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
     &makeMatrixDir("prevDots", "assemSeqs", $buildName, $dotsBuildDir, 
@@ -478,18 +509,18 @@ sub createDotsPipelineDir {
     &makeMatrixDir("finalDots", "finalDots", $buildName, $dotsBuildDir, 
 		   $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
 
-    &makeSimilarityDir("finalDots", "$serverPath/$buildName/seqfiles","nrdb", $buildName, $dotsBuildDir, 
+    &makeSimilarityDir("finalDots", "nrdb", $buildName, $dotsBuildDir, 
 		       $serverPath, $nodePath, $bsTaskSize, 
 		       $wuBlastBinPathLiniac,
 		       "nrdb.fsa", ,'finalDots.fsa','(\d+)', 'blastx', 
 		       "-wordmask=seg+xnu W=3 T=1000 B=$bsBparam V=$bsVparam E=$bsEparam");
 
-    &makeSimilarityDir("finalDots", "$serverPath/$buildName/seqfiles", "prodom", $buildName, $dotsBuildDir, 
+    &makeSimilarityDir("finalDots", "prodom", $buildName, $dotsBuildDir, 
 		       $serverPath, $nodePath, $bsTaskSize, 
 		       $wuBlastBinPathLiniac,
 		       "prodom.fsa", ,'finalDots.fsa','(\S+)', 'blastx', 
 		       "-wordmask=seg+xnu W=3 T=1000 B=$bsBparam V=$bsVparam E=$bsEparam");
-    &makeSimilarityDir("finalDots", "$serverPath/$buildName/seqfiles", "cdd", $buildName, $dotsBuildDir, 
+    &makeSimilarityDir("finalDots", "cdd", $buildName, $dotsBuildDir, 
 		       $serverPath, $nodePath, $bsTaskSize, 
 		       $ncbiBlastBinPathLiniac,
 		       "cdd/All",  ,'finalDots.fsa','\w+\|\w+\|\d+\s+(\w+)', 'rpsblast', 
@@ -506,6 +537,42 @@ sub makeAssemblyDir {
 
     $mgr->runCmd("mkdir -p $localDir/$buildName/assembly/$name/big");
     $mgr->runCmd("mkdir -p $localDir/$buildName/assembly/$name/small");
+}
+
+sub downloadGenome {
+    my $signal = "downloadGenome";
+
+    return if $mgr->startStep("Downloading genome", $signal, 'downloadGenome');
+
+    $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
+
+    my $externalDbDir = $propertySet->getProp('externalDbDir');
+    my $genomeVer = $propertySet->getProp('genomeVersion');
+
+    my $downloadSubDir = "$externalDbDir/goldenpath/$genomeVer";
+    my $downloadGapDir = "$externalDbDir/goldenpath/$genomeVer" . 'gaps';
+
+    my $logfile = "$pipelineDir/logs/downloadGenome.log";
+
+    $mgr->runCmd("mkdir -p $downloadSubDir");
+    $mgr->runCmd("mkdir -p $downloadGapDir");
+
+    my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=1 -P $downloadSubDir "
+	. "http://genome.ucsc.edu/goldenPath/$genomeVer/bigZips/chromFa.zip";
+    $mgr->runCmd($cmd);
+    $mgr->runCmd("unzip $downloadSubDir/chromAgp.zip -d $downloadSubDir");
+    $mgr->runCmd("rm $downloadSubDir/chromFa.zip");
+
+    my $gd = CBIL::Util::GenomeDir->new($downloadSubDir);
+    my @chrs = $gd->getChromosomes;
+    foreach my $chr (@chrs) {
+	$cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=1 -P $downloadGapDir "
+	    . "http://genome.ucsc.edu/goldenPath/$genomeVer/database/chr${chr}_gap.txt.gz";
+	$mgr->runCmd($cmd);
+    }
+    $mgr->runCmd("gunzip $downloadGapDir/*.gz -d $downloadGapDir");
+
+    $mgr->endStep($signal);
 }
 
 sub downloadGenbank {
@@ -832,13 +899,46 @@ sub copyPipelineDirToLiniac {
     my $dotsRelease = "release" . $propertySet->getProp('dotsRelease');
     my $serverPath = $propertySet->getProp('serverPath') . "/$dotsRelease";
     my $liniacServer = $propertySet->getProp('liniacServer');
+    my $liniacUser = $propertySet->getProp('liniacUser');
     my $fromDir = "$dotsBuildDir/$dotsRelease";
     my $signal = "dir2liniac";
-    return if $mgr->startStep("Copying $dotsBuildDir/$dotsRelease/$nickName to $serverPath on $liniacServer", $signal);
+    return if $mgr->startStep("Copying $fromDir/$nickName to $serverPath on $liniacServer", $signal);
 
-    $mgr->copyToLiniac($fromDir, $nickName, $liniacServer, $serverPath);
+    $mgr->copyToLiniac($fromDir, $nickName, $liniacServer, $serverPath, $liniacUser);
 
     $mgr->endStep($signal);
+}
+
+sub copyGenomeToLiniac {
+    my $signal = "genome2liniac";
+
+    my $gVer = $propertySet->getProp('genomeVersion');
+    my $fromDir = $propertySet->getProp('externalDbDir') . '/goldenpath';
+    my $serverPath = $propertySet->getProp('serverExternalDbDir') . '/goldenpath';
+    my $liniacServer = $propertySet->getProp('liniacServer');
+    my $liniacUser = $propertySet->getProp('liniacUser');
+    return if $mgr->startStep("Copying $fromDir/$gVer to $serverPath on $liniacServer",
+			      $signal, 'copyGenomeToLiniac');
+
+    $mgr->copyToLiniac($fromDir, $gVer, $liniacServer, $serverPath, $liniacUser);
+
+    $mgr->endStep($signal);
+}
+
+
+sub startGenomicAlignmentOnLiniac {
+
+    my $liniacServer = $propertySet->getProp('liniacServer');
+    my $serverPath = $propertySet->getProp('serverPath');
+    my $signal = "rungenomealign";
+    return if $mgr->startStep("Starting genomic alignment", $signal);
+
+    $mgr->endStep($signal);
+
+    my $liniacCmdMsg = "submitPipelineJob runGenomeAlign $serverPath/$buildName NUMBER_OF_NODES";
+    my $liniacLogMsg = "monitor $serverPath/$buildName/logs/*.log and xxxxx.xxxx.stdout";
+
+    $mgr->exitToLiniac($liniacCmdMsg, $liniacLogMsg, 1);
 }
 
 sub startBlastMatricesOnLiniac {
@@ -875,8 +975,6 @@ sub qualityStart {
 
 }
 
-
-
 sub copyBlastMatricesFromLiniac {
 
     my $serverPath = $propertySet->getProp('serverPath');
@@ -898,6 +996,64 @@ sub copyBlastMatricesFromLiniac {
 			     "$pipelineDir/matrix/$name");
     }
     
+    $mgr->endStep($signal);
+}
+
+sub copyGenomeAssemSeqsFromLiniac {
+
+    my $serverPath = $propertySet->getProp('serverPath');
+    my $liniacServer = $propertySet->getProp('liniacServer');
+    my $liniacUser = $propertySet->getProp('liniacUser');
+
+    my $signal = "genomeAssemSeqsFromLiniac";
+    return if $mgr->startStep("Copying genome alignment of assemSeqs from $liniacServer", $signal);
+    
+    $mgr->copyFromLiniac($liniacServer,
+			 "$serverPath/$buildName/genome/assemSeqs-genome/master/mainresult",
+			 "per-chr",
+			 "$pipelineDir/genome/assemSeqs-genome",
+			 $liniacUser);
+
+    $mgr->runCmd("mkdir -p $pipelineDir/repeatmask/assemSeqs/master/mainresult");
+    $mgr->copyFromLiniac($liniacServer,
+			 "$serverPath/$buildName/repeatmask/assemSeqs/master/mainresult",
+			 "blocked.seq",
+			 "$pipelineDir/repeatmask/assemSeqs/master/mainresult",
+			 $liniacUser);
+    
+    $mgr->endStep($signal);
+}
+
+sub loadGenomeAlignments {
+    my ($queryName, $targetName) = @_;
+
+    my $signal = "$queryName-$targetName" . 'Load';
+
+    return if $mgr->startStep("Loading $queryName-$targetName alignments", $signal);
+
+    my $taxonId = $propertySet->getProp('taxonId');
+    my $genomeId = $propertySet->getProp('genome_db_rls_id');
+    my $gapTabSpace = $propertySet->getProp('tempLogin');
+
+    my $pslDir = "$pipelineDir/genome/$queryName-$targetName/per-chr";
+
+    my $qFile = "$pipelineDir/repeatmask/$queryName/master/mainresult/blocked.seq";
+    my $qTabId = ($queryName =~ /dots/i ? 56 : 57);
+
+    my $args = "--blat_dir $pslDir --query_file $qFile --gap_table_space $gapTabSpace --keep_best 2 "
+	. "--query_table_id $qTabId --query_taxon_id $taxonId "
+	. "--target_table_id 245 --target_db_rel_id $genomeId --target_taxon_id $taxonId "
+	. "--max_query_gap 5 --min_pct_id 95 max_end_mismatch 10 "
+	. "--end_gap_factor 10 --min_gap_pct 90 "
+	. "--ok_internal_gap 15 --ok_end_gap 50 --min_query_pct 10";
+    if ($qTabId == 57) {
+	my $gb_db_rel_id = $propertySet->getProp('gb_db_rel_id');
+	$args .= " --query_db_rel_id $gb_db_rel_id";
+    }
+
+    $mgr->runPluginNoCommit("LoadBLATAlignments", 
+		    "GUS::Common::Plugin::LoadBLATAlignments",
+		    $args, "loading genomic alignments of $queryName vs $targetName");
     $mgr->endStep($signal);
 }
 
@@ -930,6 +1086,31 @@ sub cluster {
     my $cmd = "buildBlastClusters.pl --lengthCutoff $length --percentCutoff $percent --verbose --files '$matrixFiles' --logBase $logbase --iterateCliqueSizeArray $cliqueSzArray $ceflag --iterateLogBaseArray $logbaseArray --sort > $outputFile 2>> $logFile";
 
     $mgr->runCmd($cmd);
+
+    $mgr->endStep($signal);
+}
+
+sub clusterByGenome {
+    my ($name) = @_;
+
+    my $signal = "${name}ClusterByGenome";
+
+    return if $mgr->startStep("Clustering $name by genome", $signal);
+
+    my $taxonId = $propertySet->getProp("taxonId");
+    my $extDbRelId = $propertySet->getProp("genome_db_rls_id");
+    my $gb_db_rel_id = $propertySet->getProp('gb_db_rel_id');
+
+    my $outputFile = "$pipelineDir/cluster/$name/cluster.out";
+    my $logFile = "$pipelineDir/logs/$signal.log";
+
+    my $args = "--stage $name --taxon_id $taxonId --query_db_rel_id $gb_db_rel_id "
+	. "--target_db_rel_id $extDbRelId --out $outputFile --sort 1";
+    # $args .= " --test_chr 5";
+
+    $mgr->runPluginNoCommit("ClusterByGenome", 
+		    "DoTS::DotsBuild::Plugin::ClusterByGenome",
+		    $args, "$name clustering by genome alignment");
 
     $mgr->endStep($signal);
 }
@@ -1172,7 +1353,48 @@ sub insertNRDB {
   $mgr->runPlugin("loadNRDB", "GUS::Common::Plugin::LoadNRDB", $args, "Loading NRDB", 'downloadNRDB');
 }	
 
+# TODO: test this!!!
+sub insertGenome {
 
+    my $externalDbDir = $propertySet->getProp('externalDbDir');
+
+    my $genomeVer = $propertySet->getProp('genomeVersion');
+    
+    my $dbi_str = $propertySet->getProp('dbi_str');
+
+    my $genomeDir = "$externalDbDir/goldenpath/$genomeVer";
+
+    my $gapDir = "$externalDbDir/goldenpath/$genomeVer" . 'gaps';
+    
+    my $temp_login = $propertySet->getProp('tempLogin');  
+    
+    my $temp_password = $propertySet->getProp('tempPassword'); 
+
+    my $gd = CBIL::Util::GenomeDir->new($genomeDir);
+
+    my $taxon = $propertySet->getProp('taxonId');
+
+    my $genome_rel = $propertySet->getProp('genome_db_rls_id');
+
+    my $dbrXml = "$genomeDir/gusExtDbRel.xml";
+    $gd->makeGusExtDbRelXML($taxon, $genome_rel, $dbrXml);
+    
+    my $args = "--comment \"add this ext db rel for $genomeVer\" --filename $dbrXml";
+
+    $mgr->runPlugin("UpdateGusFromXML", "GUS::Common::Plugin::UpdateGusFromXML",
+		    $args, "Making genome release", 'downloadGenome');
+
+    $args = "--comment \"load genomic seqs for $genomeVer\" "
+	. "--genomeDir $genomeDir --genomeVersion $genomeVer";
+    $mgr->runPlugin("UpdateNASequences", "GUS::Common::Plugin::UpdateNASequences",
+		    $args, "Loading genomic sequences", 'downloadGenome');
+
+    $args = "--tempLogin \"$temp_login\" --tempPassword \"$temp_password\" "
+	. "--dbiStr \"$dbi_str\" --gapDir $gapDir";
+
+    $mgr->runPlugin("loadGenomeGaps", "GUS::Common::Plugin::LoadGenomeGaps",
+		    $args, "Loading genome gaps", 'downloadGenome');
+}
 
 sub extractNRDB {
 
@@ -3333,7 +3555,6 @@ sub parseTMFile {
   my $predictedProteinsFile = "$pipelineDir/seqfiles/${prefix}_predictedProteins.fasta";
 
   my $type = 'tmhmm';
-
   my $cmd = " parse-predictions --PredictionPath \"$predictionPath\" --AaSequenceFile $predictedProteinsFile --Type $type > $outputFile 2>>$logFile";
 
   $mgr->runCmd($cmd);
