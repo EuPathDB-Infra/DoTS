@@ -108,16 +108,16 @@ sub processIds {
     foreach my $id (@$ids){ 
 	my $ass = GUS::Model::DoTS::Assembly->new({'na_sequence_id' => $id});
 	if( $ass->retrieveFromDB()){
-	    my $rnafeat = $ass->getChild('RNAFeature',1) ? $ass->getChild('RNAFeature') : $self->makeRNAFeature($ass);
-	    my $rnainst = $rnafeat->getChild('RNAInstance',1) ? $rnafeat->getChild('RNAInstance') : $self->makeRNAInstance($rnafeat);
-	    my $rna = $rnainst->getParent('RNA',1) ? $rnainst->getParent('RNA') : $self->makeRNA($rnainst);
+	    my $rnafeat = $ass->getChild('DoTS::RNAFeature',1) ? $ass->getChild('DoTS::RNAFeature') : $self->makeRNAFeature($ass);
+	    my $rnainst = $rnafeat->getChild('DoTS::RNAInstance',1) ? $rnafeat->getChild('DoTS::RNAInstance') : $self->makeRNAInstance($rnafeat);
+	    my $rna = $rnainst->getParent('DoTS::RNA',1) ? $rnainst->getParent('DoTS::RNA') : $self->makeRNA($rnainst);
 	    $ass->addToSubmitList($rna);
-	    my $prot = $rna->getChild('Protein',1) ? $rna->getChild('Protein') : $self->makeProtein($rna);
-	    my $protInst = $prot->getChild('ProteinInstance',1) ? $prot->getChild('ProteinInstance') : $self->makeProteinInstance($prot);
+	    my $prot = $rna->getChild('DoTS::Protein',1) ? $rna->getChild('DoTS::Protein') : $self->makeProtein($rna);
+	    my $protInst = $prot->getChild('DoTS::ProteinInstance',1) ? $prot->getChild('DoTS::ProteinInstance') : $self->makeProteinInstance($prot);
 	    
-	    my $trAF = $rnafeat->getChild('TranslatedAAFeature',1) ? $rnafeat->getChild('TranslatedAAFeature') : $self->makeTranAAFeat($rnafeat);
+	    my $trAF = $rnafeat->getChild('DoTS::TranslatedAAFeature',1) ? $rnafeat->getChild('DoTS::TranslatedAAFeature') : $self->makeTranAAFeat($rnafeat);
 	    $trAF->addChild($protInst);
-	    my $trAS = $trAF->getParent('TranslatedAASequence',1) ?  $trAF->getParent('TranslatedAASequence',1) : $self->makeTranAASeq($trAF);
+	    my $trAS = $trAF->getParent('DoTS::TranslatedAASequence',1) ?  $trAF->getParent('DoTS::TranslatedAASequence',1) : $self->makeTranAASeq($trAF);
 	    $ass->addToSubmitList($trAS);
 	    $count += $ass->submit();
 	    $ass->undefPointerCache();
