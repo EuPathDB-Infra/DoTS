@@ -24,7 +24,7 @@ sub new {
     my $tablesAffected = [];
 
     my $howToRestart = <<RESTART; 
-Cannot be restarted, yet. 
+Specify comma separated list of chroms (see log files from previous run) to skip.
 RESTART
 
     my $failureCases;
@@ -201,9 +201,11 @@ sub run {
     my $args = $self->getArgs();
     my $genomeId = $self->getArg('genome_db_rls_id');
     my $tempLogin = $self->getArg('temp_login');
+    my $isRerun = $self->getArg('skip_chrs');
+    my $isTest = $self->getArg('test');
 
     $self->log("Clean out or create temp tables to hold genome dots gene analysis result...");
-    my @tmpMeta = &createTempTables($dbh, $tempLogin) unless $self->getArg('skip_chrs');
+    my @tmpMeta = &createTempTables($dbh, $tempLogin) unless $isRerun || $isTest;
 
     $self->log("Creating genome-based DoTS genes...");
     my ($coords, $skip_chrs) = &DoTS::Gene::Util::getCoordSelectAndSkip($dbh, $genomeId, $args);
@@ -220,7 +222,7 @@ sub run {
         $self->log("processing chr$coord->{chr}:$coord->{start}-$coord->{end}"); 
         $sel_criteria->{baseT}->{target_na_sequence_id} = $coord->{chr_id};
 	$sel_criteria->{optT} = { start => $coord->{start}, end => $coord->{end} };
-	my $gdg_wkr = DoTS::Gene::GenomeWalker->new($db, $sel_criteria, $mrg_criteria);
+	my $gdg_wkr = DoTS::Gene::GenomeWalker->new($db, $sel_criteria, $mrg_criteria, $isTest);
 	my $genes = $gdg_wkr->getCompositeGenomeFeatures();
 	$self->log("number of genes in this region: " . scalar(@$genes));
 	foreach (@$genes) {
@@ -351,6 +353,7 @@ sub saveGene {
     my $taxonId = $self->getArg('taxon_id');
     my $genomeId = $self->getArg('genome_db_rls_id');
     my $tmpLogin = $self->getArg('temp_login');
+    my $isTest = $self->getArg('test');
 
     my $sql = "insert into ${tmpLogin}.$gdg_tab ($gdg_cols->[0], $gdg_cols->[1], "
 	. "$gdg_cols->[2], $gdg_cols->[3], $gdg_cols->[4], $gdg_cols->[5], "
@@ -363,7 +366,11 @@ sub saveGene {
 	. $gene->getMinInterspanSize. "," . $gene->getMaxInterspanSize. ","
 	. "'" . join(',', $gene->getSpanStarts) . "',"
 	. "'" . join(',', $gene->getSpanEnds) . "')";
-    $dbh->sqlexec($sql);
+    if ($isTest) {
+	$self->log("In testing mode, o.w. would run $sql");
+    } else {
+	$dbh->sqlexec($sql);
+    }
 
     my @transcripts = $gene->getConstituents();
     foreach my $t (@transcripts) {
@@ -373,7 +380,11 @@ sub saveGene {
 	my $sql = "insert into ${tmpLogin}.$gdt_tab "
 	    . "($gdt_cols->[0], $gdt_cols->[1], $gdt_cols->[2], $gdt_cols->[3], $gdt_cols->[4]) "
 	    . "values ($taxonId, $genomeId, $id, $bid, $dots)";
-	$dbh->sqlexec($sql);
+	if ($isTest) {
+	    $self->log("In testing mode, o.w. would run $sql");
+	} else {
+	    $dbh->sqlexec($sql);
+	}
     }
 }
 
