@@ -79,8 +79,8 @@ sub run {
 
   my $dbh = $ctx->{'self_inv'}->getDatabase()->getQueryHandle();                
   my $time1 = scalar localtime;
-  if ($ctx->{cla}->{ffdir}) {$framefinderdir=$ctx->{cla}->{ffdir};}
-  if ($ctx->{cla}->{dianadir}) {$dianadir=$ctx->{cla}->{dianadir};}
+  my $framefinderdir=$ctx->{cla}->{ffdir} if ($ctx->{cla}->{ffdir});
+  my $dianadir=$ctx->{cla}->{dianadir} if ($ctx->{cla}->{dianadir});
   my $Framefinder = $framefinderdir.'/bin/framefinder_GUS'; # location of FrameFinder
   my $Diana = $ctx->{cla}->{dianadir}.'/atg';
   if (!(-e $Diana))
