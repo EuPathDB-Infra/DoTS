@@ -51,6 +51,16 @@ FOR RELEASE 7
 
 GENERAL:
 
+Add to checklist-check changes in nrdb file
+
+Add options for prodom download and insert  - other similar cases
+
+Add to checklist-update RepeatMasker and repbase files if new version available
+
+Request schema change for GUS::Model::DoTS::SignalPeptideFeature to add anchor_probability and signal_probability attributes 
+
+add options for --maketemp,--plugin,--delete to properties file and to dotsbuild for loadNRDB
+
 Framefinder, TM, and SignalP should be redone for mouse and possibly for human. 
 
 Add documentatin to dbEST.pm that indicates the source of the data, dbEST mirror, and how to load the mirror.
