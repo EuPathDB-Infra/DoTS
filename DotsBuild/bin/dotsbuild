@@ -104,7 +104,8 @@ my @properties =
  ["externalDbDir", "", "directory for downloaded data from external databases"],
  ["genbankRel", "", "GenBank release number found in the README file"],
  ["gb_db_rel_id", "", "external_database_release_id for GenBank"],
- ["gbFiles", "", "list of comma delinieated genbank files to be parsed into GUS"]
+ ["gbFiles", "", "list of comma delinieated genbank files to be parsed into GUS"],
+ ["fileOfRepeats", "","subdirectory and library(file) of repeats, e.g. unknown_release/vector_humMitoRibo.lib"]
  ); 
 
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
@@ -136,7 +137,7 @@ exit();
 
 &parseGenbank();
 
-###&parsedbEST();
+&parsedbEST();
 
 &makeAssemSeqs();
 
@@ -613,20 +614,26 @@ sub parseGenbank {
 sub parsedbEST {
 
   my $args = "--log $pipelineDir/logs/dbest.log";
-
+  
   $mgr->runPlugin("loadDbEst", "GUS::Common::Plugin::dbEST", $args, 
 		  "Loading dbEST files into GUS", 'loadDbEst');
 }
 
 sub makeAssemSeqs {
-
-    my $taxonId = $propertySet->getProp('taxonId');
-
-    my $args = "--taxon_id=$taxonId";
-
-    $mgr->runPlugin("makeAssemSeqs", 
-		    "DoTS::DotsBuild::Plugin::MakeAssemblySequences", $args,
-		    "Making assembly table sequences");
+  
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+  
+  my $file = $propertySet->getProp('fileOfRepeats');
+  
+  my $taxonId = $propertySet->getProp('taxonId');
+  
+  my $repeatFile = "$externalDbDir/repeat/$file";
+    
+  my $args = "--taxon_id=$taxonId --repeatFile $repeatFile";
+  
+  $mgr->runPlugin("makeAssemSeqs", 
+		  "DoTS::DotsBuild::Plugin::MakeAssemblySequences", $args,
+		  "Making assembly table sequences");
 }
 
 sub extractAssemSeqs {
