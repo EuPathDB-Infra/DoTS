@@ -77,6 +77,8 @@ sub usage {
 sub createTmpTable {
   my ($dbh) = @_;
 
+  print STDERR "Creating tmp table PrintStatsTmp\n";
+
   my $sql = 
 "create table PrintStatsTmp as
 select r.gene_id, a.na_sequence_id, a.number_of_contained_sequences,
@@ -181,6 +183,8 @@ sub formatGOTable {
 
   my $tableString;
   foreach my $func (@sortedGoFuncs) {
+
+    $func = substr($func,0,30) . "..." if (length($func) > 30);
     my %values = &findGOValues($func,
 			       $humDoTSGOHash->{$func}, $humDoTSGOTot,
 			       $musDoTSGOHash->{$func}, $musDoTSGOTot,
