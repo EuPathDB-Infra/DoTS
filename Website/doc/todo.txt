@@ -1,28 +1,48 @@
-DoTS todo
+DoTS Website To Do
 
-Misc
+Queries
+  - convert external ID queries (eg GeneCards) to "gene" queries
+  - HQ queries
+  - TESS queries
+  - GeneNet
+  - batch BLAST
+  - batch submit DTs
+  - add U133 affy query
 
-website
-  - mapping to GeneNet
-  - genomic location query
+Documentation
+  - Improve statistics page (probably wait till new cluster alg)
+  - Use cases
+  - Tutorial
+  - White papers on algorithms (eg, confidence)
+
+Features
+  - New gene-centric transcript list display
+  - User sorting
+  - global navigation of pages?
+  - Shopping cart (ie, hand picked DTs to add to a set)
+  - find transcripts similar to the one in hand
+  - "Refine": make a new query by adjusting params of query from history
+  - Display coding/non-coding in transcript page header
+  - Display confidence in transcript page header
+  - add coding/non-coding and confidence columns to ReportMaker
+  - offer fasta file as optioal format for ReportMaker
   - map RAD to DoTS?
-  - Use Cases and tutorials
+  - the gene page should check for old DG in mergesplit and put out history page
+  - BLAST should do something to prevent timing out on long tblastn jobs
 
-website build
-  - find ALL hard coded urls get them into the config files!
+Website Build
+  - find hard coded urls get them into the config files
   - move project into new CVS structure
 
-Website - Gene/Genome integration
-  - Gene set queries
-  - annotate transcripts as coding/non-coding
-  - annotate transcripts with confidence
-  - add coding/non-coding and confidence columns to ReportMaker
-  - move to RNAs from na_sequences
-  - model alternative splices?
+After Genome Clustering
+  - gene based queries
+     - gene location
+     - gene quality (just re-word the query)
+     - gene confidence
 
-poster
-  - tutorial (using use cases)
-  - improve this and put it on site
+Future
+  - model alternative splices (ie, remove constraint of EST belonging to 1 DT)
+  - move to RNAs from na_sequences
 
 
 
@@ -48,3 +68,4 @@ DONE
   - upgrade query page: collapse id queries into one pull down.
   - coding/non-coding query (for DT and DG)
   - coding/non-coding query
+  - add promoter region column to ReportMaker
