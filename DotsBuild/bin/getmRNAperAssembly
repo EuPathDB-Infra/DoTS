@@ -1,7 +1,6 @@
 #!@perl@ 
 
-## dump a list of DoTS assemblies for each DoTS gene-based on similarity
-##
+## dump a list of mRNA for each DoTS assembly
 
 use strict;
 use lib "$ENV{GUS_HOME}/lib/perl";
@@ -28,34 +27,31 @@ my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
 
 my $dbh = $db->getQueryHandle();
 
-##need to dump the input accesions along with a bit to idicate if mrNA
 
-my $sql = "select r.gene_id,ass.na_sequence_id from dots.rna r, dots.rnainstance ri, dots.rnafeature rf, dots.assembly ass where r.rna_id = ri.rna_id and ri.na_feature_id = rf.na_feature_id and rf.na_sequence_id = ass.na_sequence_id and ass.taxon_id = $taxon_id order by r.gene_id";
-
+my $sql = "select ass.assembly_na_sequence_id,e.source_id from dots.ExternalNASequence e, dots.AssemblySequence ass where e.na_sequence_id = ass.na_sequence_id and ass.assembly_na_sequence_id is not null and e.taxon_id = $taxon_id and e.sequence_type_id in (2,7) order by ass.assembly_na_sequence_id";
 
 print STDERR "Query: $sql\n" if $verbose;
 
 my $stmt = $dbh->prepareAndExecute($sql);
 
-my $prev_DG;
+my $prev_DT;
 my @ids;
 my $ct = 0;
-while(my($DG,$DT) = $stmt->fetchrow_array()){
-  $DT = "DT.".$DT;
-  if($DG!= $prev_DG){
-    print &generateOutput($prev_DG,@ids) if defined $prev_DG;
+while(my($DT,$mRNA) = $stmt->fetchrow_array()){
+  if($DT!= $prev_DT){
+    print &generateOutput($prev_DT,@ids) if defined $prev_DT;
     undef @ids;
     $ct++;
     print STDERR "Processed $ct\n" if $verbose && $ct % 1000 == 0;
   }
-  push(@ids,$DT);
-  $prev_DG = $DG;
+  push(@ids,$mRNA);
+  $prev_DT = $DT;
 }
-print &generateOutput($prev_DG,@ids); ##do the last one
+print &generateOutput($prev_DT,@ids); ##do the last one
 
 $db->logout();
 
 sub generateOutput {
-  my($DG,@ids) = @_;
-  return ">DG." . $DG . " \(".scalar(@ids)." assemblies\): \(".join(', ',@ids)."\)\n";
+  my($DT,@ids) = @_;
+  return ">DT.$DT (".scalar(@ids)." mRNA\): \(".join(', ',@ids)."\)\n";
 }
