@@ -211,44 +211,47 @@ sub processSet {
 sub processBlockedSequence{
 
 
-    my $self   = shift; 
-    my $ctx = shift;
-    my($ass_seq_id,$seq) = @_;
+  my $self   = shift; 
+  my $ctx = shift;
+  my($ass_seq_id,$seq) = @_;
     
-    $countProcessed++;
+  my $length = length($seq);
+
+  $countProcessed++;
     
-    $seq =~ s/\s+//g;
-    $seq =~ s/X/N/g;
-    ##trim dangling NNNN.s
-    my $sequence = $self->trimDanglingNNN($seq);
+  $seq =~ s/\s+//g;
+  $seq =~ s/X/N/g;
+  ##trim dangling NNNN.s
+  my $sequence = $self->trimDanglingNNN($seq);
     
-    ##check for lenth..
-    my $tmpSeq = $sequence;
-    $tmpSeq =~ s/N//g;
+  ##check for lenth..
+  my $tmpSeq = $sequence;
+  $tmpSeq =~ s/N//g;
     
-    ##if too short then update AssemblySquence else print to file...
-    if (length($tmpSeq) < 50) {
-	$self->logAlert ("Sequence $ass_seq_id too short (".length($tmpSeq).") following blocking\n") if $debug;
-	##update AssSeq..
-	my $ass = $ctx->{'self_inv'}->getFromDbCache('AssemblySequence',$ass_seq_id);
-	if (!$ass) {
-	    $self->logAlert ("ERROR: $ass_seq_id not in cache...retrieving from Database\n");
-	    $ass = GUS::Model::DoTS::AssemblySequence->
-		new( { 'assembly_sequence_id' => $ass_seq_id });
-	    $ass->retrieveFromDB();
-	    if (!$ass->get('assembly_strand')) {
-		##this is invalid sequence.....is reverse strand..
-		$self->logAlert ("ERROR:  AssemblySequence $ass_seq_id is invalid\n");
-		return undef;
-	    }
-	}
-	$ass->set('have_processed',1);
-	$ass->set('processed_category','repeat');
-	$ass->submit();
-	$countBad++;
-    } else {
-	print OUT "\>$ass_seq_id\n".CBIL::Bio::SequenceUtils::breakSequence($sequence);
+  ##if too short then update AssemblySquence else print to file...
+  if (length($tmpSeq) < 50) {
+    $self->logAlert ("Sequence $ass_seq_id too short (".length($tmpSeq).") following blocking\n") if $debug;
+    ##update AssSeq..
+    my $ass = $ctx->{'self_inv'}->getFromDbCache('AssemblySequence',$ass_seq_id);
+    if (!$ass) {
+      $self->logAlert ("ERROR: $ass_seq_id not in cache...retrieving from Database\n");
+      $ass = GUS::Model::DoTS::AssemblySequence->
+	new( { 'assembly_sequence_id' => $ass_seq_id });
+      $ass->retrieveFromDB();
+      if (!$ass->get('assembly_strand')) {
+	##this is invalid sequence.....is reverse strand..
+	$self->logAlert ("ERROR:  AssemblySequence $ass_seq_id is invalid\n");
+	return undef;
+      }
     }
+    $ass->set('have_processed',1);
+    $ass->set('processed_category','repeat');
+    $ass->submit();
+    $countBad++;
+  } else {
+    my $length = length($sequence);
+    print OUT "\>$ass_seq_id\slength=$length\n".CBIL::Bio::SequenceUtils::breakSequence($sequence);
+  }
 }
 
 sub trimDanglingNNN {
