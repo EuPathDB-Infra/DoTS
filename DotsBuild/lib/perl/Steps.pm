@@ -2973,13 +2973,13 @@ sub parseGeneId {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
   my $signal = "parseGeneId";
-  return if $mgr->startStep("Parsing Gene to Genbank accesion from file", $signal,'downloadGeneId');
+  return if $mgr->startStep("Parsing Gene to na_seq_id via Genbank accesion from file", $signal,'downloadGeneId');
   my $pipelineDir = $mgr->{pipelineDir};
   my $logFile = "$pipelineDir/logs/${signal}.log";
   my $externalDbDir = $propertySet->getProp('externalDbDir');
   my $date = $propertySet->getProp('buildDate');
   my $inputFile = "$externalDbDir/geneId/$date/gene2accession";
-  my $outputFile = "$pipelineDir/misc/gene2acc";
+  my $outputFile = "$pipelineDir/misc/gene2naseq";
   my $tax_id = $propertySet->getProp('ncbiTaxId');
   my $taxonId = $propertySet->getProp('taxonId'); 
   my $cmd = "makeGeneIdToNaSeqFile --inputFile $inputFile --taxon_id $taxonId --tax_id $tax_id > $outputFile 2>>$logFile";
@@ -3207,9 +3207,9 @@ sub downloadMGIInfo {
 
   $mgr->runCmd("mkdir -p $downloadSubDir");
     
-  my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=2 -A \"MRK_Dump2.rpt\"  -P $downloadSubDir  ftp://ftp.informatics.jax.org/pub/reports/";
+  my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=2 -A \"MRK_Dump2.rpt,MRK_Sequence.rpt,MGI_EntrezGene.rpt\"  -P $downloadSubDir  ftp://ftp.informatics.jax.org/pub/reports/";
 
-  $mgr->runCmd($cmd) unless (-e "$downloadSubDir/MRK_Dump2.rpt");
+  $mgr->runCmd($cmd);
 
   my $cmd = "wget -t5 -o $logfile -m -np -nd -nH --cut-dirs=3 -A \"MGI_DT_via_GB_one_*\"  -P $downloadSubDir  ftp://ftp.informatics.jax.org/pub/reports/dotstigr/";
 
@@ -3240,6 +3240,50 @@ sub deleteMGIToDots {
 
 }
 
+sub parseMgiToNaSeq {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "parseMGIToNaSeq";
+
+  return if $mgr->startStep("Parsing MGI to na_sequence_ids from file", $signal, 'loadMGI');
+
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+
+  my $date = $propertySet->getProp('buildDate');
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $inputFile = "$externalDbDir/mgi/$date/MRK_Sequence.rpt";
+  my $pipelineDir = $mgr->{pipelineDir};
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+  my $outputFile = "$pipelineDir/misc/mgi2naseq";
+
+  my $cmd = "makeMgiToNaSeqFile --taxon_id $taxonId --fileFile $inputFile > $outputFile 2>>$logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+}
+
+sub loadMgiToNaSeq {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $pipelineDir = $mgr->{pipelineDir};
+
+  my $file = "$pipelineDir/misc/mgi2naseq";
+  my $mgiDbRlsId = $propertySet->getProp('mgi_db_rls_id');
+  my $mgiDbId = $propertySet->getProp('mgi_db_id');
+
+
+  my $args = "--mappingfiles $file $delete --pattern1 '(MGI:\\d+)\\t' --pattern2 '\\t(\\d+)' --db_id $mgiDbId --db_rel_id $mgiDbRlsId";
+  $mgr->runPlugin("loadMgiToNaSeq", "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence", $args, "loading MGI to NaSeq mapping", 'loadMGI');
+}
+
+
+
 sub loadMGIToDoTS {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
@@ -3260,10 +3304,11 @@ sub loadMGIToDoTS {
   chop($files);
 
   my $db_rel_id = $propertySet->getProp('mgi_db_rls_id');
+  my $mgiDbId = $propertySet->getProp('mgi_db_id');
 
-  my $args = "--mappingfiles $files --delete --pattern1 '(MGI:\\d+)' --pattern2 'DT\.(\\d+)' --db_id 196 --db_rel_id $db_rel_id";
+  my $args = "--mappingfiles $files --delete --pattern1 '(MGI:\\d+)' --pattern2 'DT\.(\\d+)' --db_id $db_rel_id  --db_rel_id $db_rel_id";
   
-  $mgr->runPlugin("loadMGIMapping", "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence", $args, "loading MGI to DoTS mapping",'loadMGI');
+  $mgr->runPlugin("loadMGIToDoTS", "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence", $args, "loading MGI to DoTS mapping",'loadMGI');
 }
 
 sub loadMGIInfo {
@@ -3275,11 +3320,13 @@ sub loadMGIInfo {
 
   my $downloadSubDir = "$externalDbDir/mgi/$date";
 
-  my $inputfile = "$downloadSubDir/MRK_Dump2.rpt";
+  my $infoFile = "$downloadSubDir/MRK_Dump2.rpt";
+
+  my $geneFile =  "$downloadSubDir/MGI_EntrezGene.rpt";
 
   my $db_rel_id = $propertySet->getProp('mgi_db_rls_id');
   
-  my $args = "--inputfile $inputfile --external_db_release_id $db_rel_id";
+  my $args = "--infoFile $inputfile --geneFile $geneFile --external_db_release_id $db_rel_id";
   
   $mgr->runPlugin("loadMGIInfo", "DoTS::DotsBuild::Plugin::LoadMGIInfo", $args, "Loading MGI Info",'loadMGI' );
   
