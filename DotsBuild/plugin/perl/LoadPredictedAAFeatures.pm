@@ -104,7 +104,7 @@ sub new {
 sub run {
 	 my $self   = shift;
 	 $self->log("Testing on " . $self->getArgs()->{'testnumber'}."\n") if $self->getArgs()->{'testnumber'};
-	 GusApplication::Log('INFO', 'RAIID',  $ctx->{self_inv}->{algorithm_invocation_id});
+	 #GusApplication::Log('INFO', 'RAIID',  $ctx->{self_inv}->{algorithm_invocation_id});
 	 $self->getArgs()->{'commit'} ? $self->log("***COMMIT ON***\n") : $self->log("**COMMIT TURNED OFF**\n");
 
 	 my $aa_sequence_id;
@@ -174,7 +174,7 @@ sub run {
 # Subroutines
 ############################################################
 sub get_object{
-	 my (self,@tmp)=@_;
+	 my ($self,@tmp)=@_;
 	 my $seq;
 	 my $aa_sequence_id;
 	 my $project_id=$self->getArgs()->{'project_id'};
@@ -182,9 +182,9 @@ sub get_object{
 	 if ($tmp[0]=~m/^(\d+)/) {
 			my $id=$1; 
 			$seq = GUS::Model::DoTS::TranslatedAASequence->new({'aa_sequence_id' => $id});
-			print STDERR  "Found UID $id !\n" if $self->getArgs()->{'verbose'};
+			$self->log ("Found UID $id !\n") if $self->getArgs()->{'verbose'};
 	 } else {
-			print STDERR "Illformed AaSequenceId $tmp[0]\n";
+			$self->log ("Illformed AaSequenceId $tmp[0]\n");
 	 }
 
 	 return $seq;
@@ -359,7 +359,7 @@ sub process {
     if ($feature) {
       
       ## ... but only if 'reload' is set !!! 
-      unless ($ctx->{'reload'}) {
+      unless ($self->getArgs->{'reload'}) {
 	
 	## else return to parser !
 	print STDERR "\n\nCannot create the new HmmPFAM Feature. Returning....\n\n";
@@ -544,32 +544,26 @@ sub createNewAALocation {
 
 sub createNewSignalPeptideFeature {
 
-
   ### The feature will be created using the NN data from SignalP
   ### UpdateSignalPeptideFeature will add additional information:
   ### The signal_probability and the anchor_probability
   ### Ideally we would have to have two tables, storing the different sets od data,
   ### so view this as a workaround
-  
-  my ($self,$source_id,$algorithm,$featuretype,
-      $maxC_position,$maxC_value,$maxC_cutoff,$maxC_conclusion,
-      $maxY_position,$maxY_value,$maxY_cutoff,$maxY_conclusion,
-      $maxS_position,$maxS_value,$maxS_cutoff,$maxS_conclusion,
-      $meanS_start,$meanS_stop,$meanS_value,$meanS_cutoff,$meanS_conclusion,
-      $quality,$signal) = @_;
-  
+
+  my($self,$source_id,$algorithm,$featuretype,$maxC_position,$maxC_value,$maxC_cutoff,$maxC_conclusion,$maxY_position,$maxY_value,$maxY_cutoff,$maxY_conclusion,$maxS_position,$maxS_value,$maxS_cutoff,$maxS_conclusion,$meanS_start,$meanS_stop,$meanS_value,$meanS_cutoff,$meanS_conclusion,$quality,$signal) = @_;
+
   # check, if feature already exists. Do this with specific SQL
   # rather than with the retrieveFromDB() call, 
   # since the constraints of retrieveFromDB() do not check for aa_sequence_id or AAlocation
-  
+
   my ($exists,$aafid) = $self->existenceSPFeature($source_id, $algorithm, $featuretype,
 						  $meanS_start, $meanS_stop);
   if ($exists) {
-    $self-log ("SignalPeptideFeature with aa_feature_id $aafid exists. Skipping ...\n\n" if $self->getArgs()->{'verbose'});
+    $self-log ("SignalPeptideFeature with aa_feature_id $aafid exists. Skipping ...\n\n") if $self->getArgs()->{'verbose'};
     return undef;
   }
-  
-  
+
+
   #
   # Create the new SignalPeptideFeature if it doe not exist yet.
   #
@@ -722,28 +716,7 @@ Sql
 
 }
 
-#######################
 
-if ( $0 !~ /ga$/i ) {
-
-	 my $usg  = Usage();
-	 my $name = $0; $name =~ s/\.pm$//; $name =~ s/^.+\///;
-	 my $md5  = `/usr/bin/md5sum $0`; chomp $md5; $md5 =~ s/^(\S+).+/$1/;
-
-	 print <<XML;
-<Algorithm xml_id="1001">
-  <name>$name</name>
-  <description>$usg</description>
-</Algorithm>
-
-<AlgorithmImplementation xml_id="1002" parent="1001">
-  <version>$Version</version>
-  <executable>$0</executable>
-  <executable_md5>$md5</executable_md5>
-</AlgorithmImplementation>
-XML
-
-}
 
 1;
 
