@@ -54,10 +54,12 @@ sub run {
     
     my $dbh = $self->getQueryHandle();
 
-    my $swissprot_db_rel_id = $self->getArgs()->{'swissprot_db_rel-id'} 
-        || die "you must provide an ext_db_rel_id for SwissProt in dots.nrdbentry";
-    my $refseq_db_rel_id = $self->getArgs()->{'refseq_db_rel-id'} 
-        || die "you must provide an ext_db_rel_id for RefSeq mRNA"; 
+    unless ($self->getArgs()->{'swissprot_db_rel_id'}) { 
+      die "you must provide an ext_db_rel_id for SwissProt in dots.nrdbentry";
+    }
+    unless ($self->getArgs()->{'refseq_db_rel_id'}) { 
+      die "you must provide an ext_db_rel_id for RefSeq mRNA";
+    } 
 
     $self->setIs_Reference($dbh); #set proteininstance.is_reference = 1 for assemblies without mRNA
 
