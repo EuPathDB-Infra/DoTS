@@ -996,6 +996,40 @@ sub loadRNAClusters {
 		  "Loading RNA Clusters");
 }
 
+sub deleteGenesWithNoRNA {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $user = $propertySet->getProp('userId');
+
+  my $args = "--user_id $user";
+
+  $mgr->runPlugin("deleteGenesWithNoRNA", "DoTS::DotsBuild::Plugin::DeleteGenesWithNoRNA",$args,"Deleting genes with no rna");
+
+}
+
+sub makeFrameFinder {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+    
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $idSQL = "select na_sequence_id from dots.assembly where taxon_id = $taxonId";
+
+  my $wordfile = $propertySet->getProp('wordfile'); 
+
+  my $restart = $propertySet->getProp('frameFinderRestart');
+
+  my $ffDir = $propertySet->getProp('frameFinderDir');
+  my $dianaDir = $propertySet->getProp('dianaDir');
+
+  my $args = "--wordfile $wordfile --restart $restart --ffdir $ffDir --dianadir $dianaDir --idSQL \"$idSQL\" ";
+
+  $mgr->runPlugin("makeFramefinder", 
+		  "DoTS::DotsBuild::Plugin::FrameFinder",
+		  $args, "running FrameFinder plugin");
+}
+
 sub insertNRDB {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
@@ -1036,6 +1070,126 @@ sub insertNRDB {
 
   $mgr->runPlugin("loadNRDB", "GUS::Common::Plugin::LoadNRDB", $args, "Loading NRDB", 'downloadNRDB');
 }
+
+sub extractMarkers {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "extractMarkers";
+
+  return if $mgr->startStep("Extracting Markers", $signal);
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $markerFile = "$mgr->{pipelineDir}/epcr/rh.sts";
+
+  my $cmd = "extractMarkers --taxon_id $taxonId --outputFile $markerFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+}
+sub runEPCR {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+ 
+  my $signal = "runEPCR";
+
+  return if $mgr->startStep("Running e-PCR", $signal);
+
+  my $ePCRinPath = $propertySet->getProp('ePCRinPath');
+
+  my $seqFile = "$mgr->{pipelineDir}/seqfiles/finalDots.fsa";
+
+  my $markersFile = "$mgr->{pipelineDir}/epcr/rh.sts";
+  my $epcrFile = "$mgr->{pipelineDir}/epcr/finalDots.epcr";
+  my $logFile = "$mgr->{pipelineDir}/logs/$signal.log";
+
+  my $cmd = "$ePCRinPath/e-PCR $markersFile $seqFile > $epcrFile 2>> $logFile";
+    
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+}
+
+sub deleteEPCR {
+ my ($mgr) = @_;
+ my $propertySet = $mgr->{propertySet};
+ 
+ my $signal = "deleteEPCR";
+ 
+ return if $mgr->startStep("Deleting EPCR from GUS", $signal);
+    
+ my $taxonId = $propertySet->getProp('taxonId');
+
+ my $logFile = "$mgr->{pipelineDir}/logs/${signal}.log";
+
+ my $sql = "select /*+ RULE */ e.epcr_id from dots.epcr e, dots.nasequenceimp n where n.taxon_id = $taxonId and e.na_sequence_id=n.na_sequence_id";
+
+ my $cmd = "deleteEntries.pl --table DoTS::EPCR --idSQL \"$sql\" --verbose 2>> $logFile";
+    
+ $mgr->runCmd($cmd);
+
+ $mgr->endStep($signal);
+}
+
+
+sub insertEPCR {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "insertEPCR";
+
+  my $epcrFile = "$mgr->{pipelineDir}/epcr/finalDots.epcr";
+  my $logFile = "$mgr->{pipelineDir}/logs/$signal.log";
+  
+  my $args = "--idcol string1 --file $epcrFile --dir $mgr->{pipelineDir}/plugins/$signal --log $logFile --maptableid 2782 --seqsubclassview Assembly";
+
+  $mgr->runPlugin($signal, "DoTS::DotsBuild::Plugin::LoadEPCR", 
+		  $args, "Inserting EPCR");
+}
+
+sub deleteAnatomyPercent {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "deleteAnatomyPercent";
+
+  return if $mgr->startStep("Deleting AssemblyAnatomyPercent entries from GUS", $signal);
+    
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
+  my $logFile = "$mgr->{pipelineDir}/logs/${signal}.log";
+
+  my $sql = "select assembly_anatomy_percent_id from dots.assemblyanatomypercent where na_sequence_id in (select  na_sequence_id from dots.assembly where taxon_id = $taxonId)";
+
+  my $cmd = "deleteEntries.pl --table DoTS::AssemblyAnatomyPercent --idSQL \"$sql\" --verbose 2>> $logFile";
+    
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
+
+sub insertAnatomyPercent {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+    
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $idSQL = "select na_sequence_id from dots.Assembly where taxon_id = $taxonId";
+
+  my $args = "--idSQL \"$idSQL\" --taxon_id $taxonId";
+
+  $mgr->runPlugin("insertAnatomyPercent", 
+		  "DoTS::DotsBuild::Plugin::UpdateAssemblyAnatomyPercent", 
+		  $args, 
+		  "mapping assemblies onto anatomy_id in AssemblyAnatomypercent");
+} 
+
 
 sub extractNRDB {
   my ($mgr) = @_;
@@ -1435,8 +1589,9 @@ sub deleteOldSimilarities {
   my $loadRel = $propertySet->getProp('load_db_rls_id');
   my $cogRel = $propertySet->getProp('cog_db_rls_id');
   my $cdRel = $propertySet->getProp('cd_db_rls_id');
+  my $kogRel = $propertySet->getProp('kog_db_rls_id');
 
-  my $sql = "select /*+ RULE */ similarity_id from dots.similarity s, dots.assembly a, dots.aasequenceimp aas where s.query_table_id = 56 and s.query_id = a.na_sequence_id and a.taxon_id = $taxonId  and s.subject_table_id in (83,84,277) and s.subject_id = aas.aa_sequence_id and aas.external_database_release_id in ($nrdbRel,$prodomRel,$smartRel,$pfamRel,$loadRel,$cogRel,$cdRel)";
+  my $sql = "select /*+ RULE */ similarity_id from dots.similarity s, dots.assembly a, dots.aasequenceimp aas where s.query_table_id = 56 and s.query_id = a.na_sequence_id and a.taxon_id = $taxonId  and s.subject_table_id in (83,84,277) and s.subject_id = aas.aa_sequence_id and aas.external_database_release_id in ($nrdbRel,$prodomRel,$smartRel,$pfamRel,$loadRel,$cogRel,$cdRel,$kogRel)";
 
   my $args = "--idSQL \"$sql\" ";
 
