@@ -1,13 +1,12 @@
 DoTS todo
 
+Misc
+ - from assembly page, links to refseq is broken
+
 website
-  - news: tracks at ensembl and ucsc
-  - DG query
-    - replace "genes" tab with "query"
-  - genomic location query
   - complete the upgrade to GUS 3.0
+  - genomic location query
   - move to release 6 of dots
-  - revise home page text (and elsewhere) to emphasize DoTS instead of allgenes
   - mapping to GeneNet
   - batch submission
      - email notification??
@@ -40,3 +39,10 @@ build
 - develop new clustering algorithm (new graph approach + genome)
 
 - model alternative splices?
+
+
+DONE
+  - news: tracks at ensembl and ucsc
+  - DG query
+    - replace "genes" tab with "query"
+  - revise home page text (and elsewhere) to emphasize DoTS instead of allgenes
