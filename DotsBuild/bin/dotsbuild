@@ -520,25 +520,25 @@ sub downloadTaxon {
 
     my $downloadSubDir = "$externalDbDir/taxonomy/$date";
 
-    #$mgr->runCmd("mkdir -p $downloadSubDir");
+    $mgr->runCmd("mkdir -p $downloadSubDir");
 
-    #my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=2 -A \"gi_taxid_nucl.dmp.gz,gi_taxid_prot.dmp.gz,taxdump.tar.gz\" -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/pub/taxonomy/"; 
+    my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=2 -A \"gi_taxid_nucl.dmp.gz,gi_taxid_prot.dmp.gz,taxdump.tar.gz\" -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/pub/taxonomy/"; 
 
-    #$mgr->runCmd($cmd);
+    $mgr->runCmd($cmd);
 
-    #$mgr->runCmd("gunzip $downloadSubDir/taxdump.tar.gz");
+    $mgr->runCmd("gunzip $downloadSubDir/taxdump.tar.gz");
 	
     $mgr->runCmd("tar --extract --file $downloadSubDir/taxdump.tar -C $downloadSubDir");
 
-    #$mgr->runCmd("gunzip $downloadSubDir/gi_taxid_nucl.dmp.gz");
+    $mgr->runCmd("gunzip $downloadSubDir/gi_taxid_nucl.dmp.gz");
 
-    #$mgr->runCmd("gunzip $downloadSubDir/gi_taxid_prot.dmp.gz");
+    $mgr->runCmd("gunzip $downloadSubDir/gi_taxid_prot.dmp.gz");
 
     $mgr->endStep($signal);
 
 }
 
-sub downloadNRDB {downloadTaxon
+sub downloadNRDB {
 
     my $signal = "downloadNRDB";
 
@@ -863,7 +863,7 @@ sub sortClusters {
     my $signal = "sortClusters";
 
     return if $mgr->startStep("Sort clusters into descending order", $signal);
-
+    
     my $in = "$pipelineDir/cluster/gene/cluster.out";
     my $out = "$pipelineDir/cluster/gene/cluster.out.descending";
 
@@ -969,26 +969,35 @@ sub unpackCDD {
     return if $mgr->startStep("Unpacking CDD files", $signal, 'downloadGOStuff');
     
     my $logFile = "$pipelineDir/logs/$signal.log";
-    my $dbDir = "/usr/local/db/local/cdd";
 
-    chdir $dbDir;
+    my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-    $mgr->runCmd("gunzip cdd.tar.gz");
+    my $date = $propertySet->getProp('buildDate');
+
+    my $downloadSubDir = "$externalDbDir/cdd/$date";
+
+    $mgr->runCmd("gunzip $downloadSubDir/cdd.tar.gz");
 	
-    $mgr->runCmd("tar -xf cdd.tar");
+    $mgr->runCmd("tar --extract --file $downloadSubDir/cdd.tar -C $downloadSubDir");
 
-    $mgr->runCmd("cat LOAD*.csq >LOAD");
+    $mgr->runCmd("cat $downloadSubDir/LOAD*.csq >$downloadSubDir/LOAD");
 
-    $mgr->runCmd("cat pfam*.csq >PFAM");
+    $mgr->runCmd("cat $downloadSubDir/pfam*.csq >$downloadSubDir/PFAM");
 
-    $mgr->runCmd("cat smart*.csq >SMART");
-
-    $mgr->runCmd("rm -r cdd.tar");
+    $mgr->runCmd("cat $downloadSubDir/smart*.csq >$downloadSubDir/SMART");
+    
+    $mgr->runCmd("rm -r $downloadSubDir/cdd.tar");
 	
     $mgr->endStep($signal);
 }
 
 sub insertCDD {
+
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+
+    my $date = $propertySet->getProp('buildDate');
+
+    my $downloadSubDir = "$externalDbDir/cdd/$date";
 
     my $loadDB = $propertySet->getProp('load_db_rls_id');
     
@@ -997,7 +1006,7 @@ sub insertCDD {
     my $regex_name = "^\\S+\\sLOAD[\\_\\w]+\\,\\s([\\w\\_\\s]+)\\,\\s";
     my $regex_desc = "^\\S+\\sLOAD[\\_\\w]+\\,\\s(.*)";
     
-    my $loadArgs = "--verbose --table_name 'DoTS::MotifAASequence' --sequencefile '/usr/local/db/local/cdd/LOAD' --external_database_release_id $loadDB --regex_source_id \"$regex_src_id\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
+    my $loadArgs = "--verbose --table_name 'DoTS::MotifAASequence' --sequencefile '$downloadSubDir/LOAD' --external_database_release_id $loadDB --regex_source_id \"$regex_src_id\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
 
     $mgr->runPlugin("insertLoad", 
 		    "GUS::Common::Plugin::InsertNewExternalSequences", 
@@ -1011,7 +1020,7 @@ sub insertCDD {
     $regex_name = "^\\S+\\spfam\\w+\\,\\s([\\w\\_\\s]+)\\,\\s";
     $regex_desc = "^\\S+\\spfam\\w+\\,\\s(.*)";
     
-    my $pfamArgs = "--verbose --table_name 'DoTS::MotifAASequence' --sequencefile '/usr/local/db/local/cdd/PFAM' --external_database_release_id $pfamDB --regex_source_id \"$regex_src_id\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
+    my $pfamArgs = "--verbose --table_name 'DoTS::MotifAASequence' --sequencefile '$downloadSubDir/PFAM' --external_database_release_id $pfamDB --regex_source_id \"$regex_src_id\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
     
     $mgr->runPlugin("insertPfam", "GUS::Common::Plugin::InsertNewExternalSequences", $pfamArgs,
 		   "Inserting Pfam", 'downloadGOStuff');
@@ -1023,7 +1032,7 @@ sub insertCDD {
     $regex_name = "^\\S+\\ssmart\\w+\\,\\s([\\w\\_\\s]+)\\,\\s";
     $regex_desc = "^\\S+\\ssmart\\w+\\,\\s(.*)";
     
-    my $smartArgs = "--verbose --table_name 'DoTS::MotifAASequence' --sequencefile '/usr/local/db/local/cdd/SMART' --external_database_release_id $smartDB  --regex_source_id \"$regex_src_id\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
+    my $smartArgs = "--verbose --table_name 'DoTS::MotifAASequence' --sequencefile '$downloadSubDir/SMART' --external_database_release_id $smartDB  --regex_source_id \"$regex_src_id\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
     
     $mgr->runPlugin("insertSmart", 
 		    "GUS::Common::Plugin::InsertNewExternalSequences", 
