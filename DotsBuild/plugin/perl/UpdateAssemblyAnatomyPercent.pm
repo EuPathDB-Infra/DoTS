@@ -144,7 +144,7 @@ sub processDT {
   my ($sum_effective, $sum_raw) = $self->loadDT($nodeHash,$dbh,$dt);
 
   # percolate from bottom up and write out the rows
-  $root->percolateAndWrite($dt, $sum_effective, $sum_raw, $taxonId);
+  $root->percolateAndWrite($dt, $sum_effective, $sum_raw, $taxonId) if $sum_effective > 0;
 }
 
 # For a given DT, foreach anatomyID, place in the anatomyId's node:
