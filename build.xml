@@ -29,7 +29,8 @@
   <!-- oooooooooooooooooooooooooo  Installation  oooooooooooooooooooooooooo -->
   <!-- oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo -->
 
-  <target name="DoTS-Installation" depends="GUS-Installation, 
+  <target name="DoTS-Installation" depends="GUS-Installation,
+                                            DJob-Installation, 
                                             DoTS/DotsBuild-Installation" >
 
     <ant target="defaultProjectInstall"/>
