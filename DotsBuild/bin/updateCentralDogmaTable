@@ -50,14 +50,15 @@ my $insertSql =
       a.number_of_contained_sequences, a.contains_mrna
     from dots.assembly a, sres.taxonName tn
     where a.taxon_id = $taxonId
-    and tn.taxon_id = $taxonId";
+    and tn.taxon_id = $taxonId
+    and tn.name_class = 'scientific name'";
 
 print STDERR "Inserting na_sequence_id, taxon_id\n";
 print STDERR "insertSql: $insertSql\n" if $verbose;
 
 $dbh->do($insertSql) || die "Insert failed.\nSQL: $insertSql";
 
-print STDERR "Committing insert\n";
+print STDERR "Committing insert\n\n";
 $dbh->commit();
 
 
@@ -71,7 +72,7 @@ print STDERR "updateSql: $updateSql\n" if $verbose;
 
 $dbh->do($updateSql) || die "Update failed.\nSQL: $updateSql";
 
-print STDERR "Committing update\n";
+print STDERR "Committing update\n\n";
 $dbh->commit();
 
 
@@ -85,7 +86,7 @@ print STDERR "updateSql: $updateSql\n" if $verbose;
 
 $dbh->do($updateSql) || die "Update failed.\nSQL: $updateSql";
 
-print STDERR "Committing update\n";
+print STDERR "Committing update\n\n";
 $dbh->commit();
 
 
@@ -99,21 +100,21 @@ print STDERR "updateSql: $updateSql\n" if $verbose;
 
 $dbh->do($updateSql) || die "Update failed.\nSQL: $updateSql";
 
-print STDERR "Committing update\n";
+print STDERR "Committing update\n\n";
 $dbh->commit();
 
 
 ############# update info from Gene table #######################
 my $updateSql =
 "update $tableName cd 
-     set (cd.gene_description, cd.gene_symbol) = (select g.description, g.symbol from dots.gene g where g.gene_id = cd.gene_id)";
+     set (cd.gene_description, cd.gene_symbol, cd.gene_id) = (select g.description, g.gene_symbol, g.gene_id from dots.gene g, dots.rna r where g.gene_id = r.gene_id and r.rna_id = cd.rna_id)";
 
 print STDERR "Updating gene_description, gene_symbol\n";
 print STDERR "updateSql: $updateSql\n" if $verbose;
 
 $dbh->do($updateSql) || die "Update failed.\nSQL: $updateSql";
 
-print STDERR "Committing update\n";
+print STDERR "Committing update\n\n";
 $dbh->commit();
 
 
