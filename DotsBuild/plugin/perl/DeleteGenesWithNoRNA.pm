@@ -20,6 +20,10 @@ sub new {
      {o => 'testnumber',
       t => 'int',
       h => 'number of iterations for testing',
+     },
+     {o => 'user_id',
+      t => 'int',
+      h => 'row_user_id of dots.gene rows that will be deleted',
      }
     ];
   
@@ -45,9 +49,21 @@ sub run {
 
   $self->log ("Testing on ".$self->getArgs()->{'testnumber'}."\n") if $self->getArgs()->{'testnumber'};
 
+  my $userId = $self->getArgs()->{'user_id'} if $self->getArgs()->{'user_id'};
+
   my $rnaHash = $self->getRNA();
 
-  my $geneHash = $self->getGene($rnaHash);
+  my $geneHash;
+
+  if ($self->getArgs()->{'user_id'})  {
+
+    $geneHash = $self->getGene($rnaHash,$userId);
+  }
+
+  else {
+
+    $geneHash = $self->getGene($rnaHash);
+  }
 
   my $ret = $self->deleteGene($geneHash);
 
@@ -75,13 +91,15 @@ sub getRNA {
 }
 
 sub getGene {
-  my ($self,$rnaHash) = @_;
+  my ($self,$rnaHash,$userId) = @_;
 
   my %geneHash;
 
   my $dbh = $self->getQueryHandle();
 
-  my $query = "select gene_id from dots.gene";
+  my $query = "select gene_id from dots.gene"; 
+
+  $query .= " where row_user_id = $userId" if $userId;
 
   my $stmt = $dbh->prepareAndExecute($query);
 
