@@ -20,12 +20,13 @@ package DoTS::DotsBuild::Plugin::LoadPredictedAAFeatures;
 
 use strict;
 use FileHandle;
+use lib "$ENV{GUS_HOME}/lib/perl";
 use GUS::Model::DoTS::AALocation;
 use GUS::Model::DoTS::TranslatedAASequence;
 use GUS::Model::DoTS::PredictedAAFeature;
 use GUS::Model::DoTS::PfamEntry;
 use GUS::Model::DoTS::SignalPeptideFeature;
-use Disp;
+use CBIL::Util::Disp;
 
 
 
@@ -142,7 +143,7 @@ sub run {
 
 			if (my $seq = $self->get_object(@tmp)) {
 				 $self->process($seq,@tmp);
-				 Disp::Display(\%counter) if $rows_n % 1000 == 0;
+				 CBIL::Util::Disp::Display(\%counter) if $rows_n % 1000 == 0;
 				 $seq->undefPointerCache;
 			}
 			if ($self->getArgs()->{'testnumber'} && $rows_n > $self->getArgs()->{'testnumber'}) {
