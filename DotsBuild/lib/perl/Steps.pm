@@ -2611,7 +2611,7 @@ sub prepareDownloadSiteFiles {
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
 
   # readme file header
-  &writeReadmeFileHeader();
+  &writeReadmeFileHeader($mgr);
 
   # fasta file of sequences
   my $fastaFile = "${prefix}.fasta";
@@ -2624,7 +2624,7 @@ sub prepareDownloadSiteFiles {
   push(@files, "$mgr->{pipelineDir}/seqfiles/${fastaFile}.gz");
   $descrip = "The sequence for the consensus transcripts";
   $htaccessString .= "AddDescription \"$descrip\" *fasta*\n";
-  addFileToReadme("${fastaFile}.gz", $descrip);
+  addFileToReadme($mgr, "${fastaFile}.gz", $descrip);
 
   # predicted proteins
   my $predictedProteinsFile = "${prefix}_predictedProteins.fasta";
@@ -2637,7 +2637,17 @@ sub prepareDownloadSiteFiles {
   push(@files, "$mgr->{pipelineDir}/seqfiles/${predictedProteinsFile}.gz");
   $descrip = "The predicted protein translation of each assembled transcript";
   $htaccessString .= "AddDescription \"$descrip\" *Proteins*\n";
-  addFileToReadme("${predictedProteinsFile}.gz", $descrip);
+  addFileToReadme($mgr, "${predictedProteinsFile}.gz", $descrip);
+
+  #DTAnatomy
+  my $DTAnatomyFile = "$mgr->{pipelineDir}/misc/${prefix}_DTAnatomy";
+  my $cmd = "makeDTAnatomyFile --taxonId $taxonId --outFile $DTAnatomyFile";
+  $mgr->runCmd($cmd);
+  $mgr->runCmd("gzip $DTAnatomyFile");
+  push(@files, "${DTAnatomyFile}.gz");
+  $descrip = "The anatomy percent for assembled transcripts";
+  $htaccessString .= "AddDescription \"$descrip\" *Anatomy*\n";
+  addFileToReadme($mgr, "${DTAnatomyFile}.gz", $descrip);
 
   # NRDB Hits 
   my $nrdbHitsFile = "${prefix}_bestNRDBHits.dat";
@@ -2646,25 +2656,25 @@ sub prepareDownloadSiteFiles {
   push(@files, "$mgr->{pipelineDir}/misc/${nrdbHitsFile}.gz");
   $descrip = "The best hit in NRDB for each consensus transcript";
   $htaccessString .= "AddDescription \"$descrip\" *NRDB*\n";
-  addFileToReadme("${nrdbHitsFile}.gz", $descrip);
+  addFileToReadme($mgr, "${nrdbHitsFile}.gz", $descrip);
 
   # Accs Per Assembly
   push(@files, "$mgr->{pipelineDir}/misc/${prefix}_accessionsPerAssembly.dat.gz");
   $descrip = "The Genbank accessions of ESTs and mRNAs contained in each assembled transcript";
   $htaccessString .= "AddDescription \"$descrip\" *_acc*\n";
-  addFileToReadme("${prefix}_accessionsPerAssembly.dat.gz", $descrip);
+  addFileToReadme($mgr, "${prefix}_accessionsPerAssembly.dat.gz", $descrip);
 
   # DTs per DG
   push(@files, "$mgr->{pipelineDir}/misc/${prefix}_DTperDG.dat.gz");
   $descrip = "Assembled transcripts belonging to each gene";
   $htaccessString .= "AddDescription \"$descrip\" *DTperDG*\n";
-  addFileToReadme("${prefix}_DTperDG.dat.gz", $descrip);
+  addFileToReadme($mgr, "${prefix}_DTperDG.dat.gz", $descrip);
 
   # mRNAs per DT
   push(@files, "$mgr->{pipelineDir}/misc/${prefix}_mRNAaccessionsPerAssembly.dat.gz");
   $descrip = "The Genbank accessions of mRNAs contained in each assembled transcript";
   $htaccessString .= "AddDescription \"$descrip\" *mRNA*\n";
-  addFileToReadme("${prefix}_mRNAaccessionsPerAssembly.dat.gz", $descrip);
+  addFileToReadme($mgr, "${prefix}_mRNAaccessionsPerAssembly.dat.gz", $descrip);
 
   # Brain Anatomy terms
   my $brainFile = "${prefix}_brainTerms.dat";
@@ -2674,7 +2684,7 @@ sub prepareDownloadSiteFiles {
   push(@files, "$mgr->{pipelineDir}/misc/$brainFile");
   $descrip = "Brain anatomy terms for which there are DoTS Transcripts.  (Tab delimited: term, term ID, count of DTs)";
   $htaccessString .= "AddDescription \"$descrip\" *brainTerms*\n";
-  addFileToReadme($brainFile, $descrip);
+  addFileToReadme($mgr, $brainFile, $descrip);
 
   # move files to download directory
   foreach my $file (@files) {
@@ -2683,11 +2693,82 @@ sub prepareDownloadSiteFiles {
     $mgr->runCmd($cmd);
   }
 
-  &updateHtaccessFile($htaccessString);
+  &updateHtaccessFile($mgr,$htaccessString);
 
   $mgr->runCmd("chmod g+w $mgr->{pipelineDir}/downloadSite");
 
   $mgr->endStep($signal);
+}
+
+sub writeReadmeFileHeader {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  my $speciesFullname = $propertySet->getProp('speciesFullname');
+ 
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+  my $genbankRel = $propertySet->getProp('genbankRel');
+  my $nrdbDate = $propertySet->getProp('nrdbDate');
+  my $cddFileDates = $propertySet->getProp('cddFileDates');
+  my $dbestDate = $propertySet->getProp('dbestDate');
+  my $prodomVersion = $propertySet->getProp('prodomVersion');
+  my $genomeVersion = $propertySet->getProp('genomeVersion');
+
+  my $readme = "$mgr->{pipelineDir}/downloadSite/${speciesNickname}_README.txt";
+  open(F, ">$readme") || $mgr->error("Can't open $readme for writing");
+
+  my $date = `date`;
+  chomp $date;
+  
+  print F "
+Release ${dotsRelease} of the Database of Transcribed Sequences (DoTS) for $speciesFullname 
+was completed on $date.
+
+The data sources include:
+    * GenBank (Release $genbankRel)
+    * NRDB ($nrdbDate)
+    * dbEST ($dbestDate)
+    * Pfam  ($cddFileDates)
+    * ProDom ($prodomVersion)
+    * CDD ($cddFileDates)
+    * Gene Ontology (GO) consortium ontologies and assignments
+    * NCBI gene trap tag records from 8 original sources: GGTC, Baygenomics,
+      SIGTR, MFGC, CMHD, Lexicon Genetics, and the H.E.Ruley and P.Soriano labs
+    * UCSC Genome Bioinformatics Group (genome version $genomeVersion)
+
+
+The files available are:
+
+";
+  close(F);
+}
+
+sub addFileToReadme {
+  my ($mgr, $filename, $descrip) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  my $readme = "$mgr->{pipelineDir}/downloadSite/${speciesNickname}_README.txt";
+  open(F, ">>$readme") || $mgr->error("Can't open $readme for writing");
+
+  print F "
+$filename
+    $descrip
+";
+}
+
+sub updateHtaccessFile {
+  my ($mgr,$htaccessString) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $htaccess = "$mgr->{pipelineDir}/downloadSite/.htaccess";
+  
+  open(F, ">>$htaccess") || $mgr->error("Can't open $htaccess for writing");
+  my $cmd = print F ("$htaccessString");
+  close(F);
 }
 
 sub downloadLocusLink {
@@ -2814,7 +2895,7 @@ sub parseLocusLink {
 
   $mgr->runCmd($cmd);
 
-  &updateHtaccessFile("AddDescription \"A mapping of DoTS to LocusLink\" *LL*\n");
+  &updateHtaccessFile($mgr, "AddDescription \"A mapping of DoTS to LocusLink\" *LL*\n");
 
   $mgr->endStep($signal);
 }
