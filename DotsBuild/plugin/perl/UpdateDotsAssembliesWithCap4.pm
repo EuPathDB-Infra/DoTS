@@ -684,7 +684,7 @@ sub submitUpdatedAssemblies {
   ##sanity check...some assemblies have no sequence...check here and print to STDERR if not good then roll back so
   ##can test....later
   my $ctZero = 0;
-  foreach my $a ($algoInvo->getChildren('Assembly')) {
+  foreach my $a ($algoInvo->getChildren('GUS::Model::DoTS::Assembly')) {
     if ($a->getLength() == 0) {
       print LOG "ERROR: Assembly.",$a->getId()," sequence length = 0\n";
       $ctZero++;
@@ -696,7 +696,7 @@ sub submitUpdatedAssemblies {
 }
 
 sub countAssembliesAndAssemblySequences {
-  my @tmp = $algoInvo->getChildren('Assembly');
+  my @tmp = $algoInvo->getChildren('GUS::Model::DoTS::Assembly');
   my $ct = 0;
   #  my @reviewed;
   #  my @delReviewed;  ##THose that have been deleted...but man rev
