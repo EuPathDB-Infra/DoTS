@@ -64,6 +64,7 @@ my @properties =
  ["downloadGenbank",   "",  "yes or no"],
  ["downloadTaxon",   "",  "yes or no"],
  ["downloadNRDB",   "",  "yes or no"],
+ ["loadDbEst", "", "yes or no"],
  ["loadGeneCards",   "",  "yes or no"],
  ["downloadGOStuff",   "",  "yes or no"],
  ["prodomRelease",   "",  "eg 2001.3"],
@@ -611,10 +612,10 @@ sub parseGenbank {
 
 sub parsedbEST {
 
-  my $args;
+  my $args = "--log $pipelineDir/logs/dbest.log";
 
-  $mgr->runPlugin("loadDbEst", "GUS::Common::Plugin::GBParser", $args, 
-		  "Loading dbEST files into GUS");
+  $mgr->runPlugin("loadDbEst", "GUS::Common::Plugin::dbEST", $args, 
+		  "Loading dbEST files into GUS", 'loadDbEst');
 }
 
 sub makeAssemSeqs {
