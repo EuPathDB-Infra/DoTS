@@ -1441,7 +1441,7 @@ sub makeNRDBIndexWordLink {
 
   my $sql = "select aa_sequence_id, description from dots.ExternalAASequence where external_database_release_id=$nrdbReleaseId and aa_sequence_id not in (select target_id from  dots.IndexWordLink where target_table_id=83)";
 
-  my $args = "--attribute description --table ExternalAASequence --idSQL \"$sql\"";
+  my $args = "--attribute description --table DoTS::ExternalAASequence --idSQL \"$sql\"";
 
   $mgr->runPlugin("makeNRDBIndexWordLink", 
 		  "GUS::Common::Plugin::MakeIndexWordLink", $args, 
