@@ -9,7 +9,7 @@ use FileHandle;
 $| = 1;
 
 sub new {
-    my ($class) = @_;
+    my $class = shift;
 
     my $self = {};
     bless($self,$class);
