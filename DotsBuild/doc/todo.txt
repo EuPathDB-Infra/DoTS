@@ -19,7 +19,8 @@ NOW
   - update the release date in externaldatabaserelease where version is continuous (add this to GBParser, NRDB, etc. plugins)
   - human EPCR markers are not in the database. 
   - rename all-predictions
-
+  - make file for Mr. BrainInfo
+  - fix the htaccess stuff so that WHEN the code adds a file to the download site, at that point we append the file to an htaccess string.  it should be a global variable.
 
 
 
