@@ -14,7 +14,7 @@
 $| = 1;
 
 use strict;
-use Objects::GUS_utils::Sequence;
+use GUS::Common::Sequence;
 use Getopt::Long;
 
 my ($BLASTN,$SEQFILE,$MUSDOTS,$TARGETDIR);
@@ -31,7 +31,7 @@ my $blastSeq = sub {
     my $s = shift;
     my $dl = $s->{'defline'}; $dl =~ s/^>//;
     
-    my $fsa = &Sequence::toFasta($s->{'sequence'}, $dl, 80);
+    my $fsa = &GUS::Common::Sequence::toFasta($s->{'sequence'}, $dl, 80);
     my $sfile = "/tmp/$$.fsa";
 
     open(FF, ">$sfile");
@@ -60,5 +60,5 @@ my $blastSeq = sub {
     unlink $sfile;
 };
 
-my $nseqs = &Sequence::parseFasta($SEQFILE, $blastSeq, 0, 0);
+my $nseqs = &GUS::Common::Sequence::parseFasta($SEQFILE, $blastSeq, 0, 0);
 print "Processed $nseqs sequences\n";

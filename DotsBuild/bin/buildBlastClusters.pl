@@ -6,7 +6,7 @@
 
 use strict;
 use Getopt::Long;
-use Objects::GUS::ObjRelP::DbiDatabase;
+use GUS::ObjRelP::DbiDatabase;
 
 ##wannt to change so that does essentailly a graph analysis (allthought without graphs!)
 ##first build cliques where all members of a click have the threshhold cutoffs to all the other members.
@@ -54,6 +54,7 @@ my ($verbose,$percentCutoff,$lengthCutoff,$chimeraFile,$ignoreFile,$files,
             "useAllLinks!" => \$useAllLinks,
             "useCloneIds=i" => \$useCloneIds,
             "chimeraFile=s"=>\$chimeraFile,
+            "gusConfigFile=s"=>\$gusConfigFile,
             "ignoreFile=s" => \$ignoreFile,
             "consistentEnds!" => \$consistentEnds,
             "reassignLinkNodes!" => \$reassignLinkNodes,
@@ -80,9 +81,19 @@ my $db;
 my $stmt;
 if($useCloneIds){
   print STDERR "Establishing dbi login\n" if $verbose;
-  $db = new GUS::ObjRelP::DbiDatabase( undef, 'GUSrw', 'pskwa82', $verbose, 0, 1, 'GUSdev' );
+  my $gusconfig = GUS::Common::GusConfig->new($gusConfigFile);
+
+  my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
+					  $gusconfig->getReadOnlyDatabaseLogin(),
+					  $gusconfig->getReadOnlyDatabasePassword,
+					  $verbose,0,1,
+					  $gusconfig->getCoreSchemaName);
   my $dbh = $db->getQueryHandle();
-  $stmt = $dbh->prepare("select /* +RULE */ distinct ls.clone_id from assemblysequence a, lenssequence ls where a.assembly_na_sequence_id = ? and ls.na_sequence_id = a.na_sequence_id");
+  $stmt = $dbh->prepare("
+select /* +RULE */ distinct ls.clone_id 
+from dots.assemblysequence a, dots.est est 
+where a.assembly_na_sequence_id = ? 
+and est.na_sequence_id = a.na_sequence_id");
 }
 
 my @files = split(", *",$files);
@@ -113,9 +124,18 @@ print STDERR "InputFiles: chimera=$chimeraFile, ignorefile=$ignoreFile\n  matrix
 my %chimera;
 if ($chimeraFile) {
   ##need to bet db connections
-  my $db = new GUS::ObjRelP::DbiDatabase( undef, 'GUSrw', 'pskwa82', $verbose, 0, 1, 'GUSdev' );
+  my $gusconfig = GUS::Common::GusConfig->new($gusConfigFile);
+
+  my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
+					  $gusconfig->getReadOnlyDatabaseLogin(),
+					  $gusconfig->getReadOnlyDatabasePassword,
+					  $verbose,0,1,
+					  $gusconfig->getCoreSchemaName);
   my $dbh = $db->getQueryHandle();
-  my $stmt = $dbh->prepare("select quality_end - quality_start + 1 from AssemblySequence where assembly_sequence_id = ?");
+  my $stmt = $dbh->prepare("
+select quality_end - quality_start + 1 
+from dots.AssemblySequence 
+where assembly_sequence_id = ?");
   print STDERR "Opening chimera file $chimeraFile\n" if $verbose;
   open(C,"$chimeraFile") || die "chimera file $chimeraFile not found\n";
 	
