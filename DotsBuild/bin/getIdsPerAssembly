@@ -9,12 +9,10 @@ use strict;
 use Getopt::Long;
 use GUS::ObjRelP::DbiDatabase;
 
-my ($verbose,$taxon_id,$login,$password,$gusConfigFile,$database);
+my ($verbose,$taxon_id,$gusConfigFile);
 &GetOptions("verbose!"=> \$verbose,
             "taxon_id=s" => \$taxon_id,
-            "gusConfigFile=s" => \$gusConfigFile,
-            "login=s" => \$login,"password=s" => \$password,
-            "database=s" => \$database );
+            "gusConfigFile=s" => \$gusConfigFile);
 
 die "usage: getIdsPerAssembly --taxon_id --verbose --gusConfigFile [\$GUS_CONFIG_FILE]\n" unless $taxon_id;
 
