@@ -77,6 +77,7 @@ my @properties =
  ["pfam_db_rls_id",   "",  "a new id for the external_database_release table"],
  ["smart_db_rls_id",   "",  "a new id for the external_database_release table"],
  ["cog_db_rls_id", "","a new id,COG of CDD,for the external_database_release table"],
+ ["kog_db_rls_id", "","a new id,KOG of CDD,for the external_database_release table"],
  ["cd_db_rls_id", "","a new id, CD of CDD, for the external_database_release table"],
  ["nrdb_db_rls_id" , "","the external_database_release_id for nrdb"],
  ["genome_db_rls_id", "","the external_database_release_id for the human genome for this species"],
@@ -84,7 +85,6 @@ my @properties =
  ["ggtc_db_rls_id", "","the external_database_release_id for the GGTC"],
  ["imclone_db_rls_id" , "","the external_database_release_id for imclone"],
  ["locuslink_db_rls_id" , "","the external_database_release_id for LL"],
- ["gea_db_rls_id" , "","the external_database_release_id for GEA"],
  ["makeNewGORules",   "",  "yes or no. Regenerate the GO rules from scratch"],
  ["GOversion",   "",  "version of GO, eg, 2.155"],
  ["GOrootId",   "",  "only until GUS 3.0, eg, 59235"],
@@ -126,8 +126,8 @@ my @properties =
  ["proteinDir", "","directory containing protein sequence files"],
  ["project_id", "","project_id from projectinfo table, used in projectLink table,get from first species run"],["makeStatPage", "","make Statistics page, yes or no"],
  ["mgiFiles","","mgi mapping files, a comma delimited list"],
- ["gea_db_rls_id", "","gea external_database_release_id"],
- ["geaFile", "","input file with <gea><LocusLink><accession>"],
+ ["gea_db_rls_id", "","comma delimited list of gea external_database_release_ids"],
+ ["geaFiles", "","comma delimited list of input files with <gea><LocusLink><accession>:external_database_release_id"],
  ["gea_db_id", "","gea external_database_id"],
  ["downloadLocusLink", "","download the loc2acc file for LocusLink, yes or no"],
  ["ncbiTaxId", "","ncbi tax_id corresponding to the taxon_id"],
@@ -152,7 +152,9 @@ my @properties =
  ["epconDB_makefile", "","make file of input seqs for EPConDB array, yes or no"],
  ["nrdb_maketemp", "","use --maketemp option for LoadNrdb plugin, yes or no"],
  ["nrdb_delete", "","use --delete option for LoadNrdb plugin, yes or no"],
- ["nrdb_plugin", "","use --plugin option for LoadNrdb plugin, yes or no"]
+ ["nrdb_plugin", "","use --plugin option for LoadNrdb plugin, yes or no"],
+ ["indexSimilarityWordsRestart", "","yes or no"],
+ ["indexNRDBWordsRestart", "","yes or no"]
  ); 
 
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
@@ -1267,6 +1269,12 @@ sub unpackCDD {
     
     $mgr->runCmd("catFiles --fileGlob '$downloadSubDir/COG*.csq' --outFile $downloadSubDir/COG");
 
+     if (-e "$downloadSubDir/KOG") {
+      $mgr->runCmd("rm -f $downloadSubDir/COG");
+    }
+    
+    $mgr->runCmd("catFiles --fileGlob '$downloadSubDir/KOG*.csq' --outFile $downloadSubDir/KOG");
+    
     if (-e "$downloadSubDir/CD") {
       $mgr->runCmd("rm -f $downloadSubDir/CD");
     }
@@ -1328,6 +1336,8 @@ sub insertCDD {
 
   my $cogDB = $propertySet->getProp('cog_db_rls_id');
 
+  #>gnl|CDD|9880 COG0004, AmtB, Ammonia permease [Inorganic ion transport and metabolism]
+
   $regex_src_id = "^\\>\\w+\\|\\w+\\|\\w+\\s(COG\\w+)";
   $regex_name = "^\\S+\\sCOG\\w+\\,\\s([\\w\\_\\s]+)\\,\\s";
   $regex_desc = "^\\S+\\sCOG\\w+\\,\\s(.*)";
@@ -1339,6 +1349,21 @@ sub insertCDD {
 		  $cogArgs,
 		  "Inserting COG", 'downloadCDD');
 
+  my $kogDB = $propertySet->getProp('kog_db_rls_id');
+
+  #>gnl|CDD|17806 KOG0007, KOG0007, Splicing factor 3a, subunit 1 [RNA processing and modification]
+
+  $regex_src_id = "^\\>\\w+\\|\\w+\\|\\w+\\s(KOG\\w+)";
+  $regex_name = "^\\S+\\sKOG\\w+\\,\\sKOG\\w+\\,\\s([\\w\\,\\s]+)\\[";
+  $regex_desc = "^\\S+\\sKOG\\w+\\,\\sKOG\\w+\\,\\s[\\w\\,\\s]+\\[([\\w\\,\\s]+)\\]";
+
+  my $kogArgs = "--verbose --table_name 'DoTS::MotifAASequence' --sequencefile '$downloadSubDir/KOG' --external_database_release_id $kogDB  --regex_source_id \"$regex_src_id\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
+  
+  $mgr->runPlugin("insertKOG", 
+		  "GUS::Common::Plugin::InsertNewExternalSequences", 
+		  $kogArgs,
+		  "Inserting KOG", 'downloadCDD');
+  
   my $cdDB = $propertySet->getProp('cd_db_rls_id');
   
   $regex_src_id = "^\\>\\w+\\|\\w+\\|\\w+\\s(cd\\w+)";
@@ -1545,6 +1570,8 @@ sub substituteCDDPKs {
 
     my $cdDB = $propertySet->getProp('cd_db_rls_id');
 
+    my $kogDB = $propertySet->getProp('kog_db_rls_id');
+
     my $gusConfigFile = $propertySet->getProp('gusConfigFile');
 
     my $signal = "substituteCDDPKs";
@@ -1558,7 +1585,7 @@ sub substituteCDDPKs {
     my $outfile = "$pipelineDir/similarity/finalDots-cdd/blastSimilarity.out.gz.correctPK";
     my $logfile = "$pipelineDir/logs/$signal.log";
 
-    my $sql = "select source_id,aa_sequence_id from dots.motifaasequence where external_database_release_id in ($smartDB,$pfamDB,$loadDB,$cogDB,$cdDB)";
+    my $sql = "select source_id,aa_sequence_id from dots.motifaasequence where external_database_release_id in ($smartDB,$pfamDB,$loadDB,$cogDB,$cdDB,$kogDB)";
 
     $mgr->runCmd("cat $infile | substitutePrimKeysInSimilarity --subjectSQL \"$sql\" --verbose --gusConfigFile $gusConfigFile > $outfile 2>> $logfile");
 
@@ -1706,6 +1733,9 @@ sub indexSimilarityWords {
     
     my $args = "--similarity_table DoTS::MotifAASequence --target_table DoTS::Assembly --idSQL \"$sql\"";
 
+    $args .= " --restart"
+      if ($propertySet->getProp('indexSimilarityWordsRestart') eq "yes");
+
     $mgr->runPlugin("indexSimilarityWords", 
 		    "GUS::Common::Plugin::MakeIndexWordSimLink", $args, 
 		    "Indexing words in similarity descriptions");
@@ -1718,6 +1748,9 @@ sub indexNRDBWords {
     my $sql = "select a.na_sequence_id from dots.assembly a where a.taxon_id = $taxonId";
     
     my $args = "--similarity_table DoTS::ExternalAASequence --target_table DoTS::Assembly --idSQL \"$sql\"";
+
+    $args .= " --restart"
+      if ($propertySet->getProp('indexNRDBWordsRestart') eq "yes");
 
     $mgr->runPlugin("indexNRDBWords", 
 		    "GUS::Common::Plugin::MakeIndexWordSimLink", $args, 
@@ -2300,7 +2333,7 @@ sub insertAnatomyPercent {
     my $args = "--idSQL \"$idSQL\" --taxon_id $taxonId";
 
     $mgr->runPlugin("insertAnatomyPercent", 
-		    "DoTS::DotsBuild::Plugin::AssignLibraryDistributionToAssemblies", 
+		    "DoTS::DotsBuild::Plugin::UpdateAssemblyAnatomyPercent", 
 		    $args, 
 		    "mapping assemblies onto anatomy_id in AssemblyAnatomypercent");
 
@@ -2791,7 +2824,7 @@ sub deleteGEAToDoTS {
 
     my $logFile = "$pipelineDir/logs/${signal}.log";
 
-    my $sql = "select n.db_ref_na_sequence_id from sres.dbref d, dots.dbrefnasequence n where d.external_database_release_id = $geaDbRlsId and d.db_ref_id = n.db_ref_id";
+    my $sql = "select n.db_ref_na_sequence_id from sres.dbref d, dots.dbrefnasequence n where d.external_database_release_id in ($geaDbRlsId) and d.db_ref_id = n.db_ref_id";
 
     my $cmd = "deleteEntries.pl --table DoTS::DbRefNASequence --idSQL \"$sql\" --gusConfigFile $gusConfigFile --verbose 2>> $logFile";
 
@@ -2813,19 +2846,24 @@ sub parseGEA {
 
   my $downloadSubDir = "$externalDbDir/gea";
 
-  my $geaFile = $propertySet->getProp('geaFile');
-
-  my $inputfile = "$downloadSubDir/$geaFile";
-  
-  my $species = $propertySet->getProp('speciesNickname');
-
-  my $outputfile = "$pipelineDir/misc/${species}gea2DoTS.txt";
-
   my $taxonId = $propertySet->getProp('taxonId');
 
-  my $cmd = "makeGEA2DoTSfile --inputFile $inputfile --taxon_id $taxonId > $outputfile 2>>$logFile";
+  my @geaFiles = split(/,/, $propertySet->getProp('geaFiles'));
+  
+  foreach my $file (@geaFiles) {
 
-  $mgr->runCmd($cmd);
+    my ($geaFile, $id, $regex) = split(/:/, $file);
+
+    my $inputfile = "$downloadSubDir/$geaFile";
+  
+    my $outputfile = "$pipelineDir/misc/${geaFile}2DoTS.txt";
+
+    my $cmd = "makeGEA2DoTSfile --inputFile $inputfile --taxon_id $taxonId --regex \"$regex\" > $outputfile 2>>$logFile";
+
+    $mgr->runCmd($cmd);
+
+  }
+
 
   $mgr->endStep($signal);
 }
@@ -2836,17 +2874,22 @@ sub loadGEA {
   
   my $downloadSubDir = "$externalDbDir/gea";
 
-  my $species = $propertySet->getProp('speciesNickname');
-
-  my $file = "$pipelineDir/misc/${species}gea2DoTS.txt";
-
-  my $geaDbRlsId = $propertySet->getProp('gea_db_rls_id');
-
   my $geaDbId = $propertySet->getProp('gea_db_id');
 
-  my $args = "--mappingfiles $file --pattern1 '(\\S+)\\t' --pattern2 '\\tDT\.(\\d+)' --db_id $geaDbId --db_rel_id $geaDbRlsId";
+  my $species = $propertySet->getProp('speciesNickname');
+
+  my @geaFiles = split(/,/, $propertySet->getProp('geaFiles'));
+
+  foreach my $file (@geaFiles) {
+
+    my ($geaFile, $relId) = split(/:/, $file);
+
+    my $file = "$pipelineDir/misc/${geaFile}2DoTS.txt";
+
+    my $args = "--mappingfiles $file --pattern1 '(\\S+)\\t' --pattern2 '\\tDT\.(\\d+)' --db_id $geaDbId --db_rel_id $relId";
   
-  $mgr->runPlugin("loadGEAMapping", "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence", $args, "loading GEA to DoTS mapping");
+    $mgr->runPlugin("loadGEA${geaFile}Mapping", "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence", $args, "loading GEA to DoTS mapping");
+  }
 }
 
 sub downloadLocusLink {
@@ -2922,9 +2965,9 @@ sub parseLocusLink {
 
   my $tax_id = $propertySet->getProp('ncbiTaxId');
 
-  #my $cmd = "makeLL2DoTSfile --inputFile $inputfile_acc --taxon_id $taxonId --tax_id $tax_id > $outputfile_acc 2>>$logFile";
+  my $cmd = "makeLL2DoTSfile --inputFile $inputfile_acc --taxon_id $taxonId --tax_id $tax_id > $outputfile_acc 2>>$logFile";
 
-  #$mgr->runCmd($cmd);
+  $mgr->runCmd($cmd);
 
   my $inputfile_ref = "$downloadSubDir/loc2ref";
 
@@ -3263,7 +3306,7 @@ sub parseTMFile {
 
   my $type = 'tmhmm';
 
-  my $cmd = " parse-predictions --PredictionPath $predictionPath --AaSequenceFile $predictedProteinsFile --Type $type > $outputFile 2>>$logFile";
+  my $cmd = " parse-predictions --PredictionPath \"$predictionPath\" --AaSequenceFile $predictedProteinsFile --Type $type > $outputFile 2>>$logFile";
 
   $mgr->runCmd($cmd);
 
