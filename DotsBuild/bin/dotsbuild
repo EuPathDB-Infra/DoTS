@@ -658,7 +658,9 @@ sub parseRefSeq {
   
   my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-  my $dirAndFile = "$externalDbDir/refseq/$refseqRel/$refseqFile";
+  my $date = $propertySet->getProp('buildDate');
+
+  my $dirAndFile = "$externalDbDir/refseq/$date/$refseqFile";
     
   my $args = "--gbRel $refseqRel --file $dirAndFile --db_rel_id $refseq_rel_id";
     
