@@ -28,7 +28,7 @@ PURPOSE
     my $tablesAffected = [];
 
     my $howToRestart = <<RESTART; 
-Cannot be restarted, yet. 
+Just rerun, and give comma separated list of done chrom ids (from previous run log). 
 RESTART
 
     my $failureCases = <<FAILURE_CASES;
@@ -83,7 +83,14 @@ NOTES
 		constraintFunc=> undef,
 		reqd  => 1,
 		isList => 0 
-		})
+		}),
+
+     booleanArg({name => 'clean',
+		descr => 'clean out old results and start from scratch',
+		constraintFunc=> undef,
+		reqd  => 0,
+		default => 0,
+	    })
     ];
 
     $self->initialize({requiredDbVersion => {},
@@ -121,9 +128,10 @@ sub run {
   my $t_table_id = 245;
   my $q_taxon_id = $taxonId;
   my $q_table_id = 56;
+  my $clean = $self->getArgs->{'clean'};
 
   # create the result table if it is not there yet, clean old result if there
-  my @cols = &cleanOrCreateTempTable($dbh, $tempLogin, $genomeId, scalar(@skip));
+  my @cols = &cleanOrCreateTempTable($dbh, $tempLogin, $genomeId, $clean);
 
   # get all chromosome ids
   my ($chrom_ids, $chrom_names) = &getChromosomeIdNames($dbh, $genomeId);
@@ -224,7 +232,7 @@ BA_SQL
 }
 
 sub cleanOrCreateTempTable {
-  my ($dbh, $tmpLogin, $extDbId, $isRestart) = @_;
+  my ($dbh, $tmpLogin, $extDbId, $clean) = @_;
 
   my $tmp = uc($tmpLogin);
 
@@ -243,12 +251,12 @@ sub cleanOrCreateTempTable {
   my $sth = $dbh->prepareAndExecute($sql);
   my ($c) = $sth->fetchrow_array;
   if ($c) {
-      if ($isRestart) {
-          print "# looks like it is a restart, do not clean table\n";
-      } else {
+      if ($clean) {
           print "# cleaning up ${tmp}.BlatAlignmentSignals table...\n";
           $dbh->sqlexec("delete ${tmp}.BlatAlignmentSignals where target_external_db_release_id = $extDbId");
 	  $dbh->commit();
+      } else {
+          print "# looks like it is a restart, do not clean table BlatAlignmentSignals\n";
       }
   } else {
     $sql = <<BAS_SQL;
