@@ -435,7 +435,7 @@ sub downloadGenbank {
 
     $mgr->runCmd("mkdir -p $downloadSubDir");
 
-    my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=1 -R \"gbest*,gbgss*,gbhtg*\" -A \"*.seq.gz,README.genbank\"  -P $downloadSubDir ftp://ftp.ncbi.nih.gov/genbank/";
+    my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=1 -R \"gbest*,gbgss*,gbhtg*,gbpat*,gbphg*,gbpln*,gbvrt*,gbvrl*,gbuna*,gbsts*,gbbct*,gbcon*,gbinv*\" -A \"*.seq.gz,README.genbank\"  -P $downloadSubDir ftp://ftp.ncbi.nih.gov/genbank/";
 
     $mgr->runCmd($cmd);
 
