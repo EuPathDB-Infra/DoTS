@@ -132,7 +132,8 @@ my @properties =
  ["allgenesLogin", "","login for allgenes schema, for creation and filling of table ProteinAssembly"],
  ["allgenesPassword", "","password for allgenes schema, for creation and filling of table ProteinAssembly"],
  ["makeAllgenesTable", "","make table ProteinAssembl, yes or no"],
- ["qualityStartDate", "","date when the last SetAssSeqQualStartStop.pm was run for this taxon"]
+ ["qualityStartDate", "","date when the last SetAssSeqQualStartStop.pm was run for this taxon"],
+ ["cddDate", "","approx date for cdd download and subdir name"]
  ); 
 
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
@@ -1150,7 +1151,7 @@ sub downloadCDD {
 
     my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-    my $date = $propertySet->getProp('buildDate');
+    my $date = $propertySet->getProp('cddDate');
 
     my $downloadSubDir = "$externalDbDir/cdd/$date";
     
@@ -1178,7 +1179,7 @@ sub unpackCDD {
 
     my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-    my $date = $propertySet->getProp('buildDate');
+    my $date = $propertySet->getProp('cddDate');
 
     my $downloadSubDir = "$externalDbDir/cdd/$date";
 
@@ -1225,7 +1226,7 @@ sub insertCDD {
 
   my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-    my $date = $propertySet->getProp('buildDate');
+    my $date = $propertySet->getProp('cddDate');
 
     my $downloadSubDir = "$externalDbDir/cdd/$date";
 
@@ -1387,16 +1388,16 @@ sub copyProteinDBsToLiniac {
 
     my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-    my $date = $propertySet->getProp('buildDate');
+    my $date = $propertySet->getProp('cddDate');
 
     my $downloadSubDir = "$externalDbDir/cdd";
 
-    $mgr->runCmd("mv $downloadSubDir/$date $downloadSubDir/cdd"); 
+    $mgr->runCmd("ln -s $downloadSubDir/$date $downloadSubDir/cdd") unless (-e $downloadSubDir/cdd); 
 
     $mgr->copyToLiniac($downloadSubDir, "cdd", $liniacServer, 
 		       "$serverPath/$buildName/seqfiles");
 
-    $mgr->runCmd("mv $downloadSubDir/cdd $downloadSubDir/$date"); 
+    $mgr->runCmd("rm -f $downloadSubDir/$date"); 
 
     $f = "prodom.fsa";
     $mgr->copyToLiniac($seqfilesDir, $f, $liniacServer,
