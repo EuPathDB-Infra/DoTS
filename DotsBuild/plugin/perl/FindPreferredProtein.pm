@@ -4,23 +4,7 @@ package DoTS::DotsBuild::Plugin::FindPreferredProtein;
 
 use strict;
 
-use GUS::Model::DoTS::ProteinInstance;
 
-#use GUS::Model::DoTS::ExternalNASequence;
-#use GUS::Model::DoTS::RNAFeature;
-#use GUS::Model::DoTS::RNAInstance;
-#use GUS::Model::DoTS::TranslatedAAFeature;
-#use GUS::Model::DoTS::ProteinInstance;
-#use GUS::Model::DoTS::RNA;
-#use GUS::Model::DoTS::Protein;
-#use GUS::Model::SRes::ExternalDatabaseRelease;
-
-
-#my $ctx;
-#my $count=0;
-#my $debug = 0;
-#my $algoInvo;
-#my $dbh;
 
 $| = 1;
 
