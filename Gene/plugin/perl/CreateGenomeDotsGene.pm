@@ -198,6 +198,7 @@ sub run {
 
     $self->log("Clean out or create temp tables to hold genome dots gene analysis result...");
     my @tmpMeta = &createTempTables($dbh, $tempLogin, $isRerun || $isTest);
+    my ($exonstarts_sp, $exonends_sp) = &createTempProcedures($dbh);
 
     $self->log("Creating genome-based DoTS genes...");
     my ($coords, $skip_chrs) = &DoTS::Gene::Util::getCoordSelectAndSkip($dbh, $genomeId, $args);
@@ -218,7 +219,7 @@ sub run {
 	my $genes = $gdg_wkr->getCompositeGenomeFeatures();
 	$self->log("number of genes in this region: " . scalar(@$genes));
 	foreach (@$genes) {
-	    $gdtId += $self->saveGene($gdgId++, $gdtId, $_, \@tmpMeta);
+	    $gdtId += $self->saveGene($gdgId++, $gdtId, $_, \@tmpMeta, $exonstarts_sp, $exonends_sp);
 	}
 	$dbh->commit();
 	push @done_chrs, $coord->{chr};
@@ -361,8 +362,15 @@ sub createTable {
     foreach (@$constraints) { $dbh->sqlexec($_); }
 }
 
+sub createTempProcedures {
+    my ($dbh) = @_;
+    my $exonstarts_sp = &createStoredProcedure($dbh, 'GenomeDotsGene', 'genome_dots_gene_id', 'exonstarts');
+    my $exonends_sp = &createStoredProcedure($dbh, 'GenomeDotsGene', 'genome_dots_gene_id', 'exonends');
+    return ($exonstarts_sp, $exonends_sp);
+}
+
 sub saveGene {
-    my ($self, $dgid, $dtid, $gene, $tmpMeta) = @_;
+    my ($self, $dgid, $dtid, $gene, $tmpMeta, $exonstarts_sp, $exonends_sp) = @_;
 
     my ($gdg_tab, $gdg_cols, $gdg_types, $gdt_tab, $gdt_cols, $gdt_types) = @$tmpMeta;
 
@@ -371,6 +379,10 @@ sub saveGene {
     my $genomeId = $self->getArg('genome_db_rls_id');
     my $tmpLogin = $self->getArg('temp_login');
     my $isTest = $self->getArg('test');
+
+    my $ess = join(',', $gene->getSpanStarts);
+    my $ees = join(',', $gene->getSpanEnds);
+    my $tooBig = length($ess) >= 4000 || length($ees) >= 4000;
 
     my $sql = "insert into ${tmpLogin}.$gdg_tab ($gdg_cols->[0], $gdg_cols->[1], "
 	. "$gdg_cols->[2], $gdg_cols->[3], $gdg_cols->[4], $gdg_cols->[5], "
@@ -382,8 +394,7 @@ sub saveGene {
 	. $gene->getTotalSpanSize . "," . $gene->getNumberOfSpans . ","
 	. $gene->getMinSpanSize . "," . $gene->getMaxSpanSize . ","
 	. $gene->getMinInterspanSize. "," . $gene->getMaxInterspanSize. ","
-	. "'" . join(',', $gene->getSpanStarts) . "',"
-	. "'" . join(',', $gene->getSpanEnds) .  "',"
+	. "'" . ($tooBig ? '' : $ess) . "', '" . ($tooBig ? '' : $ees) . "',"
 	. $gene->getAnnotationProperties->{'omc'} . ","
 	. $gene->getAnnotationProperties->{'cmc'} . ","
 	. $gene->getAnnotationProperties->{'pmc'} . ")";
@@ -391,6 +402,10 @@ sub saveGene {
 	$self->log("In testing mode, o.w. would run $sql");
     } else {
 	$dbh->sqlexec($sql);
+	if ($tooBig) {
+	    &appendClob($dbh, $exonstarts_sp, $dgid, $ess); 
+	    &appendClob($dbh, $exonends_sp, $dgid, $ees);
+	}
     }
 
     my @transcripts = $gene->getConstituents();
@@ -408,6 +423,46 @@ sub saveGene {
 	}
     }
     return scalar(@transcripts);
+}
+
+# Write the complete contents of the current sequence buffer to the CLOB 
+# in the database
+#
+sub appendClob {
+    my($dbh, $sp, $id, $val) = @_;
+    my $appender = $dbh->prepare("BEGIN $sp(?, ?); END;");
+
+    my $len = length($val);
+    print STDERR "appending $len chars using stored procedure $sp for id: $id ...\n";
+    my $actual_len = 0;
+    for (my $i=0; $i<$len-4000; $i += 4000) {
+	my $substr = substr($val, 0, 4000);
+	$appender->execute($id, $substr);
+	$actual_len += length($substr);
+    }
+    if ($actual_len != $len) {
+	die "unexpected error: not able to append $len char using $sp for $id\n";
+    }
+}
+
+sub createStoredProcedure {
+  my ($dbh, $tab, $idCol, $col) = @_;
+
+  my $spName = "append_${tab}_$col";
+
+  my $sp =<<SP;
+CREATE OR REPLACE PROCEDURE $spName (id NUMBER, val VARCHAR) IS
+	clob_loc CLOB;
+   BEGIN
+	SELECT $col INTO clob_loc
+	FROM $tab where $idCol = id
+	FOR UPDATE;
+	DBMS_LOB.WRITEAPPEND(clob_loc, length(val), val);
+   END $spName;
+SP
+  $dbh->do($sp);
+
+  return $spName;
 }
 
 1;
