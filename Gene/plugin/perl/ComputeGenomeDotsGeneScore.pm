@@ -198,7 +198,7 @@ sub processRegion {
 	# 4. EST 5'-3' plot score
         #$self->log("\tEST plot score ...") if $self->getArg('debug');
 	#DoTS::Gene::ConfidenceScore::ESTPlotScore::setESTPlotScore($dbh, $gdg_tab, $gdt_tab,
-						       $gid, $chr_id, $cs_info);
+	#						    $gid, $chr_id, $cs_info);
 	# overall score
 	$self->log("\toverall score ...") if $self->getArg('debug');
 	DoTS::Gene::ConfidenceScore::Overall::setScore($dbh, $gdg_tab,
