@@ -1,4 +1,4 @@
-Sgenbankuse strict;
+use strict;
 
 #use lib "$ENV{GUS_HOME}/lib/perl";
 #use GUS::Pipeline::Manager;
