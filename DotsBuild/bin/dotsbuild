@@ -313,7 +313,7 @@ $mgr->waitForLiniac("genomic alignments of assemSeqs", "waitGenomeAlignAss");
 
    &loadRNAClusters($mgr);
 
-   &deleteGenesWithNoRNA($mgr);
+   #&deleteGenesWithNoRNA($mgr);
 
    &makeFrameFinder($mgr);
 
