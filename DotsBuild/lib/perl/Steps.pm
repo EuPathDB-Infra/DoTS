@@ -1692,6 +1692,10 @@ sub insertProdom {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
 
+  my $signal = "downloadProdom";
+
+  return if $mgr->startStep("Inserting Prodom", $signal, 'insertProdom');
+
   my $externalDbDir = $propertySet->getProp('externalDbDir');
 
   my $subdir = $propertySet->getProp('prodomRelease');
@@ -1720,6 +1724,8 @@ sub insertProdom {
   $mgr->runPlugin("insertProdom",
 		  "GUS::Common::Plugin::InsertNewExternalSequences", $args,
 		  "Inserting Prodom", 'insertProdom');
+
+  $mgr->endStep($signal);
 }
 
 sub extractProdom {
@@ -1743,9 +1749,9 @@ sub copyProteinDBsToCluster {
   return if $mgr->startStep("Copying NRDB, CDD and Prodom to $serverPath/$mgr->{buildName}/seqfiles on cluster", $signal);
 
   my $release = "release" . $propertySet->getProp('dotsRelease');
-  my $proteinRelease = "release" . $propertySet->getProp('proteinRelease');
+  my $proteinRelease;
+  my $proteinDir;
   my $speciesNickname = $propertySet->getProp('speciesNickname');
-  my $proteinDir = $propertySet->getProp('proteinDir');
   my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
   my $seqfilesDir = "$dotsBuildDir/$release/$speciesNickname/seqfiles";
 
@@ -1755,6 +1761,8 @@ sub copyProteinDBsToCluster {
     $mgr->{cluster}->copyTo($seqfilesDir, $f,
 		       "$serverPath/$mgr->{buildName}/seqfiles");
   } else {
+    $proteinRelease = "release" . $propertySet->getProp('proteinRelease');
+    $proteinDir = $propertySet->getProp('proteinDir');
     my $linkCmd = "ln $dotsBuildDir/$proteinRelease/$proteinDir/seqfiles/$f $dotsBuildDir/$release/$speciesNickname/seqfiles/$f";
     $mgr->runCmdOnCluster($linkCmd);
   }
@@ -2870,7 +2878,7 @@ sub writeReadmeFileHeader {
   my $nrdbDate = $propertySet->getProp('nrdbDate');
   my $cddFileDates = $propertySet->getProp('cddFileDates');
   my $dbestDate = $propertySet->getProp('dbestDate');
-  my $prodomVersion = $propertySet->getProp('prodomVersion');
+  my $prodomVersion = $propertySet->getProp('prodomRelease');
   my $genomeVersion = $propertySet->getProp('genomeVersion');
 
   my $readme = "$mgr->{pipelineDir}/downloadSite/${speciesNickname}_README.txt";
