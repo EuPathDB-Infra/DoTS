@@ -1,4 +1,4 @@
-use strict;
+Sgenbankuse strict;
 
 #use lib "$ENV{GUS_HOME}/lib/perl";
 #use GUS::Pipeline::Manager;
@@ -1789,8 +1789,9 @@ sub makeMotifIndexWordLink {
   my $pfamReleaseId = $propertySet->getProp('pfam_db_rls_id');
   my $cogReleaseId = $propertySet->getProp('cog_db_rls_id');
   my $cdReleaseId = $propertySet->getProp('cd_db_rls_id');
+  my $kogReleaseId = $propertySet->getProp('kog_db_rls_id');
 
-  my $sql = "select aa_sequence_id, description from dots.MotifAASequence where external_database_release_id in ($prodomReleaseId,$smartReleaseId,$loadReleaseId,$pfamReleaseId,$cogReleaseId,$cdReleaseId) and aa_sequence_id not in (select target_id from  dots.IndexWordLink where target_table_id=277)";
+  my $sql = "select aa_sequence_id, description from dots.MotifAASequence where external_database_release_id in ($prodomReleaseId,$smartReleaseId,$loadReleaseId,$pfamReleaseId,$cogReleaseId,$cdReleaseId,$kogReleaseId) and aa_sequence_id not in (select target_id from  dots.IndexWordLink where target_table_id=277)";
 
   my $args = "--attribute description --table DoTS::MotifAASequence --idSQL \"$sql\"";
 
