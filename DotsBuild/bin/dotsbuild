@@ -341,7 +341,6 @@ $mgr->goodbye("Pipeline complete!\n");
 sub createDotsPipelineDir { 
     my ($props) = @_;
 
-    my $buildName = $props->getProp('buildName');
     my $dotsBuildDir = $props->getProp('dotsBuildDir');
     my $serverPath = $props->getProp('serverPath');
     my $nodePath = $props->getProp('nodePath');
@@ -666,7 +665,6 @@ sub extractDots {
 
 sub copyPipelineDirToLiniac {
 
-    my $buildName = $propertySet->getProp('buildName');
     my $serverPath = $propertySet->getProp('serverPath');
     my $liniacServer = $propertySet->getProp('liniacServer');
 
@@ -681,7 +679,6 @@ sub copyPipelineDirToLiniac {
 sub startBlastMatricesOnLiniac {
 
     my $liniacServer = $propertySet->getProp('liniacServer');
-    my $buildName = $propertySet->getProp('buildName');
     my $serverPath = $propertySet->getProp('serverPath');
 
     my $signal = "runmatrices";
@@ -807,7 +804,6 @@ sub matrix {
 sub copyDotsToLiniac {
     my ($name) = @_;
 
-    my $buildName = $propertySet->getProp('buildName');
     my $serverPath = $propertySet->getProp('serverPath');
     my $liniacServer = $propertySet->getProp('liniacServer');
 
@@ -825,7 +821,6 @@ sub copyDotsToLiniac {
 sub startDotsMatrixOnLiniac {
     my ($name) = @_;
 
-    my $buildName = $propertySet->getProp('buildName');
     my $serverPath = $propertySet->getProp('serverPath');
 
     my $signal = "${name}DotsMatrix";
@@ -1105,7 +1100,6 @@ sub copyProteinDBsToLiniac {
 
     my ($name) = @_;
 
-    my $buildName = $propertySet->getProp('buildName');
     my $serverPath = $propertySet->getProp('serverPath');
     my $liniacServer = $propertySet->getProp('liniacServer');
 
@@ -1130,7 +1124,6 @@ sub copyProteinDBsToLiniac {
 sub startSimilaritiesOnLiniac {
     my ($name) = @_;
 
-    my $buildName = $propertySet->getProp('buildName');
     my $serverPath = $propertySet->getProp('serverPath');
 
     my $signal = "findSimilarites";
