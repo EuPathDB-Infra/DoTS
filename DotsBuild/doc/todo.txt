@@ -16,15 +16,14 @@ NOW
   - update the release date in externaldatabaserelease where version is continuous (add this to GBParser, NRDB, etc. plugins)
   - human EPCR markers are not in the database. 
   - rename all-predictions
-  - add auto message to sub that copies directories to liniac, message defining cleanup of previous build
-
+ 
 steve
   - look into brian's observation about the promoter regions
   - make file for Mr. BrainInfo
   - add the sub to make Angel's materialized view
   - get a legit version of the TMHMM package
   - include makePromoterRegionTable
-
+  
 
 
 LATER
@@ -53,7 +52,8 @@ LATER
   - Add property for regex for task.prop for cdd (do this the next time the regex changes)
   - standardize all sequence entry, blast, and similarity (incl. gene tags) procedures and code
   - there were > 100 errors caused by PK constraint violation in dotsver.assemblysequencever during assembly, this caused a failure in processing clusters. I fixed them manually (deleted the version entry) and reprocessed those clusters. Is there a way to do this automatically-or a message to do this before resuming the build?
-
+  - add auto message to sub that copies directories to liniac, message defining cleanup of previous build
+  - find out why DoTS::DotsBuild::Plugin::MakeRNAClustersForAssemblies is making rna rows wtih null gene_id
 
 
 
