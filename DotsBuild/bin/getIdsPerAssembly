@@ -32,11 +32,12 @@ my $dbh = $db->getQueryHandle();
 
 ##need to dump the input accesions along with a bit to idicate if mrNA
 
-my $sql = "select ass.assembly_na_sequence_id,e.source_id,e.sequence_type_id
-     from dots.ExternalNASequence e, dots.AssemblySequence ass
+my $sql = "select /*+ RULE */ ass.assembly_na_sequence_id,e.source_id,e.sequence_type_id
+     from dots.ExternalNASequence e, dots.AssemblySequence ass, dots.assembly a
      where e.na_sequence_id = ass.na_sequence_id 
-     and ass.assembly_na_sequence_id is not null " .
-     ($taxon_id ? "and e.taxon_id = $taxon_id " : "") .
+     and ass.assembly_na_sequence_id is not null 
+     and ass.assembly_na_sequence_id = a.na_sequence_id " .
+     ($taxon_id ? "and a.taxon_id = $taxon_id " : "") .
      "order by ass.assembly_na_sequence_id";
 
 print STDERR "Query: $sql\n" if $verbose;
