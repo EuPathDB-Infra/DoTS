@@ -14,8 +14,8 @@ my ($verbose,$musExtRelDbId,$humExtRelDbId,$gusConfigFile,$allgenesSchema);
             "gusConfigFile=s" => \$gusConfigFile);
 
 
-die "usage: makePromoterRegionTable --allgenesSchema --humExtRelDbId --musExtRelDbId --verbose --gusConfigFile [\$GUS_CONFIG_FILE]\n"
-unless ($musExtRelDbId && $humExtRelDbId && $allgenesSchema);
+die "usage: makePromoterRegionTable --taxon --allgenesSchema --verbose --gusConfigFile [\$GUS_CONFIG_FILE]\n"
+unless ($taxon && $allgenesSchema);
 
 print STDERR "Establishing dbi login\n" if $verbose;
 
@@ -31,28 +31,20 @@ my $dbh = $db->getQueryHandle();
 
 my $tableName = "${allgenesSchema}.PromoterRegion";
 
-print STDERR "Dropping table $tableName\n";
-$dbh->do("drop table $tableName");
+my $deleteSql =
+"delete from $tableName where taxon_id = $taxon";
+print STDERR "Deleting \n";
+print STDERR "deleteSql: $deleteSql\n" if $verbose;
 
-my $createTblSql = 
-"CREATE TABLE $tableName
-   (NA_SEQUENCE_ID NUMBER(12) NOT NULL,
-    CHROMOSOME VARCHAR2(255)  NOT NULL,
-    REGION_START NUMBER(12) NOT NULL,
-    REGION_END NUMBER(12) NOT NULL,
-    STRAND CHAR(6) NOT NULL,
-    SEQUENCE CLOB)
-    STORAGE (MAXEXTENTS UNLIMITED)";
+$dbh->do($deleteSql) || die "Delete failed.\nSQL: $insertSql";
+print STDERR "Committing delete\n";
+$dbh->commit();
 
-print STDERR "CreateTblSql: $createTblSql\n" if $verbose;
-
-print STDERR "Creating table  $tableName\n";
-$dbh->do($createTblSql) || die "Failed creating table $tableName\n SQL: $createTblSql";
 
 # forward strand
 my $insertSql = 
 "insert into $tableName 
-    select distinct query_na_sequence_id,  vs.chromosome, ba.target_start, ba.target_end, '(+)' as strand,
+    select distinct query_na_sequence_id,  ba.query_taxon_id, vs.chromosome, ba.target_start, ba.target_end, '(+)' as strand,
        lower(dbms_lob.substr(vs.sequence, 1500, ba.target_start - 1200)) as promoter_seq
     from DoTS.BlatAlignment ba, DoTS.VirtualSequence vs
     where ba.target_na_sequence_id = vs.na_sequence_id
@@ -71,7 +63,7 @@ $dbh->do($insertSql) || die "Insert failed.\nSQL: $insertSql";
 
 # reverse strand
 my $selectSql = 
-"select distinct na_sequence_id, vs.chromosome, ba.target_start, ba.target_end, '(-)' as strand,
+"select distinct na_sequence_id, ba.query_taxon_id, vs.chromosome, ba.target_start, ba.target_end, '(-)' as strand,
        lower(dbms_lob.substr(vs.sequence, 1500, ba.target_end - 300)) as promoter_seq
     from DoTS.BlatAlignment ba, DoTS.VirtualSequence vs
     where ba.target_na_sequence_id = vs.na_sequence_id
@@ -90,9 +82,9 @@ my $stmt = $dbh->prepareAndExecute($selectSql);
 
 print STDERR "Processing rows: reversing and inserting\n";
 while (my @row = $stmt->fetchrow_array()) {
-  my ($na_seq_id, $chr, $start, $end, $strand, $seq) = @row;
+  my ($na_seq_id, $taxon, $chr, $start, $end, $strand, $seq) = @row;
   $seq = &CBIL::Bio::SequenceUtils::reverseComplementSequence($seq);
-  $insertSql = "insert into $tableName values ($na_seq_id, '$chr', $start, $end, '$strand', '$seq')";
+  $insertSql = "insert into $tableName values ($na_seq_id, $taxon, '$chr', $start, $end, '$strand', '$seq')";
   print STDERR "insertSql: $insertSql\n" if $verbose;
   $dbh->do($insertSql) || die "Insert failed.\nSQL: $insertSql";
 }
@@ -100,16 +92,9 @@ while (my @row = $stmt->fetchrow_array()) {
 print STDERR "Committing\n";
 $dbh->commit();
 
-print STDERR "Indexing\n";
-my $indexSql = "CREATE INDEX ${tableName}_IND01 on $tableName (NA_SEQUENCE_ID) TABLESPACE INDX";
-$dbh->do($indexSql) || die "Indexing failed.\nSQL: $indexSql";
-
 print STDERR "Analyzing\n";
 my $analyzeSql = "ANALYZE TABLE $tableName compute statistics";
 $dbh->do($analyzeSql) || die "Analyze failed.\nSQL: $analyzeSql";
 
-print STDERR "Granting\n";
-my $grantSql = "grant select on $tableName to public";
-$dbh->do($grantSql) || die "Grant failed.\nSQL: $grantSql";
 
 
