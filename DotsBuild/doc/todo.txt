@@ -16,6 +16,7 @@ NOW
   - update the release date in externaldatabaserelease where version is continuous (add this to GBParser, NRDB, etc. plugins)
   - human EPCR markers are not in the database. 
   - rename all-predictions
+  - add auto message to sub that copies directories to liniac, message defining cleanup of previous build
 
 steve
   - look into brian's observation about the promoter regions
