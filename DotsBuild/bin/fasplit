@@ -2,7 +2,7 @@
 
 use strict 'vars';
 
-use EasyCsp;
+use CBIL::Util::EasyCsp;
 use FileHandle;
 
 my $usage = 'Splits FASTA files into multiple pieces';
