@@ -62,64 +62,64 @@ my $library;
 $| = 1;
 
 sub Run {
-    my $M   = shift;
+    my $self   = shift;
     
-    $M->log ($M->getCla{'commit'} ? "COMMIT ON\n" : "COMMIT TURNED OFF\n");
-    $M->log ("Testing on $M->getCla{'testnumber'}\n") if $M->getCla{'testnumber'};
+    $self->log ($self->getCla{'commit'} ? "COMMIT ON\n" : "COMMIT TURNED OFF\n");
+    $self->log ("Testing on $self->getCla{'testnumber'}\n") if $self->getCla{'testnumber'};
     
     ##set the taxon_id...
-    die "You must enter either the --taxon_id and optionally --idSQL on the command line\n" unless $M->getCla{taxon_id};
+    die "You must enter either the --taxon_id and optionally --idSQL on the command line\n" unless $self->getCla{taxon_id};
     ##set up the library:
-    if($M-getCla{taxon_id} == 8){
+    if($self-getCla{taxon_id} == 8){
 	$library = '/usr/local/db/others/repeat/vector_humMitoRibo.lib';
-    }elsif($M-getCla{taxon_id} == 14){
+    }elsif($self-getCla{taxon_id} == 14){
 	$library = '/usr/local/db/others/repeat/vector_musMitoRibo.lib';
     }else{
 	$library = '/usr/local/db/others/repeat/vector';
-	$M->log ("No taxon_id specified....");
+	$self->log ("No taxon_id specified....");
     }
-    $M->log ("Running cross_match with $library\n");
+    $self->log ("Running cross_match with $library\n");
     
-    $M->{'self_inv'}->setMaximumNumberOfObjects(100000);
+    $self->{'self_inv'}->setMaximumNumberOfObjects(100000);
     
-    $dbh = $M->getQueryHandle();
+    $dbh = $self->getQueryHandle();
     
-    if ($M-getCla{export}) {
-	if (-e $M-getCla{export}) {
-	    open(F,"$M-getCla{export}");
+    if ($self-getCla{export}) {
+	if (-e $self-getCla{export}) {
+	    open(F,"$self-getCla{export}");
 	    while (<F>) {
 		if (/^\>(\S+)/) {
 		    $finished{$1} = 1;
 		}
 	    }
 	    close F;
-	    $M->log ("Already processed ",scalar(keys%finished)," ids\n");
+	    $self->log ("Already processed ",scalar(keys%finished)," ids\n");
 	}
-	open(EX,">>$M-getCla{export}");
+	open(EX,">>$self-getCla{export}");
     }
     
-    if ($M-getCla{idSQL}) {
-	&processQuery($M-getCla{idSQL});
+    if ($self-getCla{idSQL}) {
+	$self->processQuery($self-getCla{idSQL});
     } else {
 	
-	$M->log ("Generating new AssemblySequences for taxon(s) $M-getCla{taxon_id}\n");
+	$self->log ("Generating new AssemblySequences for taxon(s) $self-getCla{taxon_id}\n");
 	
 	##first get the ESTs and mRNAs..
-	my $sql = "select e.na_sequence_id from dots.ExternalNASequence e where e.taxon_id in ($M-getCla{taxon_id}) ".
+	my $sql = "select e.na_sequence_id from dots.ExternalNASequence e where e.taxon_id in ($self-getCla{taxon_id}) ".
 	    "and e.sequence_type_id in (7,8) " .
 		"and e.na_sequence_id not in (select a.na_sequence_id from dots.AssemblySequence a) ";
 	
-	if ($M->getCla{'date'}) {
-	    $sql .= "and modification_date >= '$M->getCla{'date'}'";
+	if ($self->getCla{'date'}) {
+	    $sql .= "and modification_date >= '$self->getCla{'date'}'";
 	} 
 	
-	&processQuery($sql);
+	$self->processQuery($sql);
 	
 	##next get the things from embl that are RNAs longer than 500 bp...
 	##need to check this for things that are not human or mouse...may need to use less sophisticated query!
 	my $mRNASql = "select o.na_sequence_id from dots.externalnasequence o where o.na_sequence_id in (
                        select s.na_sequence_id from dots.externalnasequence s, dots.transcript t, dots.nalocation l
-                       where s.taxon_id = $M-getCla{taxon_id} 
+                       where s.taxon_id = $self-getCla{taxon_id} 
                        and s.sequence_type_id = 2 
                        and t.na_sequence_id = s.na_sequence_id
                        and t.name = 'CDS'
@@ -132,14 +132,14 @@ sub Run {
 	#    my $mRNASql = "select e.na_sequence_id from dots.ExternalNASequence e
 	# where e.sequence_type_id = 2
 	# and e.external_database_release_id in ()
-	# and e.taxon_id in ( $M->getCla{'taxon_id'} )
+	# and e.taxon_id in ( $self->getCla{'taxon_id'} )
 	# and e.length > 500
 	# and e.na_sequence_id not in (select a.na_sequence_id from dots.AssemblySequence a)";
 	
-	if ($M->getCla{'date'}) {
-	    $mRNASql .= "and modification_date >= '$M->getCla{'date'}'";
+	if ($self->getCla{'date'}) {
+	    $mRNASql .= "and modification_date >= '$self->getCla{'date'}'";
 	} 
-	&processQuery($mRNASql);
+	$self->processQuery($mRNASql);
 	
     }
     
@@ -149,18 +149,18 @@ sub Run {
     close EX;
     my $results = "Processed $countProcessed AssemblySequences and marked $countBad as 'low_quality'";
     
-    $M->log ("\n$results\n");
+    $self->log ("\n$results\n");
     
     return $results;
 }
 
 sub processQuery {
     
-    my $M   = shift;
+    my $self   = shift;
     my($sql) = @_;
     
-    $M->log ("\n$sql\n"); ## if $debug;
-    my $dbh = $M->getQueryHandle();
+    $self->log ("\n$sql\n"); ## if $debug;
+    my $dbh = $self->getQueryHandle();
     
     my $stmt = $dbh->prepare($sql);
     $stmt->execute() || die "SQL ERROR: $stmt->errstr()";
@@ -173,11 +173,11 @@ sub processQuery {
 	#    next unless $id > 1000000;
 	next if exists $finished{$id};
 	$count++;
-	last if ($M->getCla{'testnumber'} && $count >= $M->getCla{'testnumber'}); ##testing..
-	$M->log ("fetching $count ids to process\n") if $count % 10000 == 0;
+	last if ($self->getCla{'testnumber'} && $count >= $self->getCla{'testnumber'}); ##testing..
+	$self->log ("fetching $count ids to process\n") if $count % 10000 == 0;
 	push(@ids,$id);
     }
-    $M->log ("\nMaking $count AssemblySequences\n\n");
+    $self->log ("\nMaking $count AssemblySequences\n\n");
     return if $count == 0;
     $count = 0;
     foreach my $id (@ids) {
@@ -203,20 +203,20 @@ sub processQuery {
 	}
 	$count++;
 	if ($count >= 10000) {
-	    &processSet($miniLib);
+	    $self->processSet($miniLib);
 	    $miniLib = "";            ##reset for next set of seqs
 	    $count = 0;
-	    $M->undefPointerCache();
+	    $self->undefPointerCache();
 	}
     }
-    &processSet($miniLib) if $miniLib;        ##processes last set
-    $M->undefPointerCache();
+    $self->processSet($miniLib) if $miniLib;        ##processes last set
+    $self->undefPointerCache();
     $stmt->finish();              ##cancels when testing so can do second query....
 }
 
 sub processSet {
     
-    my $M   = shift;
+    my $self   = shift;
     my($miniLib) = @_;
 
     my $phrap_dir = '/usr/local/src/bio/phrap/latest';
@@ -234,23 +234,23 @@ sub processSet {
     my $na_seq_id;
     while (<S>) {
 	if (/^\>(\d+)/) {           ##$1 = na_sequence_id
-	    &makeAndInsertAssSeq($na_seq_id,$seq) if $na_seq_id;
+	    $self->makeAndInsertAssSeq($na_seq_id,$seq) if $na_seq_id;
 	    $na_seq_id = $1;
 	    $seq = "";
-	    $M->log ("Processed: $countProcessed, low_quality: $countBad ",($countProcessed % 1000 == 0 ? `date` : "\n")) if $countProcessed % 100 == 0;
+	    $self->log ("Processed: $countProcessed, low_quality: $countBad ",($countProcessed % 1000 == 0 ? `date` : "\n")) if $countProcessed % 100 == 0;
 	} else {
 	    $seq .= $_;
 	}
     }
-    &makeAndInsertAssSeq($na_seq_id,$seq) if $na_seq_id;
+    $self->makeAndInsertAssSeq($na_seq_id,$seq) if $na_seq_id;
     close S;
 }
 
 sub makeAndInsertAssSeq {
 
-    my $M   = shift;
+    my $self   = shift;
     my($na_seq_id,$seq) = @_;
-    my $qseq = &returnQuality($seq);
+    my $qseq = $self->returnQuality($seq);
 
     my $ass = GUS::Model::DoTS::AssemblySequence->new( { 'na_sequence_id' => $na_seq_id,
 							 'sequence_version' => 1,
@@ -266,9 +266,9 @@ sub makeAndInsertAssSeq {
     } else {
 	$ass->set('have_processed',0);
     }
-    $M->log ($ass->toString(0,1)) if $debug;
+    $self->log ($ass->toString(0,1)) if $debug;
     $ass->submit();
-    print EX $ass->toFasta(1) if ($M->getCla{commit} && $M->getCla{export} && $ass->getHaveProcessed() == 0);
+    print EX $ass->toFasta(1) if ($self->getCla{commit} && $self->getCla{export} && $ass->getHaveProcessed() == 0);
     $countProcessed++;
 }
 
@@ -276,7 +276,7 @@ sub makeAndInsertAssSeq {
 ##by looking at the %Ns in a 20 bp window...must be less than 20%
 sub returnQuality{
     
-    my $M   = shift;
+    my $self   = shift;
     my($seq) = @_;
     my $newSeq;
     $seq =~ s/\s+//g;             ##gets rid of spaces and newlines
@@ -289,50 +289,50 @@ sub returnQuality{
 	    if (($i - $newstart) < 40) { ##looking for a 40 bp region of good sequence...=50 at end..
 		$i = $i + 9;
 		$newstart = $i;
-		#	$M->log ("Trimming Poor qual beginning: newStart set to $newstart\n");
+		#	$self->log ("Trimming Poor qual beginning: newStart set to $newstart\n");
 	    } else {
 		$newSeq = substr($seq, $newstart, ($i + 10 - $newstart));
-		return &trimAT($newSeq); 
+		return $self->trimAT($newSeq); 
 	    }
 	}
     }
     $newSeq = substr($seq, $newstart, length($seq));
-    return &trimAT($newSeq);
+    return $self->trimAT($newSeq);
 }
 
 ##steps through sequence with 30 bp window...if >=36 As or Ts then truncates
 ##either beginning or end (whichever is closer)
 sub trimAT {
     
-    my $M   = shift;
+    my $self   = shift;
     my($seq) = @_;
     $seq =~ s/\s//g;
-    $M->log ("\ntrimAT input: \n", CBIL::Bio::SequenceUtils::breakSequence($seq)) if $debug == 1;
+    $self->log ("\ntrimAT input: \n", CBIL::Bio::SequenceUtils::breakSequence($seq)) if $debug == 1;
     my @seq = split('', $seq);
     my %nuc;
     my($startBase,$endBase);
     foreach my $n (@seq[0..29]) {
 	$nuc{$n}++;
     }
-    $M->log  ("First 30: ", join('', @seq[0..29]), "\n") if $debug == 1;
+    $self->log  ("First 30: ", join('', @seq[0..29]), "\n") if $debug == 1;
     my $inRun = 0;
     for (my $i=1;$i<(length($seq)-30);$i++) {
 	if ($inRun == 0 && ($nuc{A} >=27 || $nuc{T} >= 27)) {
 	    $startBase = $i;
-	    $M->log  ("A=$nuc{A},T=$nuc{T} Sequence Length: ", length($seq), " StartBase: $startBase ") if $debug == 1;
+	    $self->log  ("A=$nuc{A},T=$nuc{T} Sequence Length: ", length($seq), " StartBase: $startBase ") if $debug == 1;
 	    $inRun = 1;
 	    next;
 	}
 	if ($inRun == 1 && ($nuc{A} < 27 && $nuc{T} < 27)) {
 	    ##process the sucker!!
 	    $endBase = $i + 30;
-	    $M->log ("EndBase: $endBase\n") if $debug == 1;
+	    $self->log ("EndBase: $endBase\n") if $debug == 1;
 	    ##test if closer to beginning or end and tructate accordingly
 	    if ($startBase <= (length($seq) - $endBase)) {
-		$M->log ("substr\(\$seq,\($endBase-5\),\(length\(\$seq\)\)\)\n") if $debug == 1;
+		$self->log ("substr\(\$seq,\($endBase-5\),\(length\(\$seq\)\)\)\n") if $debug == 1;
 		return substr($seq,($endBase-5),(length($seq)));
 	    } else {
-		$M->log ("substr\(\$seq,0,\($startBase+5\)\)\n") if $debug == 1;
+		$self->log ("substr\(\$seq,0,\($startBase+5\)\)\n") if $debug == 1;
 		return substr($seq,0,($startBase+5));
 	    }
 	}
@@ -342,7 +342,7 @@ sub trimAT {
     }
     if ($inRun == 1) {            ##stretch goes to end of sequence
 	##truncate from startBase
-	$M->log ("substr\(\$seq,0,\($startBase+5\)\)\n") if $debug == 1;
+	$self->log ("substr\(\$seq,0,\($startBase+5\)\)\n") if $debug == 1;
 	return substr($seq,0,$startBase);
     }
     return $seq;
