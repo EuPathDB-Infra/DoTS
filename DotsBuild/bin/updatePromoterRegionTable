@@ -32,7 +32,7 @@ my $dbh = $db->getQueryHandle();
 my $tableName = "${allgenesSchema}.PromoterRegion";
 
 my $deleteSql =
-"delete from $tableName where taxon_id = $taxonId";
+"delete from $tableName  where na_sequence_id in (select na_sequence_id from dots.assembly where taxon_id = $taxonId)";
 print STDERR "Deleting \n";
 print STDERR "deleteSql: $deleteSql\n" if $verbose;
 
@@ -44,8 +44,8 @@ $dbh->commit();
 # forward strand
 my $insertSql = 
 "insert into $tableName 
-    select distinct query_na_sequence_id, $taxonId, vs.chromosome, ba.target_start, ba.target_end, '(+)' as strand,
-       lower(dbms_lob.substr(vs.sequence, 1500, ba.target_start - 1200)) as promoter_seq
+    select distinct query_na_sequence_id, vs.chromosome, ba.target_start, ba.target_end, '(+)' as strand,
+       lower(dbms_lob.substr(vs.sequence, 1500, ba.target_start - 1200)) as sequence,$taxonId
     from DoTS.BlatAlignment ba, DoTS.VirtualSequence vs
     where ba.target_na_sequence_id = vs.na_sequence_id
     and ba.query_table_id = 56
@@ -64,7 +64,7 @@ $dbh->do($insertSql) || die "Insert failed.\nSQL: $insertSql";
 # reverse strand
 my $selectSql = 
 "select distinct na_sequence_id, vs.chromosome, ba.target_start, ba.target_end, '(-)' as strand,
-       lower(dbms_lob.substr(vs.sequence, 1500, ba.target_end - 300)) as promoter_seq
+       lower(dbms_lob.substr(vs.sequence, 1500, ba.target_end - 300)) as sequence,$taxonId
     from DoTS.BlatAlignment ba, DoTS.VirtualSequence vs
     where ba.target_na_sequence_id = vs.na_sequence_id
     and ba.query_table_id = 56
@@ -82,9 +82,9 @@ my $stmt = $dbh->prepareAndExecute($selectSql);
 
 print STDERR "Processing rows: reversing and inserting\n";
 while (my @row = $stmt->fetchrow_array()) {
-  my ($na_seq_id, $chr, $start, $end, $strand, $seq) = @row;
+  my ($na_seq_id, $chr, $start, $end, $strand, $seq,$taxonId) = @row;
   $seq = &CBIL::Bio::SequenceUtils::reverseComplementSequence($seq);
-  $insertSql = "insert into $tableName values ($na_seq_id, $taxonId, '$chr', $start, $end, '$strand', '$seq')";
+  $insertSql = "insert into $tableName values ($na_seq_id, '$chr', $start, $end, '$strand', '$seq',$taxonId)";
   print STDERR "insertSql: $insertSql\n" if $verbose;
   $dbh->do($insertSql) || die "Insert failed.\nSQL: $insertSql";
 }
