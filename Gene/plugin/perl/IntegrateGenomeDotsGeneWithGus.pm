@@ -144,19 +144,17 @@ sub run {
     my $onlyDelete = $self->getArg('only_delete');
     my $onlyInsert = $self->getArg('only_insert');
 
+    my ($gis, $gfs, $skip_gdgs) = $self->getExistGiGfGdg($dbh, $genomeId);
     unless ($isRestart || $onlyInsert) {
-        my ($gis, $gfs, $gdgs) = $self->getExistGiGfGdg($dbh, $genomeId);
 	my $efs = $self->getExistEfOrRf($dbh, 'DoTS.ExonFeature', $genomeId);
 	my $rfs = $self->getExistEfOrRf($dbh, 'DoTS.RnaFeature', $genomeId);
 	$self->cleanOldResults($dbh, $gis, $gfs, $efs, $rfs);
     }
 
     if ($onlyDelete) {
-	return "finished deleting old gDG results"; 
+	return "finished deleting old gDG results";
     }
 
-#    my ($gis, $gfs, $skip_gdgs) = $self->getExistGiGfGdg($dbh, $genomeId);
-my $skip_gdgs = {};
     $self->moveToGus($dbh, $taxonId, $genomeId, $gdgTab, $gdtTab, $skip_gdgs, $testNum);
     return "finished moving $gdgTab and $gdtTab into GUS central dogma tables";
 }
@@ -315,7 +313,6 @@ sub moveToGus {
 	    $ef->setExternalDatabaseReleaseId($genomeId);
 	    $success = $ef->submit();
 	    $self->error("could not submit new ExonFeature for " . $gf->getName . " exon $i") if !$success;
-print " debug **** exon $i with an id of " . $ef->getNaFeatureId() . "\n";
 
 	    my $efLoc = GUS::Model::DoTS::NALocation->new();
 	    $efLoc->setNaFeatureId($ef->getNaFeatureId);
@@ -326,9 +323,6 @@ print " debug **** exon $i with an id of " . $ef->getNaFeatureId() . "\n";
 	    $efLoc->setIsReversed($gfLoc->getIsReversed);
 	    $success = $efLoc->submit();
 	    $self->error("could not submit new NALocation for " . $gf->getName . " exon $i") if !$success;
-#	    $efLoc->undefPointerCache();
-#	    $ef->undefPointerCache();
-print " debug **** exon $i with an NA location id " . $efLoc->getNaLocationId() . "\n";
 	}
 
 	foreach (@rows) {
@@ -345,15 +339,8 @@ print " debug **** exon $i with an NA location id " . $efLoc->getNaLocationId() 
 	    # (not yet supported because the current gDG creation process looses this info.)
 	    $success = $rf->submit();
 	    $self->error("could not submit new RNAFeature for " . $gf->getName . " DT.$dt") if !$success;
-print "*** genefeature id before undef rnaFeatrue: " . $gf->getNaFeatureId() . "\n";
-#	    $rf->undefPointerCache();
-print "*** genefeature id after undef rnaFeatrue: " . $gf->getNaFeatureId() . "\n";
-print " debug **** one RNAFeature row with an NaFeatureId" . $rf->getNaFeatureId() . "\n";
 	}
-
-#	$gf->undefPointerCache();
-#	$gi->undefPointerCache();
-$self->undefPointerCache();
+	$self->undefPointerCache();
 
 	$self->log("integrated $tally of $total gDGs") unless $tally % 200;
     }
