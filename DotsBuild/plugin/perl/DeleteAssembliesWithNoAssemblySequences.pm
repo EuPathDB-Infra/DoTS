@@ -19,6 +19,10 @@ sub new {
       t => 'int',
       h => 'number of iterations for testing',
      },
+     {o => 'taxon_id',
+      t => 'int',
+      h => 'taxon_id of assemblies that will be deleted',
+     }
     ];
   
   $self->initialize({requiredDbVersion => {},
@@ -44,10 +48,12 @@ sub run {
 
   my $dbh = $self->getQueryHandle();
 
+  my $taxon_id = $self->getArgs()->{'taxon_id'};
+
   $self->setGlobalDeleteEvidenceOnDelete(0);
   $self->setGlobalDeleteSimilarityOnDelete(0);
 
-  my $query = "select na_sequence_id from dots.Assembly MINUS select assembly_na_sequence_id from dots.AssemblySequence"; 
+  my $query = "select na_sequence_id from dots.Assembly where taxon_id = $taxon_id MINUS select assembly_na_sequence_id from dots.AssemblySequence"; 
   my @ids;
   my $stmt = $dbh->prepareAndExecute($query);
   while(my ($id) = $stmt->fetchrow_array()){
@@ -72,6 +78,9 @@ sub run {
   }
 
   my $ret = "Deleted $ctDel Assemblies\n";
+
+  print "$ret";
+
   return "$ret";
 }
 
