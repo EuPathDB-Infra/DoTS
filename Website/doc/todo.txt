@@ -3,7 +3,6 @@ DoTS todo
 Misc
 
 website
-  - upgrade query page: collapse id queries into one pull down.
   - mapping to GeneNet
   - genomic location query
   - map RAD to DoTS?
@@ -16,33 +15,14 @@ website build
 Website - Gene/Genome integration
   - Gene set queries
   - annotate transcripts as coding/non-coding
-  - coding/non-coding query (for DT and DG)
   - annotate transcripts with confidence
-  - coding/non-coding query
+  - add coding/non-coding and confidence columns to ReportMaker
   - move to RNAs from na_sequences
   - model alternative splices?
-
-DoTS build
-  - develop new clustering algorithm (new graph approach + genome)
-  - do a quick build 7 WITH NO CHANGES to show that we can do it quickly?
-  - move to DIANA from framefinder for build 8?
-  - unify our approach to loading links to external dbs
-
-Schema
-  - integrate various gene symbols/names
 
 poster
   - tutorial (using use cases)
   - improve this and put it on site
-
-dots grant
-  - log scan
-  - literature search
-  - ...
-
-DoTS build and website paper
-
-
 
 
 
@@ -65,3 +45,6 @@ DONE
   - find ALL hard coded urls and db_ids and get them into the config files!
   - move .gus.properties to a place outside of gushome so they don't get clobbered
   - fix trimming in repeatmask
+  - upgrade query page: collapse id queries into one pull down.
+  - coding/non-coding query (for DT and DG)
+  - coding/non-coding query
