@@ -26,6 +26,7 @@ my @properties =
  ["dotsRelease",          "",  "eg 5 or 6"],
  ["completedSpeciesNickName", "",  "nick name of the other species (eg mus if this is a hum build) if that one completed first. use 'notdone' if it isn't done."],
  ["reassemble",           "",  "yes or no"],
+
  ["serverPath",           "",  "full path of dots update dir on liniac server"],
  ["nodePath",             "",  "full path of scratch dir on liniac node"],
  ["repeatmask.taskSize",  "",  "number of seqs to process per repeatmask subtask"],
@@ -540,7 +541,7 @@ sub downloadTaxon {
 
 }
 
-sub downloadNRDB {
+sub downloadNRDB {  
 
     my $signal = "downloadNRDB";
 
@@ -895,26 +896,28 @@ sub loadRNAClusters {
 
 sub insertNRDB {
 
-    my $logFile = "$pipelineDir/logs/loadNRDB.info";
-
-    my $gitax = "/usr/local/db/local/taxonomy/gi_taxid_prot.dmp";
-
-    my $nrdb = "/usr/local/db/local/nrdb/nr";
-
-    my $temp_login = $propertySet->getProp('nrdbTempLogin');  
-
-    my $temp_password = $propertySet->getProp('nrdbTempPassword'); 
-
-    my $restart = $propertySet->getProp('nrdbRestart');
-
-    my $nrdbReleaseId = $propertySet->getProp('nrdb_db_rls_id');
-
-    my $args = "--verbose --temp_login $temp_login --temp_password $temp_password --restart --gitax $gitax --nrdb $nrdb --maketemp --plugin --delete";
-
-    $mgr->runPlugin("GUS::Common::Plugin::loadNRDB", "LoadNRDB", $args, "Loading NRDB", 'downloadNRDB');
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+  
+  my $date = $propertySet->getProp('buildDate');
+  
+  my $gitax = "$externalDbDir/taxonomy/$date/gi_taxid_prot.dmp";
+  
+  my $nrdb = "$externalDbDir/nrdb/$date/nr";
+  
+  my $temp_login = $propertySet->getProp('nrdbTempLogin');  
+  
+  my $temp_password = $propertySet->getProp('nrdbTempPassword'); 
+  
+  my $restart = $propertySet->getProp('nrdbRestart');
+  
+  my $nrdbReleaseId = $propertySet->getProp('nrdb_db_rls_id');
+  
+  my $args = "--temp_login $temp_login --temp_password $temp_password --restart $restart --gitax $gitax --nrdb $nrdb --extDbRelId $nrdbReleaseId --maketemp --plugin --delete";
+  
+  $mgr->runPlugin("GUS::Common::Plugin::loadNRDB", "LoadNRDB", $args, "Loading NRDB", 'downloadNRDB');
 }	
 
- 
+
 
 sub extractNRDB {
 
@@ -1263,7 +1266,7 @@ sub deleteIndexWords {
     
     my $signal = "deleteIndexWords";
 
-    return if $mgr->startStep("Deleting anatomy percents from GUS", $signal);
+    return if $mgr->startStep("Deleting index_word_link_ids for assemblies from GUS", $signal);
 
     my $taxonId = $propertySet->getProp('taxonId');
 
