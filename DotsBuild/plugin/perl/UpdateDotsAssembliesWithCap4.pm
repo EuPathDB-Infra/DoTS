@@ -108,7 +108,7 @@ my @trimmedAssemblySequences;   ##global list of assembly sequences that get rem
 
 my $assCache;                   ##note that this will be used to manage the assembly cache....nothing more!!
     
-my $cap4Dir = $ctx->{cla}->{'cap4Dir'};
+my $cap4 = $ctx->{cla}->{'cap4Dir'}."/cap4";
 my $tmpLib = "tmpLib";
 my $count = 0;
 my $oldTotal = 0;
@@ -119,7 +119,6 @@ my $algoInvo;                   ##global AlgorithmInvocation used for submits...
 sub run {
   my $M   = shift;
   $ctx = shift;
-  my $cap4 = "${cap4Dir}/cap4";
   print $ctx->{cla}->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
   print "Testing on $ctx->{cla}->{'testnumber'}\n" if $ctx->{cla}->{'testnumber'};
 
