@@ -270,8 +270,8 @@ sub addNewMembers {
       # HACK: put seqs on each chr in a group if they do not overlap any dgs
       unless ($has_dg_overlap) {
 	$no_dg_seqs++; 
-	$clusters->{"c$assSeqs{$assSeq}[2]"} = {} unless ($clusters->{"c$chr_id"});
-	$clusters->{"c"assSeqs{$assSeq}[2]}->{$id} = '';
+	$clusters->{"c$assSeqs{$assSeq}[2]"} = {} unless ($clusters->{"c$assSeqs{$assSeq}[2]"});
+	$clusters->{"c$assSeqs{$assSeq}[2]"}->{$assSeq} = '';
 	# print "*** adding seq $assSeqs on chr $chr_id to a group\n";
       }
     }
