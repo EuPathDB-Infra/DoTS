@@ -174,7 +174,7 @@ sub run {
 
   open(LOG, ">>updateDOTSAssemblies.log");
   select LOG; $| = 1; select STDOUT;
-  #  print STDERR "<html>\n<pre>\n\n";
+  #  print STDERR "<html>\n<preg>\n\n";
 
   ##do  the iterate params..and print the params to the log...
   $iterateParams = $ctx->{cla}->{cap4_params};
