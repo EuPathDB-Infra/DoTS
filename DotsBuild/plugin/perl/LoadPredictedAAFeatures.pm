@@ -88,7 +88,7 @@ sub new {
 	     t => 'int',
 	     h => 'applicable project_id from core.projectinfo table',
 	    }
-	   ]
+	   ];
 
 	    $self->initialize({requiredDbVersion => {},
 		     cvsRevision => '$Revision$', # keyword filled in by cvs
