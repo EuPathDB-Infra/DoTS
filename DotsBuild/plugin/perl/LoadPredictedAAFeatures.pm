@@ -74,7 +74,7 @@ sub new {
 
 	    {
 	     o => 'filename',
-	     t = 'string',
+	     t => 'string',
 	     h => 'Name of file containing the predicted aa features',
 	    },
 
