@@ -21,6 +21,7 @@ NOW
   - rename all-predictions
   - make file for Mr. BrainInfo
   - fix the htaccess stuff so that WHEN the code adds a file to the download site, at that point we append the file to an htaccess string.  it should be a global variable.
+  - add the sub to make Angel's materialized view
 
 
 
