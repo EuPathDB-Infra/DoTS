@@ -20,7 +20,8 @@ sub createDotsGenePipelineDir {
   return if (-e "$dotsGeneBuildDir/$buildName/seqfiles");
 
   $mgr->runCmd("mkdir -p $dotsGeneBuildDir/$buildName/seqfiles");
-  $mgr->runCmd("mkdir -p $dotsGeneBuildDir/$buildName/releasefiles/per_chr_gff");
+  my $sp = $propertySet->getProp('speciesNickname');
+  $mgr->runCmd("mkdir -p $dotsGeneBuildDir/$buildName/releasefiles/$sp/per_chr_gff");
 
   $mgr->runCmd("chmod -R g+w $dotsGeneBuildDir/$buildName");
 }
@@ -611,7 +612,7 @@ sub makeGffFiles {
       . " --spliced 1 --stable --format gff"
       . " --out_dir $outDir --out_fn_pref $rlsFilePref 2>>  $logFile";
 
-  # $mgr->runCmd($cmd);
+  $mgr->runCmd($cmd);
 
   my $rlsFileSuff = $mgr->{releaseFileSuffix};
   my $outFile = "$outDir/../$rlsFilePref${rlsFileSuff}.gff";
