@@ -60,14 +60,15 @@ my $ms_id =  0;
 
 sub run {
   my $self   = shift;
-  my $ctx = shift;
+  my $args = $self->getArgs;
+
     
-  $self->log ($self->getArgs->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n");
-  $self->log ("Testing on $self->getCla{'testnumber'}\n") if $self->getArgs->{'testnumber'};
+  $self->log ($args->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n");
+  $self->log ("Testing on $args->{'testnumber'}\n") if $args->{'testnumber'};
     
-  die "\nYou must sort the cluster file by descending number of sequences and include --sort_desc on command line\n\n" unless $self->getArgs->{sort_desc};
+  die "\nYou must sort the cluster file by descending number of sequences and include --sort_desc on command line\n\n" unless $args->{sort_desc};
     
-  open(F,"$self->getArgs->{'clusterfile'}") || die "clusterfile $self->getArgs->{'clusterfile'} not found\n";
+  open(F,"$args->{'clusterfile'}") || die "clusterfile $args->{'clusterfile'} not found\n";
     
   my $algoInvo = $self->getAlgInvocation;
 
@@ -76,8 +77,8 @@ sub run {
     
   ##get entries already processed
   my %done;
-  if (-e $self->getArgs->{logfile}) {
-    open(L, "$self->getArgs->{logfile}");
+  if (-e $args->{logfile}) {
+    open(L, "$args->{logfile}");
     while (<L>) {
       if (/^(Cluster_\S+)/) {
         $done{$1} = 1;
@@ -86,7 +87,7 @@ sub run {
     $self->log ("restarting: completed ",scalar(keys%done)," clusters\n");
     close L;
   }
-  open(L, ">>$self->getArgs->{logfile}");
+  open(L, ">>$args->{logfile}");
   select L; $| = 1; select STDOUT;
     
   my $ct = 0;
@@ -96,7 +97,7 @@ sub run {
       my $cluster = $1;
       $ct++;
       next if $done{$1};
-      last if $self->getArgs->{testnumber} && $ct > $self->getArgs->{testnumber};
+      last if $args->{testnumber} && $ct > $args->{testnumber};
       $self->log ("Processing $ct: $1\n") if $ct % 100 == 0;
       my @ids = split(', ',$2); ##array of related assembly.na_sequence_ids
       my %rnas;
