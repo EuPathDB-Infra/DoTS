@@ -1,4 +1,4 @@
-#!@perl@
+#!@Perl@
 use strict;
 
 use lib "$ENV{GUS_HOME}/lib/perl";
@@ -67,7 +67,8 @@ my @properties =
  ["downloadNRDB",   "",  "yes or no"],
  ["loadDbEst", "", "yes or no"],
  ["loadGeneCards",   "",  "yes or no"],
- ["downloadGOStuff",   "",  "yes or no"],
+ ["downloadCDD",   "",  "yes or no"],
+ ["downloadProdom",   "",  "yes or no"],
  ["prodomRelease",   "",  "eg 2001.3"],
  ["mgi_db_rls_id",   "",  "database release id for mgi"],
  ["genecards_db_rls_id",   "",  "database release id for genecards"],
@@ -120,7 +121,6 @@ my @properties =
  ["dbESTRestart", "","number (dbest_id_est from dots.est) to restart parsedbEST plugin on, get from log"],
  ["phrapDir", "","phrap directory"],
  ["dbi_str", "", "string used to identify server and login for LoadNRDB temp table"],
- ["prodomFile", "","specific prodom file for download"],
  ["sourceDB", "", "pair list of ExternalDatabase.name:ncbi abreviations for nrdb, e.g. GENBANK (NRDB):gb,EMBL DATA LIBRARY (NRDB):emb"],
  ["proteinDir", "","directory containing protein sequence files"],
  ["project_id", "","project_id from projectinfo table, used in projectLink table,get from first species run"],["makeStatPage", "","make Statistics page, yes or no"],
@@ -141,7 +141,9 @@ my @properties =
  ["dbestDate", "","approx date for dbEST files"],
  ["prodomVersion", "","prodom version used for build"],
  ["cddFileDates", "","approx date for cdd files"],
- ["repeatmask.dangleMax", "","option for trimDangling in repeatMasker"]
+ ["repeatmask.dangleMax", "","option for trimDangling in repeatMasker"],
+ ["allgenesSchema", "","login used for allgenes tables schema"],
+ ["runQualityStart", "","yes or no"]
  ); 
 
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
@@ -378,7 +380,13 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &makeProjectLink(); 
 
-&makeAllgenesTable();
+&makeProteinAssembly();
+
+&makeDTOrfPValueTable();
+
+&makeAssemblySignalPSummaryTable();
+
+&makeAssemblyTMDomainSummaryTable();
 
 &createManuallyReviewedDoTSFile();
 
@@ -837,7 +845,7 @@ sub qualityStart {
 
   $mgr->runPlugin("setQualityStart", 
 		   "DoTS::DotsBuild::Plugin::SetAssSeqQualStartStop",
-		   $args, "setting quality start in AssemblySequence");
+		   $args, "setting quality start in AssemblySequence",'runQualityStart');
 
 }
 
@@ -1161,7 +1169,7 @@ sub downloadCDD {
 
     my $signal = "downloadCDD";
 
-    return if $mgr->startStep("Downloading CDD", $signal, 'downloadGOStuff');
+    return if $mgr->startStep("Downloading CDD", $signal, 'downloadCDD');
 
     $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
 
@@ -1189,7 +1197,7 @@ sub downloadCDD {
 sub unpackCDD {
 
     my $signal = "unpackCDD";
-    return if $mgr->startStep("Unpacking CDD files", $signal, 'downloadGOStuff');
+    return if $mgr->startStep("Unpacking CDD files", $signal, 'downloadCDD');
     
     my $logFile = "$pipelineDir/logs/$signal.log";
 
@@ -1258,7 +1266,7 @@ sub insertCDD {
     $mgr->runPlugin("insertLoad", 
 		    "GUS::Common::Plugin::InsertNewExternalSequences", 
 		    $loadArgs,
-		   "Inserting Load", 'downloadGOStuff');
+		   "Inserting Load", 'downloadCDD');
 
     my $pfamDB = $propertySet->getProp('pfam_db_rls_id');
 
@@ -1270,7 +1278,7 @@ sub insertCDD {
     my $pfamArgs = "--verbose --table_name 'DoTS::MotifAASequence' --sequencefile '$downloadSubDir/PFAM' --external_database_release_id $pfamDB --regex_source_id \"$regex_src_id\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
     
     $mgr->runPlugin("insertPfam", "GUS::Common::Plugin::InsertNewExternalSequences", $pfamArgs,
-		   "Inserting Pfam", 'downloadGOStuff');
+		   "Inserting Pfam", 'downloadCDD');
     
     my $smartDB = $propertySet->getProp('smart_db_rls_id');
     
@@ -1284,7 +1292,7 @@ sub insertCDD {
     $mgr->runPlugin("insertSmart", 
 		    "GUS::Common::Plugin::InsertNewExternalSequences", 
 		    $smartArgs,
-		    "Inserting Smart", 'downloadGOStuff');
+		    "Inserting Smart", 'downloadCDD');
 
   my $cogDB = $propertySet->getProp('cog_db_rls_id');
 
@@ -1297,7 +1305,7 @@ sub insertCDD {
   $mgr->runPlugin("insertCOG", 
 		  "GUS::Common::Plugin::InsertNewExternalSequences", 
 		  $cogArgs,
-		  "Inserting COG", 'downloadGOStuff');
+		  "Inserting COG", 'downloadCDD');
 
   my $cdDB = $propertySet->getProp('cd_db_rls_id');
   
@@ -1310,7 +1318,7 @@ sub insertCDD {
   $mgr->runPlugin("insertCD", 
 		  "GUS::Common::Plugin::InsertNewExternalSequences", 
 		  $cdArgs,
-		  "Inserting CD", 'downloadGOStuff');
+		  "Inserting CD", 'downloadCDD');
   
 }
 
@@ -1318,9 +1326,7 @@ sub downloadProdom {
 
     my $signal = "downloadProdom";
 
-    return if $mgr->startStep("Downloading Prodom", $signal, 'downloadGOStuff');
-
-    my $prodomRelease = $propertySet->getProp('prodomRelease');
+    return if $mgr->startStep("Downloading Prodom", $signal, 'downloadProdom');
 
     my $externalDbDir = $propertySet->getProp('externalDbDir');
 
@@ -1330,7 +1336,6 @@ sub downloadProdom {
     
     $mgr->runCmd("mkdir -p $downloadSubDir");
 
-    my $file = $propertySet->getProp('prodomFile');
     my $logfile = "$pipelineDir/logs/$signal.log";
 
     $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
@@ -1339,10 +1344,10 @@ sub downloadProdom {
 
     $mgr->runCmd("mkdir -p $downloadSubDir");
 
-    my $cmd = "wget -t5 -b -m -np -nd -nH -o $logfile  --cut-dirs=3 -A \"$file\"  -P $downloadSubDir ftp://ftp.toulouse.inra.fr/pub/prodom/$prodomRelease/OLD_BLAST/";
+    my $cmd = "wget -t5 -b -m -np -nd -nH -o $logfile  --cut-dirs=3 -A \"prodom.cons.gz\"  -P $downloadSubDir ftp://ftp.toulouse.inra.fr/pub/prodom/current_release/";
     
     $mgr->runCmd($cmd);
-    $mgr->runCmd("gunzip $downloadSubDir/$file");
+    $mgr->runCmd("gunzip $downloadSubDir/prodom.cons.gz");
     
     $mgr->endStep($signal);
 }
@@ -1361,18 +1366,20 @@ sub insertProdom {
 
     my $prodomDB = $propertySet->getProp('prodom_db_rls_id');
 
-    # PD000001 p2001.3 (5328) KIT(16) KPC1(13) CDC2(13) // KINASE TRANSFERASE ATP-BINDING SERINE/THREONINE-PROTEIN RECEPTOR TYROSINE-PROTEIN 2.7.1.-PHOSPHORYLATION PRECURSOR
-
-    my $regex_src_id = "^\\>(\\w+)";  
+    #>PD000001 p2001.3 (5600) KIT(16) KPC1(13) CDC2(13) // KINASE TRANSFERASE ATP-BINDING SERINE/THREONINE-PROTEIN RECEPTOR TYROSINE-PROTEIN 2.7.1.-PHOSPHORYLATION PRECURSOR
+    #>CONSENSUS#PD000001 | 380 | pd_PD000001; | (5600)  KINASE TRANSFERASE ATP-BINDING SERINE/THREONINE-PROTEIN RECEPTOR TYROSINE-PROTEIN 2.7.1.- PHOSPHORYLATION DOMAIN SERINE/THREONINE  as of 2003.1
+    #my $regex_src_id = "^\\>(\\w+)"; 
+    my $regex_src_id = "^\\>CONSENSUS#(\\w+)";
     my $regex_contained_seqs = "\\((\\d+)";
-    my $regex_name = "(\\(.+)\\s\\/\\/";
-    my $regex_desc = "\\/\\/\\s(.+)";
+    #my $regex_name = "(\\(.+)\\s\\/\\/";
+    #my $regex_desc = "\\/\\/\\s(.+)";
+    my $regex_desc = "\\)\\s+(.+)";
 
-    my $args = "--verbose --table_name DoTS::MotifAASequence --sequencefile $prodomFile --external_database_release_id $prodomDB --regex_source_id \"$regex_src_id\"  --regex_contained_seqs \"$regex_contained_seqs\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
+    my $args = "--verbose --table_name DoTS::MotifAASequence --sequencefile $prodomFile --external_database_release_id $prodomDB --regex_source_id \"$regex_src_id\"  --regex_contained_seqs \"$regex_contained_seqs\" --regex_desc \"$regex_desc\"";
 
     $mgr->runPlugin("insertProdom", 
 		    "GUS::Common::Plugin::InsertNewExternalSequences", $args,
-		    "Inserting Prodom", 'downloadGOStuff');
+		    "Inserting Prodom", 'downloadProdom');
 }
 
 sub extractProdom {
@@ -1606,7 +1613,7 @@ sub deleteMotifIndexWords {
   my $signal = "deleteMotifIndexWords";
 
   return if $mgr->startStep("Deleting motif index word links from GUS",
-			    $signal, 'downloadGOStuff');
+			    $signal, 'downloadCDD');
 
   my $buildDate = $propertySet->getProp('buildDate');
 
@@ -1649,7 +1656,7 @@ sub makeMotifIndexWordLink {
 
   $mgr->runPlugin("makeMotifIndexWordLink", 
 		  "GUS::Common::Plugin::MakeIndexWordLink", $args, 
-		  "Making motif index word links", 'downloadGOStuff');
+		  "Making motif index word links", 'downloadCDD');
 }
  
 sub indexSimilarityWords { 
@@ -2855,28 +2862,92 @@ sub makeProjectLink {
     $mgr->endStep($signal);
 }
 
-sub makeAllgenesTable {
+sub makeProteinAssembly {
   
-  my $signal = "makeAllgenesTable";
+  my $signal = "makeProteinAssemblyTable";
 
-  return if $mgr->startStep("Creating and filling ", $signal,'makeAllgenesTable');
+  return if $mgr->startStep("Insert entries in allgenes ProteinAssembly table ", $signal);
 
   my $logFile = "$pipelineDir/logs/${signal}.log";
 
   my $taxonId = $propertySet->getProp('taxonId');
 
-  my $login = $propertySet->getProp('allgenesLogin');
-  
-  my $password = $propertySet->getProp('allgenesPassword');
+  my $allgenesSchema = $propertySet->getProp('allgenesSchema');
 
-  my $args = "--login $login --password $password --taxon_id $taxonId";
+  my $args = "--verbose --taxon_id $taxonId --allgenesSchema $allgenesSchema";
 
-  my $cmd = "makeAllgenesTables $args 2>> $logFile";
+  my $cmd = "makeProteinAssembly $args 2>> $logFile";
 
   $mgr->runCmd($cmd);
 
   $mgr->endStep($signal);
 
+
+}
+
+sub makeDTOrfPValueTable {
+
+  my $signal = "makeDTOrfPValueTable";
+
+  return if $mgr->startStep("Insert entries in allgenes makeDTOrfPValue table", $signal);
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $allgenesSchema = $propertySet->getProp('allgenesSchema');
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $args = "--verbose --taxon $taxonId --allgenesSchema $allgenesSchema";
+
+  my $cmd = "makeDTOrfPvalue $args 2>> $logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+}
+
+sub makeAssemblySignalPSummaryTable {
+
+  my $signal = "makeAssemblySignalPSummaryTable";
+
+  return if $mgr->startStep("Insert entries in allgenes makeAssemblySignalPSummary table", $signal);
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $allgenesSchema = $propertySet->getProp('allgenesSchema');
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $args = "--verbose --taxon $taxonId --allgenesSchema $allgenesSchema";
+
+  my $cmd = "makeAssemblySignalPSummary $args 2>> $logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+}
+
+sub makeAssemblyTMDomainSummaryTable {
+
+  my $signal = "makeAssemblyTMDomainSummaryTable";
+
+  return if $mgr->startStep("Insert entries in allgenes makeAssemblyTMDomainSummary table", $signal);
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $allgenesSchema = $propertySet->getProp('allgenesSchema');
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $args = "--verbose --taxon $taxonId --allgenesSchema $allgenesSchema";
+
+  my $cmd = "makeAssemblyTMDomainSummary $args 2>> $logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
 
 }
 
