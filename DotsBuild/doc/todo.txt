@@ -22,6 +22,7 @@ NOW
 
 
 
+
 LATER
   - move from /ptolemy to /files
   - continue to zip as we go
@@ -47,8 +48,7 @@ LATER
   - do we have to limit our queries that make the download site files by project id?
   - Add property for regex for task.prop for cdd (do this the next time the regex changes)
   - standardize all sequence entry, blast, and similarity (incl. gene tags) procedures and code
-
-
+  - there were > 100 errors caused by PK constraint violation in dotsver.assemblysequencever during assembly, this caused a failure in processing clusters. I fixed them manually (deleted the version entry) and reprocessed those clusters. Is there a way to do this automatically-or a message to do this before resuming the build?
 
 
 
