@@ -675,7 +675,7 @@ sub parsedbEST {
 
   my $taxonId = $propertySet->getProp('taxonId');
 
-  my $args = "--log $pipelineDir/logs/dbest.log --span 500 --taxon_id $taxonId --restart_number $restart";
+  my $args = "--log $pipelineDir/logs/dbest.log --span 500 --project 'dbEST Parser' --taxon_id $taxonId --restart_number $restart";
   
   $mgr->runPlugin("loadDbEst", "GUS::Common::Plugin::dbEST", $args, 
 		  "Loading dbEST files into GUS", 'loadDbEst');
@@ -693,7 +693,7 @@ sub makeAssemSeqs {
 	
   my $phrapDir = $propertySet->getProp('phrapDir');
     
-  my $args = "--taxon_id=$taxonId --repeatFile $repeatFile --phrapDir $phrapDir";
+  my $args = "--taxon_id $taxonId --repeatFile $repeatFile --phrapDir $phrapDir";
   
   $mgr->runPlugin("makeAssemSeqs", 
 		  "DoTS::DotsBuild::Plugin::MakeAssemblySequences", $args,
