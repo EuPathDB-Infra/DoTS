@@ -47,33 +47,33 @@ sub new {
 
 sub run {
 
-    my $M  = shift;
-    my $ctx = shift;
-    my $testnum;
-    print STDERR $ctx->{cla}->{'commit'}?"***COMMIT ON***\n":"**COMMIT TURNED OFF**\n";
-    if ($ctx->{'cla'}->{'testnumber'}) {
-	print STDERR "Testing on $ctx->{'cla'}->{'testnumber'} insertions 
+  my $M  = shift;
+  my $ctx = shift;
+  my $testnum;
+  print STDERR $ctx->{cla}->{'commit'}?"***COMMIT ON***\n":"**COMMIT TURNED OFF**\n";
+  if ($ctx->{'cla'}->{'testnumber'}) {
+    print STDERR "Testing on $ctx->{'cla'}->{'testnumber'} insertions 
                 into temp table\n" 
-		    if $ctx->{'cla'}->{'testnumber'};
-	$testnum = $ctx->{'cla'}->{'testnumber'};
-    }
+      if $ctx->{'cla'}->{'testnumber'};
+    $testnum = $ctx->{'cla'}->{'testnumber'};
+  }
 
-    if (!$ctx->{'cla'}->{'inputfile'}) {
+  if (!$ctx->{'cla'}->{'inputfile'} || !$ctx->{'cla'}->{'external_db_release_id'}) {
 
-	die "--inputfile must be supplied\n";
+    die "--inputfile --external_db_release_id must be supplied\n";
 
-    }
-    my $inputfile = $ctx->{'cla'}->{'inputfile'};
+  }
+  my $inputfile = $ctx->{'cla'}->{'inputfile'};
 
-    my $external_db_release_id = $ctx->{'cla'}->{'external_db_release_id'};
-    
-    my $dataHash = &makeDataHash($inputfile, $testnum);
-    
-    &updateDbRef($dataHash, $external_db_release_id);    
+  my $external_db_release_id = $ctx->{'cla'}->{'external_db_release_id'};
+
+  my $dataHash = &makeDataHash($inputfile, $testnum);
+
+  &updateDbRef($dataHash, $external_db_release_id);    
 }
 
 sub makeDataHash {
-    
+  
     my ($inputfile, $testnum) = @_;
     
     my %dataHash;
