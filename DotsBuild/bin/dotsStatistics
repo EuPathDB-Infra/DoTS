@@ -527,7 +527,7 @@ sub getGODistribution {
    and edr.external_database_id = 227
    and t.minimum_level = 2
    and t.go_id not in ('GO:0008369', 'GO:0005554')
-   group by pst.taxon_id, t.name, t.go_term_id ";
+   group by pst.taxon_id, t.name, t.go_id ";
 #   and t.name in
 #('enzyme activity',
 #'antioxidant activity',
