@@ -146,6 +146,9 @@ sub run {
 				 Disp::Display(\%counter) if $rows_n % 1000 == 0;
 				 $seq->undefPointerCache;
 			}
+			if ($self->getArgs()->{'testnumber'} && $rows_n > $self->getArgs()->{'testnumber'}) {
+			  last();
+			}
 	 } # end while LOOP
 	 $fh->close;
 
