@@ -1,5 +1,12 @@
           ================ DOTS BUILD TODO ===============
 
+
+For Release 8 and beyond
+  - move to DIANA from framefinder for build 8?
+  - develop new clustering algorithm (new graph approach + genome)
+  - unify our approach to loading links to external dbs
+
+
 FOR RELEASE 7
 
  **** Before Downloading ****
