@@ -1,85 +1,69 @@
-#!/usr/bin/perl
+package DoTS::DotsBuild::Plugin::CalculateGeneTrapLinks;
 
-# -----------------------------------------------------------------------
-# CalculateGeneTrapLinks.pm
-#
-# Populate the GeneTrapAssembly table.  Takes as input a set of BLAST
-# files comparing the gene trap tag sequences to DoTS consensus 
-# sequences.
-#
-# Created: Tue Oct  2 22:12:24 EDT 2001
-#
-# Jonathan Crabtree
-#
-# $Revision$ $Date$ $Author$
-# -----------------------------------------------------------------------
-
-package CalculateGeneTrapLinks;
+@ISA = qw(GUS::PluginMgr::Plugin);
 
 use strict;
 
-use BLAST2::BLAST2;
-use Objects::GUSdev::GeneTrapAssembly;
-
-# ----------------------------------------------------------
-# Version
-# ----------------------------------------------------------
+use CBIL::Bio::BLAST2::BLAST2;
+use GUS::Model::DoTS::GeneTrapAssembly;
 
 my $VERSION = '$Revision$'; $VERSION =~ s/Revision://; $VERSION =~ s/\$//g; $VERSION =~ s/ //g;
 
-# ----------------------------------------------------------
-# GUSApplication
-# ----------------------------------------------------------
-
 sub new {
-    my $Class = shift;
-    return bless {}, $Class;
-} 
-
-sub Usage {
-    my $M = shift;
-    return 'Calculate the correspondence between gene trap tag sequences and DoTS assemblies.';
+    my ($class) = @_;
+    
+    my $self = {};
+    bless($self,$class);
+    
+    my $usage = 'Calculate the correspondence between gene trap tag sequences and DoTS assemblies';
+    
+    my $easycsp =
+	[{o => 'external_db_release',
+	  t => 'int',
+	  h => 'external_db_release_id of the gene trap tag sequences.',
+         },
+	 {o => 'blast_dir',
+	  t => 'string',
+	  h => 'Directory containing BLASTN output files from searching tag sequences against DoTS assemblies.',
+	 },
+	 {o => 'min_pct_id',
+	  t => 'float',
+	  h => 'Minimum percent identity for a match/HSP to be loaded.',
+	  d => 90.0,
+         },
+	 {o => 'min_pct_len',
+	  t => 'float',
+	  h => "Minimum percent of the tag's length for a match/HSP to be loaded.",
+	  d => 50.0,
+	 }
+	 ];
+    
+    $self->initialize({requiredDbVersion => {},
+		       cvsRevision => '$Revision$',  # cvs fills this in!
+		       cvsTag => '$Name$', # cvs fills this in!
+		       name => ref($self),
+		       revisionNotes => 'make consistent with GUS 3.0',
+		       easyCspOptions => $easycsp,
+		       usage => $usage
+		       });
+    
+    return $self;
 }
 
-sub EasyCspOptions {
-    my $M = shift;
 
-    return {
-	extDbId => {
-	    o => 'external_db_id=i',
-	    h => 'external_db_id of the gene trap tag sequences.',
-	    d => 3692,
-	},
-	blastDir => {
-	    o => 'blast_dir=s',
-	    h => 'Directory containing BLASTN output files from searching tag sequences against DoTS assemblies.',
-	},
-	minPctId => {
-	    o => 'min_pct_id=f',
-	    h => 'Minimum percent identity for a match/HSP to be loaded.',
-	    d => 90.0,
-	},
-	minPctLen => {
-	    o => 'min_pct_len=f',
-	    h => "Minimum percent of the tag's length for a match/HSP to be loaded.",
-	    d => 50.0,
-	}
-    };
-}
-
-sub Run {
+sub run {
     my $M = shift;
     my $ctx = shift;
     my $dbh = $ctx->{'self_inv'}->getQueryHandle();
-
-    my $blastDir = $ctx->{blastDir};
-    my $extDbId = $ctx->{extDbId};
-    my $minPctId = $ctx->{minPctId};
-    my $minPctLen = $ctx->{minPctLen};
-
+    
+    my $blastDir = $ctx->{blast_dir};
+    my $extDbRel = $ctx->{external_db_release};
+    my $minPctId = $ctx->{min_pct_id};
+    my $minPctLen = $ctx->{min_pct_len};
+    
     # Query for and cache the na_sequence_id, name, and length of each tag
     #
-    my $tagSeqs = &getTagSequences($dbh, $extDbId);
+    my $tagSeqs = &getTagSequences($dbh, $extDbRel);
     my $nTags = scalar(@$tagSeqs);
     my $nLinks = 0;
 
@@ -105,12 +89,12 @@ sub Run {
 }
 
 sub getTagSequences {
-    my($dbh, $extDbId) = @_;
+    my($dbh, $extDbRel) = @_;
     my $seqs = [];
 
     my $q = ("select na_sequence_id, source_id, length " .
-	     "from ExternalNASequence " .
-	     "where external_db_id = $extDbId");
+	     "from dots.ExternalNASequence " .
+	     "where external_db_release_id = $extDbRel");
 
     my $sth = $dbh->prepare($q);
 
@@ -131,7 +115,7 @@ sub processBLASTResults {
     my $tagLen = $tag->{length};
     my $minMatchLen = ($minLenPct / 100.0) * $tagLen;
 
-    my $b = BLAST2::parseBLAST2output("cat $bfile |");
+    my $b = CBIL::Bio::BLAST2::BLAST2::parseBLAST2output("cat $bfile |");
     my $ns = $b->getNumSbjcts();
     my $numMatches = 0;
     my $numMeetingCriteria = 0;
@@ -162,7 +146,7 @@ sub processBLASTResults {
 #		print "Match: $tagSrcId ($tagId) against $dotsId ";
 #		print " $pct% over $len/$tagLen bp bestHit=$bestHit\n";
 
-		my $obj = GeneTrapAssembly->new({
+		my $obj = GUS::Model::DoTS::GeneTrapAssembly->new({
 		    'tag_na_sequence_id' => $tagId,
 		    'assembly_na_sequence_id' => $dotsId,
 		    'is_best_match' => $bestHit,
@@ -191,9 +175,8 @@ sub processBLASTResults {
 
 if ($0 !~ /ga$/i) {
 
-    my $usg = Usage();
+    my $usg = 'Calculate the correspondence between gene trap tag sequences and DoTS assemblies.';
     my $name = $0; $name =~ s/\.pm$//; $name =~ s/^.+\///;
-    my $md5 = `/usr/bin/md5sum $0`;
     chomp $md5;
     $md5 =~ s/^(\S+).+/$1/;
 
@@ -206,9 +189,9 @@ if ($0 !~ /ga$/i) {
 <AlgorithmImplementation xml_id="1002" parent="1001">
   <version>$VERSION</version>
   <executable>$0</executable>
-  <executable_md5>$md5</executable_md5>
 </AlgorithmImplementation>
 XML
 }
 
 1;
+
