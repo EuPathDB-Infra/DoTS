@@ -120,7 +120,7 @@ my @properties =
  ["prodomFile", "","specific prodom file for download"],
  ["sourceDB", "", "pair list of ExternalDatabase.name:ncbi abreviations for nrdb, e.g. GENBANK (NRDB):gb,EMBL DATA LIBRARY (NRDB):emb"],
  ["proteinDir", "","directory containing protein sequence files"],
- ["project_id", "","project_id from projectinfo table, used in projectLink table,get from first species run"]
+ ["project_id", "","project_id from projectinfo table, used in projectLink table,get from first species run"],["makeStatPage", "","make Statistics page, yes or no"]
  ); 
 
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
@@ -211,6 +211,10 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
 
 &matrix("final");
 
+&markBadSeqs();  
+
+&getIdsPerAssembly(); 
+
 &startSimilaritiesOnLiniac();
 
    &cluster("gene", "finalDots-finalDots");
@@ -218,12 +222,6 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
    &sortClusters();
 
    &loadRNAClusters();
-
-   &markBadSeqs();  
-
-   &getIdsPerAssembly(); 
-
-   &getImcloneOnlyAssemblies();
 
    &getAssembliesPerGene();
 
@@ -598,7 +596,7 @@ sub downloadNRDB {
 
     $mgr->runCmd("mkdir -p $downloadSubDir");
 
-    my $cmd = "wget -t5 -b -m -np -nd -nH -o $logfile --cut-dirs=3 -A \"nr.Z\"  -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/pub/blast/db/";
+    my $cmd = "wget -t5 -b -m -np -nd -nH -o $logfile --cut-dirs=4 -A \"nr.Z\"  -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/pub/blast/db/FASTA";
 	
     $mgr->runCmd($cmd);
 
@@ -919,32 +917,42 @@ sub reassemble {
 
   my $taxonId = $propertySet->getProp('taxonId');
 
-  my $sql = "select na_sequence_id from dots.assembly where taxon_id = $taxonId  and (assembly_consistency < 90 or length < 50 or length is null";
+  my $sql = "select na_sequence_id from dots.assembly where taxon_id = $taxonId  and (assembly_consistency < 90 or length < 50 or length is null or description = 'ERROR: Needs to be reassembled')";
 
-  my $clusterFile = "$pipelineDir/cluster/$name/reassembleCluster.out";
+  my $clusterFile = "$pipelineDir/cluster/$name/cluster.out";
 
-  my $cmd = "makeClusterFile --idSQL \"$sql\" --clusterFile $clusterFile";
+  my $suffix = "reassemble";
 
-  $mgr->runCmd($cmd);
+  my $old = "";
 
-  my $args = "--clusterfile $clusterFile  --reassemble --taxon_id $taxonId";
+  my $reassemble = "yes";
 
-  my $pluginCmd = "ga DoTS::DotsBuild::Plugin::UpdateDotsAssembliesWithCap4 --commit $args --comment '$args'";
-
-  my $logfile = "$pipelineDir/logs/${name}Reassemble.log";
-
-  my $assemDir = "$pipelineDir/assembly/$name/${name}reassemble";
-
-  $mgr->runCmd("mkdir -p $assemDir");
-
-  chdir $assemDir || die "Can't chdir to $assemDir";
-
-  my $cmd = "runUpdateAssembliesPlugin --clusterFile  $clusterFile --pluginCmd \"$pluginCmd\" 2>> $logfile"; 
+  my $cmd = "makeClusterFile --idSQL \"$sql\" --clusterFile $clusterFile.$suffix";
 
   $mgr->runCmd($cmd);
+
+  &runAssemblePlugin($clusterFile, $suffix, $name, $old, $reassemble);
 
   $mgr->endStep($signal);
+    my $msg = 
+"EXITING.... PLEASE DO THE FOLLOWING:
+ 1. resume when reassembly completes (validly) by re-runnning 'dotsbuild $propertiesFile'
+";
+    print STDERR $msg;
+    print $msg;
+    $mgr->goodbye($msg);
+}
 
+sub deleteAssembliesWithNoAssemblySequences {
+  
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $args = "--taxon_id $taxonId";
+  
+  $mgr->runPlugin("deleteAssembliesWithNoAssSeq", 
+		  "DoTS::DotsBuild::Plugin::DeleteAssembliesWithNoAssemblySequences",
+		  $args, "Deleting assemblies with no assemblysequences");
+  
 }
 
 sub matrix {
@@ -1383,7 +1391,7 @@ sub copySimilaritiesFromLiniac {
     my $signal = "copySimilaritiesFromLiniac";
     return if $mgr->startStep("Copying protein similarities from $liniacServer", 
 			 $signal);
-    my @names = ("finalDots-nrdb", "finalDots-prodom", "finalDots-cdd");
+    my @names = ("finalDots-nrdb","finalDots-prodom", "finalDots-cdd");
     foreach my $name (@names) {
 	$mgr->copyFromLiniac($liniacServer, 
 			     "$serverPath/$buildName/similarity/$name/master/mainresult", 
@@ -2178,7 +2186,7 @@ sub deleteAnatomyPercent {
 
     my $signal = "deleteAnatomyPercent";
 
-    return if $mgr->startStep("Deleting index word links from GUS", $signal);
+    return if $mgr->startStep("Deleting AssemblyAnatomyPercent entries from GUS", $signal);
     
     my $taxonId = $propertySet->getProp('taxonId');
 
@@ -2491,20 +2499,21 @@ sub RNAProteinIntegration {
 
 sub makeStatisticsPage {
 
-    my $signal = "makeStatisticsPage";
-
-    return if $mgr->startStep("Making statistics html file", $signal);
-    
-    my $GOversion = $propertySet->getProp('GOversion');
-
-    my $output = "$pipelineDir/misc/statistics.html";
-
-    my $logfile = "$pipelineDir/logs/${signal}.log";
-    
-    my $cmd = "printAllGenesStats.pl --dropTmpTable --go_cvs_version $GOversion > $output 2>> $logfile"; 
-
-    $mgr->runCmd($cmd);
+  my $signal = "makeStatisticsPage";
+  
+  return if $mgr->startStep("Making statistics html file", $signal,'makeStatPage');
+  
+  my $GOversion = $propertySet->getProp('GOversion');
+  
+  my $output = "$pipelineDir/misc/statistics.html";
+  
+  my $logfile = "$pipelineDir/logs/${signal}.log";
+  
+  my $cmd = "printAllGenesStats.pl --dropTmpTable --go_cvs_version $GOversion > $output 2>> $logfile"; 
+  
+  $mgr->runCmd($cmd);
 }
+
 
 sub downloadMGIInfo {
 
@@ -2522,10 +2531,11 @@ sub downloadMGIInfo {
 
     my $downloadSubDir = "$externalDbDir/mgi/$date";
     
-    $mgr->runCmd("mkdir -p $downloadSubDir");
+    my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=2 -A \"MRK_List2.sql.rpt\"  -P $downloadSubDir  ftp://ftp.informatics.jax.org/pub/reports/";
 
+    $mgr->runCmd($cmd) unless (-e "$downloadSubDir/MRK_List2.sql.rpt");
 
-    my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=3 -A \"MRK_List2.sql.rpt\"  -P $downloadSubDir  ftp://www.informatics.jax.org/pub/informatics/reports/";
+    my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=3 -A \"MGI_DT_via_GB_one_*\"  -P $downloadSubDir  ftp://ftp.informatics.jax.org/pub/reports/dotstigr/";
 
     $mgr->runCmd($cmd);
 
