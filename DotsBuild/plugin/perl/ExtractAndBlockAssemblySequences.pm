@@ -16,13 +16,16 @@ sub new {
 
   my $easycsp =
     [
-     {o => 'testnumber=i',
+     {o => 'testnumber',
+      t => 'int',
       h => 'number of iterations for testing',
      },
-     {o => 'taxon_id=i',
+     {o => 'taxon_id',
+      t => 'int',
       h => 'taxon_id for sequences to process: 8=Hum, 14=Mus.',
      },
-     {o => 'outputfile=s',
+     {o => 'outputfile',
+      t => 'string',
       h => 'Name of file for output sequences',
      },
      {o => 'rm_options',
@@ -61,54 +64,54 @@ my $tmpLib = "tmpLib.$$";
 my $RepMaskCmd;
 
 sub Run {
-    my $M   = shift;
+    my $self   = shift;
     
-    die "You must enter repeat masker options on the command line to specify minimally the organism to be blocked\n" unless $M->getCla{rm_options} || $M->getCla{extractonly};
-    die "You must enter either the --taxon_id or --idSQL on the command line\n" unless $M->getCla{taxon_id} || $M->getCla{idSQL};
-    die "You must enter an outputfile name on the command line\n" unless $M->getCla{'outputfile'};
+    die "You must enter repeat masker options on the command line to specify minimally the organism to be blocked\n" unless $self->getCla{rm_options} || $self->getCla{extractonly};
+    die "You must enter either the --taxon_id or --idSQL on the command line\n" unless $self->getCla{taxon_id} || $self->getCla{idSQL};
+    die "You must enter an outputfile name on the command line\n" unless $self->getCla{'outputfile'};
     
-    $M->log ($M->getCla{'commit'} ? "***COMMIT ON***\n" : "COMMIT TURNED OFF\n");
-    $M->log ("Testing on $M->getCla{'testnumber'}\n") if $M->getCla{'testnumber'};
+    $self->log ($self->getCla{'commit'} ? "***COMMIT ON***\n" : "COMMIT TURNED OFF\n");
+    $self->log ("Testing on $self->getCla{'testnumber'}\n") if $self->getCla{'testnumber'};
     
-    my $dbh = $M->getQueryHandle();
+    my $dbh = $self->getQueryHandle();
     
-    if ($M->getCla{extractonly}) {
-	$M->log("Extracting sequences without blocking\n");
+    if ($self->getCla{extractonly}) {
+	$self->log("Extracting sequences without blocking\n");
     } else {
-	$RepMaskCmd = "RepeatMasker $M->getCla{rm_options}";
-	$M->log ("RepeatMasker command:\n  $RepMaskCmd\n");
+	$RepMaskCmd = "RepeatMasker $self->getCla{rm_options}";
+	$self->log ("RepeatMasker command:\n  $RepMaskCmd\n");
     }
     
     ##implement restart here....
     my %finished;
     ##restart 
-    if ( -e "$M->getCla{'outputfile'}") {
-	open(F,"$M->getCla{'outputfile'}");
+    if ( -e "$self->getCla{'outputfile'}") {
+	open(F,"$self->getCla{'outputfile'}");
 	while (<F>) {
 	    if (/^\>(\d+)/) {
 		$finished{$1} = 1;
 	    }
 	}
 	close F;
-	open(OUT,">>$M->getCla{'outputfile'}");
-	$M->log ("outputFile $M->getCla{'outputfile'} exists...Restarting: already have ".scalar(keys%finished)." sequences\n");
+	open(OUT,">>$self->getCla{'outputfile'}");
+	$self->log ("outputFile $self->getCla{'outputfile'} exists...Restarting: already have ".scalar(keys%finished)." sequences\n");
     } else {
-	open(OUT,">$M->getCla{'outputfile'}");
+	open(OUT,">$self->getCla{'outputfile'}");
     }
     
     my $getSeqs;
-    if ($M->getCla{idSQL}) {
-	$getSeqs = $M->getCla{idSQL};
+    if ($self->getCla{idSQL}) {
+	$getSeqs = $self->getCla{idSQL};
     } else {
 	$getSeqs = "select a.assembly_sequence_id 
   from dots.AssemblySequence a, dots.ExternalNASequence e
   where a.have_processed = 0 
   and a.na_sequence_id = e.na_sequence_id
-  and e.taxon_id = $M->getCla{'taxon_id'} 
+  and e.taxon_id = $self->getCla{'taxon_id'} 
   and a.quality_end - a.quality_start >= 50";
     }
     
-    $M->log ("$getSeqs\n") if $debug;
+    $self->log ("$getSeqs\n") if $debug;
     
     my $stmt = $dbh->prepare($getSeqs);
     $stmt->execute();
@@ -119,18 +122,18 @@ sub Run {
     ##run it into an array so does not block!!
     while (my($id) = $stmt->fetchrow_array()) {
 	next if exists $finished{$id};
-	last if ($M->getCla{'testnumber'} && $count >= $M->getCla{'testnumber'}); ##breaks 
-	$M->log ("Retrieving $count\n") if $count % 10000 == 0;
+	last if ($self->getCla{'testnumber'} && $count >= $self->getCla{'testnumber'}); ##breaks 
+	$self->log ("Retrieving $count\n") if $count % 10000 == 0;
 	push(@todo,$id);
 	$count++;
     }
-    $M->log ("Extracting",($M->getCla{extractonly} ? " " : " and blocking "),"$count sequences from taxon_id $M->getCla{'taxon_id'}\n");
+    $self->log ("Extracting",($self->getCla{extractonly} ? " " : " and blocking "),"$count sequences from taxon_id $self->getCla{'taxon_id'}\n");
     
     $count = 0;
     my $countProc = 0;
     my $reset = 0;
     foreach my $id (@todo) {
-	$M->log ("Processing $id\n") if $debug;
+	$self->log ("Processing $id\n") if $debug;
 	my $ass = GUS::Model::DoTS::AssemblySequence->
 	    new( { 'assembly_sequence_id' => $id } );
 	$ass->retrieveFromDB();
@@ -142,15 +145,15 @@ sub Run {
 	$miniLib .= $ass->toFasta(1);
 	$count++;
 	$countProc++;
-	$M->log ("Processing $countProc\n") if $countProc % 1000 == 0;
+	$self->log ("Processing $countProc\n") if $countProc % 1000 == 0;
 	if ($count >= 1000) {
-	    &processSet($miniLib);
+	    $self->processSet($miniLib);
 	    $miniLib = "";            ##reset for next set of seqs
 	    $count = 0;
-	    $M->undefPointerCache();
+	    $self->undefPointerCache();
 	}
     }
-    &processSet($miniLib);        ##processes last set
+    $self->processSet($miniLib);        ##processes last set
     
     ##clean up after self...
     unlink "$tmpLib";
@@ -160,17 +163,17 @@ sub Run {
     ###  put an informative summary in the results variable
     ############################################################
     my $results = "Extracted and blocked $countProcessed AssemblySequences, marked $countBad as repeat and reset $reset to qality_start/end";
-    $results = "Extracted $countProc AssemblySequences" if $M->getCla{extractonly};
-    $M->log ("\n$results\n");
+    $results = "Extracted $countProc AssemblySequences" if $self->getCla{extractonly};
+    $self->log ("\n$results\n");
     return $results;
 }
 
 sub processSet {
 
-    my $M   = shift;
+    my $self   = shift;
     my($miniLib) = @_;
     
-    if ($M->getCla{extractonly}) {
+    if ($self->getCla{extractonly}) {
 	print OUT $miniLib;
 	return;
     }
@@ -188,21 +191,21 @@ sub processSet {
     my $na_seq_id;
     while (<S>) {
 	if (/^\>(\d+)/) {           ##$1 = na_sequence_id
-	    &processBlockedSequence($na_seq_id,$seq) if $na_seq_id;
+	    $self->processBlockedSequence($na_seq_id,$seq) if $na_seq_id;
 	    $na_seq_id = $1;
 	    $seq = "";
-	    $M->log ("Processed: $countProcessed, repeats: $countBad\n") if $countProcessed % 100 == 0;
+	    $self->log ("Processed: $countProcessed, repeats: $countBad\n") if $countProcessed % 100 == 0;
 	} else {
 	    $seq .= $_;
 	}
     }
-    &processBlockedSequence($na_seq_id,$seq) if $na_seq_id;
+    $self->processBlockedSequence($na_seq_id,$seq) if $na_seq_id;
     close S;
 }
 
 sub processBlockedSequence{
 
-    my $M   = shift; 
+    my $self   = shift; 
     my($ass_seq_id,$seq) = @_;
     
     $countProcessed++;
@@ -210,7 +213,7 @@ sub processBlockedSequence{
     $seq =~ s/\s+//g;
     $seq =~ s/X/N/g;
     ##trim dangling NNNN.s
-    my $sequence = &trimDanglingNNN($seq);
+    my $sequence = $self->trimDanglingNNN($seq);
     
     ##check for lenth..
     my $tmpSeq = $sequence;
@@ -218,17 +221,17 @@ sub processBlockedSequence{
     
     ##if too short then update AssemblySquence else print to file...
     if (length($tmpSeq) < 50) {
-	$M->log ("Sequence $ass_seq_id too short (".length($tmpSeq).") following blocking\n") if $debug;
+	$self->log ("Sequence $ass_seq_id too short (".length($tmpSeq).") following blocking\n") if $debug;
 	##update AssSeq..
-	my $ass = $M->{'self_inv'}->getFromDbCache('AssemblySequence',$ass_seq_id);
+	my $ass = $self->{'self_inv'}->getFromDbCache('AssemblySequence',$ass_seq_id);
 	if (!$ass) {
-	    $M->log ("ERROR: $ass_seq_id not in cache...retrieving from Database\n");
+	    $self->log ("ERROR: $ass_seq_id not in cache...retrieving from Database\n");
 	    $ass = GUS::Model::DoTS::AssemblySequence->
 		new( { 'assembly_sequence_id' => $ass_seq_id });
 	    $ass->retrieveFromDB();
 	    if (!$ass->get('assembly_strand')) {
 		##this is invalid sequence.....is reverse strand..
-		$M->log ("ERROR:  AssemblySequence $ass_seq_id is invalid\n");
+		$self->log ("ERROR:  AssemblySequence $ass_seq_id is invalid\n");
 		return undef;
 	    }
 	}
@@ -243,7 +246,7 @@ sub processBlockedSequence{
 
 sub trimDanglingNNN {
 
-    my $M   = shift;
+    my $self   = shift;
     my($seq) = @_;
     if ($seq =~ /^(.*?)NNNNNNNNNN+(.*?)$/) {
 	$seq = $2 if length($1) < 20; ##don't want to leave 20 bp at end...
@@ -252,7 +255,7 @@ sub trimDanglingNNN {
     if ($seq =~ /N/) {            ##still has at least one N so..
 	my $rev = CBIL::Bio::SequenceUtils::reverseComplementSequence($seq);
 	if ($rev =~ /^(.*?)NNNNNNNNNN+(.*?)$/) {
-	    #	 $M->log ("matched ending NNNN length\$1=".length($1)." length\$2=".length($2)."\nSEQ:$seq\n");
+	    #	 $self->log ("matched ending NNNN length\$1=".length($1)." length\$2=".length($2)."\nSEQ:$seq\n");
 	    $rev = $2 if length($1) < 20; ##don't want to leave 20 bp at end...
 	}
 	if (length($rev) == length($seq)) {
