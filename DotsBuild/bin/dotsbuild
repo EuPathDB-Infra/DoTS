@@ -111,7 +111,9 @@ my @properties =
  ["refseq_rel_id", "","external_database_release_id for the RefSeq release"],
  ["refseqFile", "","RefSeq file. e.g. mouse.gbff.gz"],
  ["dbESTRestart", "","number (dbest_id_est from dots.est) to restart parsedbEST plugin on, get from log"],
- ["phrapDir", "","phrap directory"]
+ ["phrapDir", "","phrap directory"],
+ ["dbi_str", "", "string used to identify server and login for LoadNRDB temp table"],
+ ["prodomFile", "","specific prodom file for download"]
  ); 
 
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
@@ -153,19 +155,19 @@ my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFil
 
 &copyPipelineDirToLiniac();
 
-&startBlastMatricesOnLiniac();  
+&startBlastMatricesOnLiniac(); 
+ 
+   &downloadCDD();
+
+   &downloadProdom();
+
+   &unpackCDD();
 
    &insertNRDB();
 
    &extractNRDB();
 
-   &downloadCDD();
-
-   &unpackCDD();
-
    &insertCDD();
-
-   &downloadProdom();
 
    &insertProdom();
 
@@ -719,11 +721,11 @@ sub copyPipelineDirToLiniac {
     my $dotsRelease = "release" . $propertySet->getProp('dotsRelease');
     my $serverPath = $propertySet->getProp('serverPath') . "/$dotsRelease";
     my $liniacServer = $propertySet->getProp('liniacServer');
-    
+    my $fromDir = "$dotsBuildDir/$dotsRelease";
     my $signal = "dir2liniac";
     return if $mgr->startStep("Copying $dotsBuildDir/$dotsRelease/$nickName to $serverPath on $liniacServer", $signal);
 
-    $mgr->copyToLiniac("$dotsBuildDir/$dotsRelease", $nickName, $liniacServer, $serverPath);
+    $mgr->copyToLiniac($fromDir, $nickName, $liniacServer, $serverPath);
 
     $mgr->endStep($signal);
 }
@@ -934,7 +936,9 @@ sub insertNRDB {
   my $externalDbDir = $propertySet->getProp('externalDbDir');
   
   my $date = $propertySet->getProp('buildDate');
-  
+
+  my $dbi_str = $propertySet->getProp('dbi_str');
+
   my $gitax = "$externalDbDir/taxonomy/$date/gi_taxid_prot.dmp";
   
   my $nrdb = "$externalDbDir/nrdb/$date/nr";
@@ -947,7 +951,7 @@ sub insertNRDB {
   
   my $nrdbReleaseId = $propertySet->getProp('nrdb_db_rls_id');
   
-  my $args = "--temp_login $temp_login --temp_password $temp_password --restart $restart --gitax $gitax --nrdb $nrdb --extDbRelId $nrdbReleaseId --maketemp --plugin --delete";
+  my $args = "--temp_login $temp_login --temp_password $temp_password --dbi_str $dbi_str --restart $restart --gitax $gitax --nrdb $nrdb --extDbRelId $nrdbReleaseId --maketemp --plugin --delete";
   
   $mgr->runPlugin("loadNRDB", "GUS::Common::Plugin::LoadNRDB", $args, "Loading NRDB", 'downloadNRDB');
 }	
@@ -1107,7 +1111,7 @@ sub downloadProdom {
     
     $mgr->runCmd("mkdir -p $downloadSubDir");
 
-    my $file = "$prodomRelease.forblast.gz";
+    my $file = $propertySet->getProp('prodomFile');
 
     my $logfile = "$pipelineDir/logs/$signal.log";
 
@@ -1117,7 +1121,7 @@ sub downloadProdom {
 
     $mgr->runCmd("mkdir -p $downloadSubDir");
 
-    my $cmd = "wget -t5 -b -m -np -nd -nH -o $logfile  --cut-dirs=3 -A \"$file\"  -P $downloadSubDir ftp://ftp.toulouse.inra.fr/pub/prodom/$prodomRelease/";
+    my $cmd = "wget -t5 -b -m -np -nd -nH -o $logfile  --cut-dirs=3 -A \"$file\"  -P $downloadSubDir ftp://ftp.toulouse.inra.fr/pub/prodom/$prodomRelease/OLD_BLAST/";
     
     $mgr->runCmd($cmd);
     $mgr->runCmd("gunzip $downloadSubDir/$file");
