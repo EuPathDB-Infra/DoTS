@@ -1,0 +1,95 @@
+#!@perl@
+
+use strict;
+use lib "$ENV{GUS_HOME}/lib/perl";
+use Getopt::Long;
+use GUS::ObjRelP::DbiDatabase;
+use GUS::Common::GusConfig;
+
+
+my ($verbose, $inputFile,$tax_id,$taxon_id,$gusConfigFile));
+
+&GetOptions("verbose!"=> \$verbose,
+            "inputFile=s" => \$inputFile,
+	    "tax_id=i" => \$tax_id,
+	    "taxon_id=i" => \$taxon_id,
+	    "gusConfigFile=s" => \$gusConfigFile);
+
+my $usage = "
+usage: makeLL2DoTSfile --inputFile  --tax_id ncbi taxon identifier --verbose 
+
+Create mapping between LocusLink mRNA and DoTS.  
+
+Input is a 6 column space delimited file, where each row is: 
+LocusID GenBankacc.version ProteinGInumber m/g/u Proteinacc.version tax_id
+
+human tax_id=9606
+mouse tax_id=10090
+mRNA designation=m
+
+Output is 2 column space delimited, where each row is:
+DT.xxxx LocudID
+";
+
+die $usage unless ($inputFile && $tax_id);
+
+my %gb2LocusID = &parseLLFile($inputFile,$tax_id);
+
+print STDERR "Establishing dbi login\n" if $verbose;
+
+my $gusconfig = GUS::Common::GusConfig->new($gusConfigFile);
+
+my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
+					$gusconfig->getReadOnlyDatabaseLogin(),
+					$gusconfig->getReadOnlyDatabasePassword(),
+					$verbose,0,1,
+					$gusconfig->getCoreSchemaName());
+
+my $dbh = $db->getQueryHandle();
+
+
+my $sql = "select ass.assembly_na_sequence_id, e.source_id 
+     from dots.ExternalNASequence e, dots.AssemblySequence ass
+     where e.na_sequence_id = ass.na_sequence_id
+     and e.taxon_id = $taxon_id";
+
+print STDERR "Query: $sql\n" if $verbose;
+
+my $stmt = $dbh->prepareAndExecute($sql);
+
+my $c;
+while(my($rna_id,$acc) = $stmt->fetchrow_array()) {
+    if ($gb2LocusID{$acc}) {
+	foreach my $LL_id (@{$gb2LocusID{$acc}}) {
+	    print STDOUT "DT.$rna_id $LL_id\n" if $rna_id;
+	}
+    } 
+    $c++;
+    print STDERR "Processed $c\n" if $verbose && $c % 1000 == 0;
+}
+
+ 
+$db->logout();
+
+sub parseLLFile {
+    
+    my ($file,$tax) = @_;
+
+    open(F, $file) || die "Can't open input file $file\n";
+
+    my %gb2LLID;
+
+    while(<F>) {
+	my $line = $_;
+	my @lineArr = split (/\s+/, $line);
+	if ($lineArr[5] == $tax && $lineArr[3] eq 'm') {
+	    my $LL_id = $lineArr[0];
+	    my $acc = $lineArr[1];
+	    $acc =~ s/\.\d+//;
+	    push(@{$gb2LLID{$acc}}, $LL_id);
+	}
+    }
+
+    return %gb2LLID;
+
+}
