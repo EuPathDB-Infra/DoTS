@@ -914,7 +914,7 @@ sub insertNRDB {
   
   my $args = "--temp_login $temp_login --temp_password $temp_password --restart $restart --gitax $gitax --nrdb $nrdb --extDbRelId $nrdbReleaseId --maketemp --plugin --delete";
   
-  $mgr->runPlugin("GUS::Common::Plugin::loadNRDB", "LoadNRDB", $args, "Loading NRDB", 'downloadNRDB');
+  $mgr->runPlugin("loadNRDB", "GUS::Common::Plugin::LoadNRDB", $args, "Loading NRDB", 'downloadNRDB');
 }	
 
 
