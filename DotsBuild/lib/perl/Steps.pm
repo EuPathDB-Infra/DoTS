@@ -1008,6 +1008,30 @@ sub deleteGenesWithNoRNA {
   $mgr->runPlugin("deleteGenesWithNoRNA", "DoTS::DotsBuild::Plugin::DeleteGenesWithNoRNA",$args,"Deleting genes with no rna");
 
 }
+sub versionGeneTrapAssembly {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "versionGeneTrapAssembly";
+
+  return if $mgr->startStep("Versioning entries from GeneTrapAssembly", $signal,'loadGeneTrapAssembly');
+
+  my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $userId = $propertySet->getProp('userId');
+
+  my $logFile = "$mgr->{pipelineDir}/logs/${signal}.log";
+
+  my $sql = "select gene_trap_assembly_id from dots.genetrapassembly g, dots.assembly a where a.na_sequence_id=g.assembly_na_sequence_id and a.taxon_id=$taxonId";
+
+  my $cmd = "versionEntries.pl --table DoTS.GeneTrapAssembly --idSQL \"$sql\" --tablePK 'gene_trap_assembly_id' --userId $userId --gusConfigFile $gusConfigFile --verbose 2>> $logFile";
+    
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
 
 
 sub deleteGeneTrapAssembly {
