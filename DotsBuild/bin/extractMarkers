@@ -12,7 +12,7 @@ my ($verbose,$taxon_id,$gusConfigFile,$outputFile);
             "gusConfigFile=s" => \$gusConfigFile,
             "outputFile=s" => \$outputFile);
 
-die "usage: getIdsPerAssembly --taxon_id --verbose --gusConfigFile [\$GUS_CONFIG_FILE]\n" unless $taxon_id;
+die "usage: extractMarkers --taxon_id --verbose --gusConfigFile [\$GUS_CONFIG_FILE]\n" unless $taxon_id;
 
 print STDERR "Establishing dbi login\n" if $verbose;
 
