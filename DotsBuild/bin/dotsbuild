@@ -379,3 +379,25 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 &indexNRDBWords($mgr);
 
 &getmRNAPerAssembly($mgr);
+
+&makePredictedProteinFile($mgr);
+
+&makeProteinChunks($mgr);
+
+&predictTmAndSignalP($mgr);
+
+&parseTMFile($mgr);
+
+&parseSGPSignalP($mgr);
+
+&parseSGPHMMSignalP($mgr);
+
+&deletePredictedAAFeatures("PredictedAAFeature",$mgr);
+
+&loadTMHMM($mgr);
+
+&deletePredictedAAFeatures("SignalPeptideFeature",$mgr);
+
+&loadSGPSignalP($mgr);
+
+&loadSGPHMMSignalP($mgr);
