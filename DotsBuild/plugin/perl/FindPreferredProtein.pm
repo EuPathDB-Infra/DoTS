@@ -116,7 +116,7 @@ sub updateProteinInstance {
     $stmt->execute($id);
     $stmt->finish();
     my ($proteininstance) = $stmt->fetchrow_array();
-    $dbh->do(update dots.proteininstance set is_reference = 1 where protein_instance_id = $proteininstance) || die "Can't update dots.proteininstance row : protein_instance_id = $proteininstance\n";
+    $dbh->do("update dots.proteininstance set is_reference = 1 where protein_instance_id = $proteininstance") || die "Can't update dots.proteininstance row : protein_instance_id = $proteininstance\n";
     delete($assemblies{$id});
   }
 
@@ -131,7 +131,7 @@ sub updateProteinInstance {
     $stmt->execute($id);
     $stmt->finish();
     my ($proteininstance) = $stmt->fetchrow_array();
-    $dbh->do(update dots.proteininstance set is_reference = 1 where protein_instance_id = $proteininstance) || die "Can't update dots.proteininstance row : protein_instance_id = $proteininstance\n";
+    $dbh->do("update dots.proteininstance set is_reference = 1 where protein_instance_id = $proteininstance) || die "Can't update dots.proteininstance row : protein_instance_id = $proteininstance\n";
     delete($assemblies{$id});
   }
 
@@ -146,7 +146,7 @@ sub updateProteinInstance {
     $stmt->execute($id);
     $stmt->finish();
     my ($proteininstance) = $stmt->fetchrow_array();
-    $dbh->do(update dots.proteininstance set is_reference = 1 where protein_instance_id = $proteininstance) || die "Can't update dots.proteininstance row : protein_instance_id = $proteininstance\n";
+    $dbh->do("update dots.proteininstance set is_reference = 1 where protein_instance_id = $proteininstance) || die "Can't update dots.proteininstance row : protein_instance_id = $proteininstance\n";
     delete($assemblies{$id});
   }
 
@@ -161,7 +161,7 @@ sub updateProteinInstance {
     $stmt->execute($id);
     $stmt->finish();
     my ($proteininstance) = $stmt->fetchrow_array();
-    $dbh->do(update dots.proteininstance set is_reference = 1 where protein_instance_id = $proteininstance) || die "Can't update dots.proteininstance row : protein_instance_id = $proteininstance\n";
+    $dbh->do("update dots.proteininstance set is_reference = 1 where protein_instance_id = $proteininstance) || die "Can't update dots.proteininstance row : protein_instance_id = $proteininstance\n";
     delete($assemblies{$id});
   }
 
