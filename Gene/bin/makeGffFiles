@@ -32,7 +32,8 @@ my ($gusConfigFile, $coords, $score, $spliced, $stable,
 $format = 'gff' unless $format;
 $out_dir = '.' if $out_dir eq 'pwd';
 &usage if $help;
-&usage unless $taxonId && $genomeId && -d $out_dir && $out_fn_pref;
+&usage unless $taxonId && $genomeId && $out_dir && $out_fn_pref;
+system("mkdir -p $out_dir") unless -d $out_dir;
 
 $| = 1;
 
