@@ -2,8 +2,9 @@
 NEW ISSUES 
 
 Discover what makes All on liniac-we made All but rpsblast replaced it.
-Add procedures to dotsbuild to add COG and cd to db
-Alter InsertNewExternalSequences to truncate descriptions to <=255   
+Add procedures to dotsbuild to add COG and cd to db-done
+
+Add option for regex for task.prop for cdd
 
 
 
