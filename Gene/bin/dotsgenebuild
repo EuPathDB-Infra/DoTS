@@ -85,3 +85,13 @@ $mgr->waitForLiniac("genomic alignments of Dots", "waitGenomeAlignDots");
 &findGenomicSignals($mgr);
 
 &createGenomeDotsGene($mgr);
+
+&computeQualityScore($mgr);
+
+&markAntisense($mgr);
+
+&mapToSimilarityDotsGene($mgr);
+
+&integrateWithGus($mgr);
+
+&makeReleaseFiles($mgr);
