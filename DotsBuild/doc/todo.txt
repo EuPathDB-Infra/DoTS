@@ -138,6 +138,7 @@ s 1  0.25 - final step to provide todo list, including:
             - update InstallConfig to use new external db rel ids
             - copy downloadSite files
             - remove all cached values on allgenes site
+            - update count of curated genes on the allgenes home page
 
 s 2  0.25 - reminder to do manual library assignment as soon as ESTs are loaded
 
