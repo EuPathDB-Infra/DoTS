@@ -241,6 +241,8 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
 
    &loadRNAClusters();
 
+   #&deleteGenesWithNoRNA();
+
    &getAssembliesPerGene();
 
    &makeFrameFinder();
@@ -1064,13 +1066,18 @@ sub sortClusters {
 }
 
 sub loadRNAClusters {
-    my $file = "$pipelineDir/cluster/gene/cluster.out.descending";
-    my $args = "--sort_desc --clusterfile $file";
+  my $file = "$pipelineDir/cluster/gene/cluster.out.descending";
+  my $args = "--sort_desc --clusterfile $file";
 
-    $mgr->runPlugin("loadRNAClusters", "DoTS::DotsBuild::Plugin::MakeRNAClustersForAssemblies", $args,
+  $mgr->runPlugin("loadRNAClusters", "DoTS::DotsBuild::Plugin::MakeRNAClustersForAssemblies", $args,
 	       "Loading RNA Clusters");
 }
 
+sub deleteGenesWithNoRNA {
+
+  $mgr->runPlugin("deleteGenesWithNoRNA", "DoTS::DotsBuild::Plugin::DeleteGenesWithNoRNA",,"Deleting genes with no rna");
+
+}
 
 sub insertNRDB {
 
@@ -3020,6 +3027,8 @@ sub loadSGPHMMSignalP {
 sub cleanUpFiles {
 
   my $signal = "cleanUpFiles";
+
+  return if $mgr->startStep("Cleaning up files", $signal);
 
   my $dotsRelease = $propertySet->getProp('dotsRelease');
 
