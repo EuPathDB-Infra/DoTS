@@ -213,7 +213,7 @@ AND blat_alignment_id not in
 (select blat_alignment_id from ${tmpLogin}.BlatAlignmentSignals
  where target_na_sequence_id = $cid)
 BA_SQL
-  my $sth = $dbh->prepareAndExecure($sql);
+  my $sth = $dbh->prepareAndExecute($sql);
   my @bids;
   while (my ($bid) = $sth->fetchrow_array) { push @bids, $bid; }
   $sth->finish;
