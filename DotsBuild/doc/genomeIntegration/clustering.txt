@@ -1,3 +1,75 @@
 Here are links of interest to clustering/assembly:
 
   http://www.plantgdb.org/AtGDB/prj/ZSB03PP/
+
+
+Notes on our meeting of 1/8/04 (debbie, thomas,steve)
+
+1. combine into one exon if gap < threshold
+
+2. will develop quality metrics, such as nice-intron/intron ratio (nice intron
+   is one with a splice site and/or from a multi-intron est)
+
+3. trim exon boundaries based on nice splices
+
+4. splice signals used for:
+    - edge cleanup
+    - quality metric
+
+5. our gene collator algorithm stays the same
+
+6. clone id is not used to determine transcript structure 
+
+7. pairwise alignment to genome is better than cap4
+
+8. store exon graph in db?  yes... for visualizations
+
+9. SNP predictions... later
+
+10. must develop BLAT alignment criteria
+
+11. ESTs can belong to more than one DT and DG
+
+12. what should we do w/ non-aligning ESTs?
+
+13. we will probably redo each build from scratch
+
+14. we may need a research database instance.
+
+15. our approach assumes a quality, and mostly complete reference genome.  not 
+    good for, eg, rat.  in that case, we would simply use the genome as a 
+    clustering pre-process and continue with the old method.
+
+16. algorithm to map genome based DTs to similarity based DTs, to preserve 
+    stable IDs.  This is non-trivial.  Its a m-m relationship.  Probably
+    best to move on to new ids, and provide a mapping file.
+
+17. to map new build of DTs to previous build DTs (both based on genome), we
+    remember which DT each input seq came from.  Do a majority and genome 
+    location based mapping.
+
+18. i guess we still use the "assembly" tables.  but, the assembly is now
+    based on pairwise alignment to the genome.
+
+19. use exon graph technique to form transcripts.  to make transcripts, chose
+    the longest unique paths through the graph.  (in order to capture 
+    "nice" introns, our graph needs super-edges, which connect multiple exons
+    when we have a multi-exon EST.
+
+
+GOALS
+
+1. improve genome integration:  get rid of sDG/gDG split
+
+2. improve EST assignment to transcripts
+
+3. improve transcript model (longer, more realistic)
+
+4. improve gene model (show complete splice forms)
+
+5. improve transcript sequence
+
+7. motivate our users/funders?
+
+
+
