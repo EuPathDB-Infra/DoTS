@@ -1872,6 +1872,30 @@ sub RNAProteinIntegration {
   $mgr->runPlugin("integrateRNAProtein", "DoTS::DotsBuild::Plugin::RNAProteinIntegration", $args, "integrating RNA and proteins");
 }
 
+sub setPreferredProtein {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $taxonId = $propertySet->getProp('taxonId');
+  my $refseq_rel_id = $propertySet->getProp('refseq_rel_id');
+  my $swissprot_rel_id = $propertySet->getProp('swissprot_rel_id');
+
+  my $args = "--taxon_id $taxonId --refseq_db_rel_id $refseq_rel_id --swissprot_db_rel_id $swissprot_rel_id";
+
+  $mgr->runPlugin("setPreferrredProtein", "DoTS::DotsBuild::Plugin::FindPreferredProtein", $args, "determining preferred protein translation for assemblies and updating dots.proteininstance.is_referenced");
+}
+
+sub makeGeneForRNA  {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $args = "--taxon $taxonId";
+
+  $mgr->runPlugin("makeGeneForRNA", "DoTS::DotsBuild::Plugin::MakesGenesForRNA", $args, "making genes for rna with null gene_id");
+} 
+ 
 sub getIdsPerAssembly {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
