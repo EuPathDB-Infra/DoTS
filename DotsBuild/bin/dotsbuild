@@ -182,6 +182,8 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
 &cluster("initial", 
 	 "prevDots-prevDots", "assemSeqs-assemSeqs", "prevDots-assemSeqs");
 
+&splitCluster("initial");
+
 &assemble("", $propertySet->getProp('reassemble'), "initial");
 
 &extractDots("intermed", "'DT.'||");
@@ -189,6 +191,8 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
 &matrix("intermed");
 
 &cluster("intermed", "intermedDots-intermedDots");
+
+&splitCluster("intermed");
 
 &assemble("--assemble_old", "no", "intermed");
 
@@ -608,8 +612,6 @@ sub parseGenbank {
     
     my $dirAndFile = "$externalDbDir/genbank/$genbankRel/$file";
     
-    my $log = "$pipelineDir/logs/${file}.err";
-    
     my $args = "--gbRel $genbankRel --file $dirAndFile  --db_rel_id $gb_db_rel_id";
     
     my $signal = "gbParse_${file}";
@@ -631,9 +633,7 @@ sub parseRefSeq {
 
   my $dirAndFile = "$externalDbDir/refseq/$refseqRel/$refseqFile";
     
-  my $log = "$pipelineDir/logs/${refseqFile}.err";
-    
-  my $args = "--gbRel $refseqRel --file $dirAndFile --log $log --db_rel_id $refseq_rel_id";
+  my $args = "--gbRel $refseqRel --file $dirAndFile --db_rel_id $refseq_rel_id";
     
   my $signal = "refseq_${refseqFile}";
     
@@ -802,6 +802,20 @@ sub cluster {
     $mgr->endStep($signal);
 }
 
+sub splitCluster {
+    my ($name) = @_;
+
+    my $signal = "${name}SplitCluster";
+
+    return if $mgr->startStep("SplitCluster $name", $signal);
+
+    my $clusterFile = "$pipelineDir/cluster/$name/cluster.out";
+    my $splitCmd = "splitClusterFile $clusterFile";
+
+    $mgr->runCmd($splitCmd);
+    $mgr->endStep($signal);
+}
+
 sub assemble {
     my ($old, $reassemble, $name) = @_;
 
@@ -810,8 +824,6 @@ sub assemble {
     return if $mgr->startStep("Assemble $name", $signal);
 
     my $clusterFile = "$pipelineDir/cluster/$name/cluster.out";
-    my $splitCmd = "splitClusterFile $clusterFile";
-    $mgr->runCmd($splitCmd);
     
     &runAssemblePlugin($clusterFile, "big", $name, $old, $reassemble);
     &runAssemblePlugin($clusterFile, "small", $name, $old, $reassemble);
