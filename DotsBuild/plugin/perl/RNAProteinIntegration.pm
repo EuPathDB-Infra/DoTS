@@ -11,7 +11,7 @@ use GUS::Model::DoTS::TranslatedAAFeature;
 use GUS::Model::DoTS::ProteinInstance;
 use GUS::Model::DoTS::RNA;
 use GUS::Model::DoTS::Protein;
-
+use GUS::Model::SRes::ExternalDatabaseRelease;
 
 
 my $ctx;
@@ -53,7 +53,7 @@ sub new {
 }
 
 
-sub Run {
+sub run {
     my $M   = shift;
     $ctx = shift;
     
@@ -111,7 +111,7 @@ sub Run {
 #subroutine that gets all the mRNA na_sequence_ids and puts them in @ids
 sub getmRNA {
   my @ids;
-  my $st = $dbh->prepareAndExecute("select na_sequence_id from dots.externalnasequence where taxon_id in ($ctx->{'cla'}->{'taxon_id'}) and sequence_type_id in (2,7) and external_database_release_id in (select external_database_release_id from sres.externaldatabaserelease where external_database_id in (992,22,78))"); 
+  my $st = $dbh->prepareAndExecute("select na_sequence_id from dots.externalnasequence where taxon_id in ($ctx->{'cla'}->{'taxon_id'}) and sequence_type_id in (2,7) and external_database_release_id in (select external_database_release_id from sres.externaldatabaserelease where external_database_id in (152,2,48))"); 
   
   while (my ($na_sequence_id) = $st->fetchrow_array) {
     if ( $ctx->{'cla'}->{'testnumber'} && @ids >= $ctx->{'cla'}->{'testnumber'}) {
@@ -132,7 +132,7 @@ sub makeRNAFeature {
   my $name;
   my $newExternalDatabaseRelease = GUS::Model::SRes::ExternalDatabaseRelease->new({'external_database_release_id'=>$external_database_release_id});
   my $external_database_id = $newExternalDatabaseRelease->get('external_database_id');
-  if ($external_database_id == 992){
+  if ($external_database_id == 152){
     $name = "REFSEQ";
   }
   else {
