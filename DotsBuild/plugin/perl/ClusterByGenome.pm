@@ -110,7 +110,7 @@ sub run {
   foreach (@$cKeys) {
       my @seqs = keys %{ $clusters->{$_} };
       my $csize = scalar(@seqs);
-      print O ">Cluster_" . (++$c) . " ($csize sequences): (" . join(', ', @seqs) . ")\n";
+      print O "Cluster_" . (++$c) . " ($csize sequences): (" . join(', ', @seqs) . ")\n";
       $biggest = $csize if $csize > $biggest;
   }
   close O;
