@@ -6,13 +6,13 @@ use Getopt::Long;
 use GUS::ObjRelP::DbiDatabase;
 use GUS::Common::GusConfig;
 
-my ($verbose,$taxon_id,$gusConfigFile,$outputFile);
+my ($verbose,$taxon_id_list,$gusConfigFile,$outputFile);
 &GetOptions("verbose!"=> \$verbose,
-            "taxon_id=s" => \$taxon_id,
+            "taxon_id_list=s" => \$taxon_id_list,
             "gusConfigFile=s" => \$gusConfigFile,
             "outputFile=s" => \$outputFile);
 
-die "usage: extractMarkers --taxon_id --verbose --gusConfigFile [\$GUS_CONFIG_FILE]\n" unless $taxon_id;
+die "usage: extractMarkers --taxon_id_list --verbose --gusConfigFile [\$GUS_CONFIG_FILE]\n" unless $taxon_id_list;
 
 print STDERR "Establishing dbi login\n" if $verbose;
 
@@ -26,7 +26,7 @@ my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
 
 my $dbh = $db->getQueryHandle();
 
-my $sth = $dbh->prepare ("select rh_marker_id, forward_primer, reverse_primer, product_length from Dots.RHMarker where taxon_id = $taxon_id");
+my $sth = $dbh->prepare ("select rh_marker_id, forward_primer, reverse_primer, product_length from Dots.RHMarker where taxon_id in ($taxon_id_list)");
 
 $sth->execute ();
 
