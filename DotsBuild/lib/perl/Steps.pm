@@ -614,7 +614,7 @@ sub deleteGenomeAlignments {
   if ($qTabId == 57) {
     $qRelId = $propertySet->getProp('gb_db_rel_id');
   }
-  if (($qTabId == 89) {
+  if ($qTabId == 89) {
     my @DBs = split(/,/, $propertySet->getProp('geneTrapDbRls'));
     foreach my $db (@DBs) {
       my ($name, $id) = split(/:/, $db);
@@ -623,8 +623,8 @@ sub deleteGenomeAlignments {
     $qRelId =~ s/,$//;
   }
   my $logFile = "$mgr->{pipelineDir}/logs/${signal}.log";
-  my $sql = "select blat_alignment_id from dots.blatalignment where target_table_id = 245 and target_external_db_release_id = $genomeId and query_external_db_release_id in ($qRelId) and query_table_id = $qTabId and query_taxon_id=$taxonId and target_taxon_id = $taxon_id";
-  my $cmd = "deleteEntries.pl --table DoTS::BLATAlignment --idSQL \"$sql\" --verbose 2>> $logF\ile";
+  my $sql = "select blat_alignment_id from dots.blatalignment where target_table_id = 245 and target_external_db_release_id = $genomeId and query_external_db_release_id in ($qRelId) and query_table_id = $qTabId and query_taxon_id=$taxonId and target_taxon_id = $taxonId";
+  my $cmd = "deleteEntries.pl --table DoTS::BLATAlignment --idSQL \"$sql\" --verbose 2>> $logFile";
   $mgr->runCmd($cmd);
   $mgr->endStep($signal);
 }
@@ -635,15 +635,16 @@ sub loadGenomeAlignments {
 
   my $taxonId = $propertySet->getProp('taxonId');
   my $genomeId = $propertySet->getProp('genome_db_rls_id');
-  my $gapTabSpace = $propertySet->getProp('genomeGapLogin');
+  #my $gapTabSpace = $propertySet->getProp('genomeGapLogin');
   my $pipelineDir = $mgr->{'pipelineDir'};
   my $pslDir = "$pipelineDir/genome/$queryName-$targetName/per-chr";
 
-  my $qFile = "$pipelineDir/repeatmask/$queryName/master/mainresult/blocked.seq";
+  #my $qFile = "$pipelineDir/repeatmask/$queryName/master/mainresult/blocked.seq";
+  my $qFile = "/tmp/dotsbuild/blocked.seq";
   $qFile = "$pipelineDir/seqfiles/finalDots.fsa" if $queryName =~ /dots/i;
   my $qTabId = ($queryName =~ /dots/i ? 56 : 57);
-
-  my $args = "--blat_dir $pslDir --query_file $qFile --gap_table_space $gapTabSpace --keep_best 2 "
+  #--gap_table_space $gapTabSpace
+  my $args = "--blat_dir $pslDir --query_file $qFile --keep_best 2 "
     . "--query_table_id $qTabId --query_taxon_id $taxonId "
       . "--target_table_id 245 --target_db_rel_id $genomeId --target_taxon_id $taxonId "
 	. "--max_query_gap 5 --min_pct_id 95 max_end_mismatch 10 "
@@ -814,6 +815,24 @@ sub splitCluster {
 
   $mgr->runCmd($splitCmd);
   $mgr->endStep($signal);
+}
+
+sub deleteAlignmentInfo {
+    my ($mgr) = @_;
+
+    my $propertySet = $mgr->{propertySet};
+    my $taxonId = $propertySet->getProp('taxonId');
+    my $genomeId = $propertySet->getProp('genome_db_rls_id');
+    my $tmpLogin = $propertySet->getProp('tempLogin');
+
+    my $signal = "deleteAlignmentinfo";
+
+    return if $mgr->startStep("integrate genome dots gene info into GUS", $signal);
+
+    my $args = "--taxon_id $taxonId --only_delete --genome_db_rls_id $genomeId --temp_login $tmpLogin --genome_dots_gene_cache GenomeDotsGene --genome_dots_transcript_cache GenomeDotsTranscript";
+
+    $mgr->runPlugin($signal . 'Delete', "DoTS::Gene::Plugin::IntegrateGenomeDotsGeneWithGus",
+		    $args, "delete alignment info from RNAFeature and children");
 }
 
 sub assemble {
