@@ -294,7 +294,7 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
 
    &getAssembliesPerGene();
 
-   &makeEpconFastaFiles();
+#   &makeEpconFastaFiles();
 
 $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
