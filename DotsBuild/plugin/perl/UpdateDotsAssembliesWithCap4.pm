@@ -120,7 +120,7 @@ sub run {
   $ctx = shift;
   print $ctx->{cla}->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
   print "Testing on $ctx->{cla}->{'testnumber'}\n" if $ctx->{cla}->{'testnumber'};
-  cap4 = $ctx->{cla}->{'cap4Dir'}."/cap4";
+  $cap4 = $ctx->{cla}->{'cap4Dir'}."/cap4";
   if (!(-e "$cap4")) {
     die "$cap4 does not exist";
   }
