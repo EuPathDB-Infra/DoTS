@@ -136,6 +136,7 @@ sub updateDbRef($dataHash) {
 	my $centimorgans = $dataHash->{$id}->[1];
 	my $secondary_identifier = $dataHash->{$id}->[2];
 	my $remark = $dataHash->{$id}->[3];
+	my $lowercase_secondary_identifier = lc($secondary_identifier);
 	
 	my $newDbRef = GUS::Model::SRes::DbRef->new({'primary_identifier'=>$id,'external_database_release_id'=>$external_db_release_id});
 	
@@ -152,6 +153,10 @@ sub updateDbRef($dataHash) {
 	if ($secondary_identifier ne $newDbRef->get('secondary_identifier')) {
 	    
 	    $newDbRef->setSecondaryIdentifier($secondary_identifier);
+	}
+	if ($lowercase_secondary_identifier ne $newDbRef->get('lowercase_secondary_identifier')) {
+	    
+	    $newDbRef->setLowercaseSecondaryIdentifier($lowercase_secondary_identifier);
 	}
 	if ($remark ne $newDbRef->get('remark')) {
 	    
