@@ -401,6 +401,8 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &updateProteinAssemblyTable();
 
+&updateCentralDogmaTable();
+
 &updateDTOrfPValueTable();
 
 &updateAssemblySignalPSummaryTable();
@@ -411,9 +413,9 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &updatePancreasAssembliesTable();
 
-&createManuallyReviewedDoTSFile();
-
 &createPredTranslDetailsFile();
+
+&createManuallyReviewedDoTSFile();
 
 &makeStatisticsPage();
 
@@ -473,21 +475,21 @@ sub createDotsPipelineDir {
     &makeMatrixDir("finalDots", "finalDots", $buildName, $dotsBuildDir, 
 		   $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
 
-    &makeSimilarityDir("finalDots", "nrdb", $buildName, $dotsBuildDir, 
+    &makeSimilarityDir("finalDots", "$serverPath/$buildName/seqfiles","nrdb", $buildName, $dotsBuildDir, 
 		       $serverPath, $nodePath, $bsTaskSize, 
 		       $wuBlastBinPathLiniac,
-		       "nrdb.fsa", '(\d+)', 'blastx', 
+		       "nrdb.fsa", ,'finalDots.fsa','(\d+)', 'blastx', 
 		       "-wordmask=seg+xnu W=3 T=1000 B=$bsBparam V=$bsVparam E=$bsEparam");
 
-    &makeSimilarityDir("finalDots", "prodom", $buildName, $dotsBuildDir, 
+    &makeSimilarityDir("finalDots", "$serverPath/$buildName/seqfiles", "prodom", $buildName, $dotsBuildDir, 
 		       $serverPath, $nodePath, $bsTaskSize, 
 		       $wuBlastBinPathLiniac,
-		       "prodom.fsa", '(\S+)', 'blastx', 
+		       "prodom.fsa", ,'finalDots.fsa','(\S+)', 'blastx', 
 		       "-wordmask=seg+xnu W=3 T=1000 B=$bsBparam V=$bsVparam E=$bsEparam");
-    &makeSimilarityDir("finalDots", "cdd", $buildName, $dotsBuildDir, 
+    &makeSimilarityDir("finalDots", "$serverPath/$buildName/seqfiles", "cdd", $buildName, $dotsBuildDir, 
 		       $serverPath, $nodePath, $bsTaskSize, 
 		       $ncbiBlastBinPathLiniac,
-		       "cdd/All",  '\w+\|\w+\|\d+\s+(\w+)', 'rpsblast', 
+		       "cdd/All",  ,'finalDots.fsa','\w+\|\w+\|\d+\s+(\w+)', 'rpsblast', 
 		       "-a 2 -e .1 -p F");
 
     &makeAssemblyDir("initial", $buildName, $dotsBuildDir);
@@ -3077,6 +3079,29 @@ sub updateProteinAssemblyTable {
   my $args = "--verbose --taxon $taxonId --allgenesSchema $allgenesSchema";
 
   my $cmd = "updateProteinAssemblyTable $args 2>> $logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+
+}
+
+sub updateCentralDogmaTable {
+  
+  my $signal = "updateCentralDogmaTable";
+
+  return if $mgr->startStep("Insert entries in allgenes CentralDogma table ", $signal);
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $allgenesSchema = $propertySet->getProp('allgenesSchema');
+
+  my $args = "--verbose --taxon $taxonId --allgenesSchema $allgenesSchema";
+
+  my $cmd = "updateCentralDogmaTable $args 2>> $logFile";
 
   $mgr->runCmd($cmd);
 
