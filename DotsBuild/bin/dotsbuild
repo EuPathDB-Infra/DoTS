@@ -715,13 +715,15 @@ sub extractDots {
 
 sub copyPipelineDirToLiniac {
 
-    my $serverPath = $propertySet->getProp('serverPath') . "$buildName";
+    my $nickName = $propertySet->getProp('speciesNickName');
+    my $dotsRelease = $propertySet->getProp('dotsRelease');
+    my $serverPath = $propertySet->getProp('serverPath') . "/$dotsRelease";
     my $liniacServer = $propertySet->getProp('liniacServer');
     
     my $signal = "dir2liniac";
-    return if $mgr->startStep("Copying $pipelineDir/ to $serverPath on $liniacServer", $signal);
+    return if $mgr->startStep("Copying $dotsBuildDir/$dotsRelease/$nickName to $serverPath on $liniacServer", $signal);
 
-    $mgr->copyToLiniac($dotsBuildDir, $buildName, $liniacServer, $serverPath);
+    $mgr->copyToLiniac($dotsBuildDir/$dotsRelease, $nickName, $liniacServer, $serverPath);
 
     $mgr->endStep($signal);
 }
