@@ -121,6 +121,7 @@ sub run {
     my $testNum = $self->getArg('test_number');
 
     $self->moveToGus($dbh, $taxonId, $genomeId, $gdgTab, $gdtTab, $testNum);
+
     return "finished moving $gdgTab and $gdtTab into GUS central dogma tables";
 }
 
@@ -148,14 +149,16 @@ sub moveToGus {
     my %chrIds; foreach (@chrs) { $chrIds{$_->{chr}} => $_->{chr_id}; }
 
     foreach my $gdg_id (@gdg_ids) {
-	$sql = "select gdg.*, gdt.na_sequence_id, gdt.blat_alignment_id,"
-	    . " gdt.genome_dots_transcript_id"
+	$sql = "select gdg.gene_id, gdg.genome_dots_gene_id, gdg.number_of_exons, "
+	    . " gdg.chromosome, gdg.chromosome_start, gdg.chromosome_end, gdg.strand, "
+	    . " gdg.exonstarts, gdg.exonends, "
+	    . " gdt.na_sequence_id, gdt.blat_alignment_id, gdt.genome_dots_transcript_id"
 	    . " from $gdgTab gdg, $gdtTab gdt "
 	    . " where gdg.genome_dots_gene_id = gdt.genome_dots_gene_id"
 	    . " and gdg.genome_dots_gene_id = $gdg_id";
 	$sth = $dbh->prepareAndExecute($sql);
 	my @rows;
-	while (my $row = $sth->fetchrow_hashref('NAMElc')) {  push @rows, $row; }
+	while (my $row = $sth->fetchrow_hashref('NAME_lc')) {  push @rows, $row; }
 	die "unexpected error: not info about gDG.$gdg_id" unless @rows;
 	my $r1 = $rows[0];
 
@@ -168,20 +171,24 @@ sub moveToGus {
 	$gf->setNumberOfExons($r1->{number_of_exons});
 	$gf->setScore($r1->{confidence_score});
 	$gf->setNaSequenceId($chrIds{$r1->{chromosome}});
+	my $success = $gf->submit(0);
+	die "could not submit new GeneFeature " . $gf->getName if !$success;
 
 	my $gi = GUS::Model::DoTS::GeneInstance->new();
-	$gi->addChild($gene);
-	$gi->addChild($gi_cat);
-	$gi->addChild($gf);
-	my $success = $gi->sumbit(1);
+	$gi->setGeneId($gene->getGeneId);
+	$gi->setGeneInstanceCategoryId($gi_cat->getGeneInstanceCategoryId);
+	$gi->setNaFeatureId($gf->getNaFeatureId);
+	$gi->setIsReference(0);
+	$gi->setReviewStatusId(0);
+	$success = $gi->submit(0);
 	die "could not submit new GeneInstance for " . $gf->getName if !$success;
 
 	my $gfLoc = GUS::Model::DoTS::NALocation->new();
-	$gfLoc->addChild($gf);
+	$gfLoc->setNaFeatureId($gf->getNaFeatureId);
 	$gfLoc->setStartMin($r1->{chromosome_start});
 	$gfLoc->setEndMax($r1->{chromosome_end});
 	$gfLoc->setIsReversed($r1->{strand} eq '-' ? 1 : 0);
-	$success = $gfLoc->sumbit(0);
+	$success = $gfLoc->submit(0);
 	die "could not submit new NALocation for " . $gf->getName if !$success;
 
 	my $exoncount = $gf->getNumberOfExons;
@@ -189,32 +196,37 @@ sub moveToGus {
 	my @exonends = split(/,/, @{ $r1->{exonends} });
 	for (my $i=1; $i<=$exoncount; $i++) {
 	    my $ef = GUS::Model::DoTS::ExonFeature->new();
-	    $ef->setParentId($gf->getGeneFeatureId);
-	    $ef->setName('');
+	    $ef->setParent($gf);
+	    $ef->setName("E$i");
 	    $ef->setNaSequenceId($gf->getNaSequenceId);
 	    $ef->setOrderNumber($i);
+	    $success = $ef->submit(0);
+	    die "could not submit new ExonFeature for " . $gf->getName . " exon $i" if !$success;
+	    
+
 	    my $efLoc = GUS::Model::DoTS::NALocation->new();
-	    $efLoc->addChild($ef);
-	    $efLoc->setStartMin($exonstarts[$i-1]);
-	    $efLoc->setEndMax($exonends[$i-1]);
-	    $efLoc->setIsReversed($gf->getIsReversed);
-	    $success = $efLoc->sumbit(1);
-	    die "could not submit new NALocation and ExonFeature for "
-		. $gf->getName . " exon $i" if !$success;
+	    $efLoc->setNaFeatureId($ef->getNaFeatureId);
+	    my ($s, $e) = ($exonstarts[$i-1], $exonends[$i-1]);
+	    die "unexpected exon start and end ($s, $e)" unless defined $s && $e >= $s;
+	    $efLoc->setStartMin($s);
+	    $efLoc->setEndMax($e);
+	    $efLoc->setIsReversed($gfLoc->getIsReversed);
+	    $success = $efLoc->submit(0);
+	    die "could not submit new NALocation for " . $gf->getName . " exon $i" if !$success;
 	}
 
 	foreach (@rows) {
 	    my $dt = $_->{na_sequence_id}; 
-	    # my $blat = $_->{blat_alignment_id};
-	    my $rf = GUS::Model::DoTS::RnaFeature->new();
-	    $rf->setParentId($gf->getGeneFeatureId);
-	    $rf->setName('');
+	    my $blat = $_->{blat_alignment_id};
+	    my $rf = GUS::Model::DoTS::RNAFeature->new();
+	    $rf->setParent($gf);
+	    $rf->setName("BLAT.$blat");
 	    $rf->setNaSequenceId($dt);
 	    # TODO: make NALocation for coords within dt
 	    # TODO: make RNAInstance, associate with RNAInstanceCategory & RNA
 	    # TODO: make RNAFeatureExon that associate exons with RNAs
 	    # (not yet supported because the current gDG creation process looses this info.)
-	    $success = $rf->sumbit(0);
+	    $success = $rf->submit(0);
 	    die "could not submit new RNAFeature for " . $gf->getName . " DT.$dt" if !$success;
 	}
 
@@ -239,7 +251,9 @@ sub getFakeGene {
     my ($self) = @_;
     my $gene = GUS::Model::DoTS::Gene->new({'gene_id'=>-1});
     $gene->setReviewStatusId(0);
-    $gene->submit;
+    my $success = $gene->submit;
+    die "not able to submit fake gene (id: -1)" unless $success;
+
     return $gene;
 }
 
