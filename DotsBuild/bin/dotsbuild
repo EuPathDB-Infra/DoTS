@@ -978,7 +978,7 @@ sub extractNRDB {
 
     my $sql = "select aa_sequence_id,'source_id='||source_id,'secondary_identifier='||secondary_identifier,description,'length='||length,sequence from dots.ExternalAASequence where external_database_release_id = $nrdbReleaseId";
     
-    extractProteinSeqs("nrdb", $sql);
+    &extractProteinSeqs("nrdb", $sql);
 }
 
 sub extractProteinSeqs {
