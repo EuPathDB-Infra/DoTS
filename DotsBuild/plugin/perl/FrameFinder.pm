@@ -30,16 +30,16 @@ sub new {
   my $easycsp =
     [
      {o => 'restart',
-      t => 'string'
+      t => 'string',
       h => 'restarts from last entry in TranslatedAASequence....
                              takes list of row_alg_invocation_ids "234, 235"!',
      },
      {o => 'idSQL',
-      t => 'string'
+      t => 'string',
       h => 'SQL statement:  must return list of primary identifiers (na_sequence_id) from --table_name',
      },
      {o => 'wordfile',
-      t => 'string'
+      t => 'string',
       h => 'word probability file for framefinder',
       e => [ qw ( hum_GB123.wordprob mouse_GB123.wordprob ) ],
      },
@@ -48,11 +48,11 @@ sub new {
       h => 'number of iterations for testing',
      },
      {o => 'ffdir',
-      t => 'string'
+      t => 'string',
       h => 'directory for framefinder_GUS location',
      },
      {o => 'dianadir',
-      t => 'string'
+      t => 'string',
       h => 'directory for diana program location',
      },
     ];
