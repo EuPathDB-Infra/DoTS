@@ -212,7 +212,7 @@ sub processQuery {
       ##set length to 20 if less than thatt so cross_match will work...will be removed from AssembySequence
       ##since is less than 50 bp.
       my $qLength = $qStop == 0 ? $ex->getLength() - $qStart : ($qStop - $qStart < 20 ? 20 : $qStop - $qStart);
-      $miniLib .= ">".$ex->getId()."\n".SequenceUtils::breakSequence(substr($ex->getSequence(),$qStart,$qLength));
+      $miniLib .= ">".$ex->getId()."\n".CBIL::Bio::SequenceUtils::breakSequence(substr($ex->getSequence(),$qStart,$qLength));
     }else{
       $miniLib .= $ex->toFasta();
     }
@@ -312,7 +312,7 @@ sub returnQuality{
 sub trimAT {
   my($seq) = @_;
   $seq =~ s/\s//g;
-  print STDERR "\ntrimAT input: \n", SequenceUtils::breakSequence($seq) if $debug == 1;
+  print STDERR "\ntrimAT input: \n", CBIL::Bio::SequenceUtils::breakSequence($seq) if $debug == 1;
   my @seq = split('', $seq);
   my %nuc;
   my($startBase,$endBase);

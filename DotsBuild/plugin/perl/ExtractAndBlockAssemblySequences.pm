@@ -244,7 +244,7 @@ sub processBlockedSequence{
     $ass->submit();
     $countBad++;
   } else {
-    print OUT "\>$ass_seq_id\n".SequenceUtils::breakSequence($sequence);
+    print OUT "\>$ass_seq_id\n".CBIL::Bio::SequenceUtils::breakSequence($sequence);
   }
 }
 
@@ -255,7 +255,7 @@ sub trimDanglingNNN {
   }
 
   if ($seq =~ /N/) {            ##still has at least one N so..
-    my $rev = SequenceUtils::reverseComplementSequence($seq);
+    my $rev = CBIL::Bio::SequenceUtils::reverseComplementSequence($seq);
     if ($rev =~ /^(.*?)NNNNNNNNNN+(.*?)$/) {
       #			print "matched ending NNNN length\$1=".length($1)." length\$2=".length($2)."\nSEQ:$seq\n";
       $rev = $2 if length($1) < 20; ##don't want to leave 20 bp at end...
@@ -263,7 +263,7 @@ sub trimDanglingNNN {
     if (length($rev) == length($seq)) {
       return $seq;
     } else {
-      return SequenceUtils::reverseComplementSequence($rev);
+      return CBIL::Bio::SequenceUtils::reverseComplementSequence($rev);
     }
   } else {
     return $seq;

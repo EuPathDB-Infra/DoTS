@@ -313,22 +313,22 @@ if ($stpos<=0)
    my $o;
    for($o=0; $o<4; $o++) {
 	my $seq1 = $seq;
-	if ($strand) {$seq1 = SequenceUtils::reverseComplementSequence($seq1)};
+	if ($strand) {$seq1 = CBIL::Bio::SequenceUtils::reverseComplementSequence($seq1)};
       my $naseg1 = substr($seq1,$stpos+$o-1,length($aaseg) * 3);
-      my $aaseg1 = SequenceUtils::translateSequence($naseg1);
+      my $aaseg1 = CBIL::Bio::SequenceUtils::translateSequence($naseg1);
 	my $seq2 = substr($seq1, $o, length($seq1));
-	my $aaseg2 = SequenceUtils::translateSequence($seq2);
+	my $aaseg2 = CBIL::Bio::SequenceUtils::translateSequence($seq2);
       $aaseg1 =~ s/X/\./g;
       $aaseg1 =~ s/\*/\./g;
       if (not ($aaseg =~ /$aaseg1/))
 	{
    print STDERR "START POSITION $stpos failed in frame $o for $naSeqId\n na seq is $naseg1 and aa $aaseg1   aaseq  $aaseg\n" if $verbose;
-#      print " in".SequenceUtils::breakSequence($seq1)." translated is $aaseg2\n 
+#      print " in".CBIL::Bio::SequenceUtils::breakSequence($seq1)." translated is $aaseg2\n 
 	}
 	else
 	{$start_pos = $stpos+$o; 
 #	print "START POSITION IS OK: $start_pos END position is $end_pos in na_seq in $o frame with strand $strand\n na seq is $aaseg1   aaseq  $aaseg\n"; 
-#	print " Here the sequences are ".SequenceUtils::breakSequence($aaseg2)."\n".SequenceUtils::breakSequence($aa_seq)."\n";
+#	print " Here the sequences are ".CBIL::Bio::SequenceUtils::breakSequence($aaseg2)."\n".CBIL::Bio::SequenceUtils::breakSequence($aa_seq)."\n";
 	last;}
  } # for
  } # if
@@ -358,8 +358,8 @@ if ($stpos<=0)
 
    ##     debug print
 #	print "length of trivial sequence is $triv_aa_length framfinder is ".length($aa_seq)."\n"; 
-#	print "trivial aa_sequence\n".SequenceUtils::breakSequence($triv_seq);
-#	print "source sequence\n".SequenceUtils::breakSequence($seq);
+#	print "trivial aa_sequence\n".CBIL::Bio::SequenceUtils::breakSequence($triv_seq);
+#	print "source sequence\n".CBIL::Bio::SequenceUtils::breakSequence($seq);
 
 	if (($triv_trans_start+$triv_aa_length*3-1) > length($seq)) {print STDERR "Something WRONG with triv_trans\n"; print STDERR "triv_trans_start".$triv_trans_start." na_sequence length ".length($seq)." aa_seq_length ".$triv_aa_length." trivial is reversed ".$triv_trans_revcomp."\n";}
 
@@ -432,9 +432,9 @@ if ($stpos<=0)
         }
 
       print "setting sequence with the trivial translation\n" if $verbose;
-#      print SequenceUtils::breakSequence($triv_seq)."\n"; 
+#      print CBIL::Bio::SequenceUtils::breakSequence($triv_seq)."\n"; 
       $tr_AASeq->setSequence($triv_seq); # unless $tr_AASeq->getSequence() == $triv_seq;
-#      print "set the trivial sequence".SequenceUtils::breakSequence($tr_AASeq->getSequence())."\n";
+#      print "set the trivial sequence".CBIL::Bio::SequenceUtils::breakSequence($tr_AASeq->getSequence())."\n";
 
 ###  Setting the segment for trivial translation;
      undef @transsegs;
@@ -588,12 +588,12 @@ else {
 
 #    		my $naseg = $seg->getNASequenceSegment();
 		if ($translate->getIsReversed())
-			{$naseg = SequenceUtils::reverseComplementSequence($naseg);}
+			{$naseg = CBIL::Bio::SequenceUtils::reverseComplementSequence($naseg);}
 		my $aaseg = substr($tr_AASeq->getSequence(), $seg->getAaStartPos()-1, $seg->getAaEndPos() - $seg->getAaStartPos()+1);
 		my $aaseg = substr($aaseg,0,length($aaseg) <13 ? length($aaseg) - 3 : 10);
 		for (my $o =0; $o <7; $o++) {
 			my $naseg1 = substr($naseg, $o, length($aaseg) * 3);
-		my $aaseg1 = SequenceUtils::translateSequence($naseg1);
+		my $aaseg1 = CBIL::Bio::SequenceUtils::translateSequence($naseg1);
         	$aaseg1 =~ s/X/\./g;
         	$aaseg1 =~ s/\*/\./g;
 		if (not($aaseg =~ /$aaseg1/)) {
@@ -615,7 +615,7 @@ else {
     
     $translate->addChildren(@transsegs);
     $tr_AASeq->submit();
-#    print " The aa sequences for trivial after submission and initial\n ".SequenceUtils::breakSequence($tr_AASeq->getSequence())."\n".SequenceUtils::breakSequence($triv_seq)."\n";
+#    print " The aa sequences for trivial after submission and initial\n ".CBIL::Bio::SequenceUtils::breakSequence($tr_AASeq->getSequence())."\n".CBIL::Bio::SequenceUtils::breakSequence($triv_seq)."\n";
 
     ##put in the sanity check here to make certain that the locations are correct
     my @failed = 0;
@@ -627,17 +627,17 @@ else {
 #   print " NA and AA positions ".$seg->getStartPos()."  ".$seg->getEndPos()." ".$seg->getAaStartPos()."  ".$seg->getAaEndPos()."\n";
     my $naseg = $seg->getNASequenceSegment(); 
 #	print length($naseg)."\n";
-#	print "NA sequence" .SequenceUtils::breakSequence($naseg);
+#	print "NA sequence" .CBIL::Bio::SequenceUtils::breakSequence($naseg);
 
     my $aaseg0 = $seg->getAASequenceSegmentFromTranslatedAASequence(); # - have not submitted - other seq;
    
-#        print "AA sequence" .SequenceUtils::breakSequence($aaseg);
+#        print "AA sequence" .CBIL::Bio::SequenceUtils::breakSequence($aaseg);
    
     my $aaseg = substr($aaseg0,0,length($aaseg0) < 13 ? length($aaseg0) - 3 : 10);
     if (length($aaseg) < 3) {print "Sanity check is abandoned due to short segment\n" if $verbose; next;}
     for(my $o=0; $o<7; $o++) {
         my $naseg1 = substr($naseg,$o,length($aaseg) * 3);
-	my $aaseg1 = SequenceUtils::translateSequence($naseg1);
+	my $aaseg1 = CBIL::Bio::SequenceUtils::translateSequence($naseg1);
 	$aaseg1 =~ s/X/\./g;
         $aaseg1 =~ s/\*/\./g;	
 	$aaseg =~ s/\*/\./g;
@@ -650,7 +650,7 @@ else {
 	else
 	{
 #	print "It is fine - locations are correct for frame $o\n";
-        print STDERR "Sanity Check is OK for $naSeqId\n na seq: ".SequenceUtils::translateSequence($naseg1)." aaseq:  $aaseg\n ".substr($aaseg0, -4,4)." reversed is". $translate->getIsReversed()."\n" if $verbose;
+        print STDERR "Sanity Check is OK for $naSeqId\n na seq: ".CBIL::Bio::SequenceUtils::translateSequence($naseg1)." aaseq:  $aaseg\n ".substr($aaseg0, -4,4)." reversed is". $translate->getIsReversed()."\n" if $verbose;
         my $aafStartPos = $o;
         my $goodFirst = 1;
 	@failed[$i]=0;
