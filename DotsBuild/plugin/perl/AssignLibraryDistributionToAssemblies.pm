@@ -141,7 +141,7 @@ sub run {
   undef %ignore;                ##free this memory...
 
   ##prepare the library query statment to reuse in following loop
-  my $libQuery = " select e.accession,al.dbest_library_id,al.anatomy_id
+  my $libQuery = " select /*+ RULE*/ e.accession,al.dbest_library_id,al.anatomy_id
         from DoTS.AssemblySequence ass,
         DoTS.AnatomyLibrary al, DoTS.EST e, DoTS.Library l
         where ass.assembly_na_sequence_id = ?
