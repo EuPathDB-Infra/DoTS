@@ -310,6 +310,7 @@ sub moveToGus {
 	    $ef->setName("E$i");
 	    $ef->setNaSequenceId($gf->getNaSequenceId);
 	    $ef->setOrderNumber($i);
+	    $rf->setExternalDatabaseReleaseId($genomeId);
 	    $success = $ef->submit(0);
 	    $self->error("could not submit new ExonFeature for " . $gf->getName . " exon $i") if !$success;
 	    

@@ -1,0 +1,168 @@
+#!@perl@
+
+##################################################################
+# Y. Thomas Gan <ygan@pcbi.upenn.edu> December 12, 2002
+#
+# Dump gene sequences for DoTS genome aligned genes
+#
+##################################################################
+
+use strict;
+use lib "$ENV{GUS_HOME}/lib/perl";
+use GUS::ObjRelP::DbiDatabase;
+use GUS::Common::GusConfig;
+use DoTS::Gene::Util;
+
+# command line options and usage
+my $taxonId = shift;
+my $genomeId = shift;
+my $gusConfigFile = shift;
+my $spliced = shift;
+my $stable = shift;
+my $exc_deprecated = shift;
+my $coding = shift;
+my $outFile = shift;
+my $use_ag = shift;
+unless ($taxonId && $genomeId && $spliced =~ /\d+/ && $stable =~ /1|0/ &&
+	$exc_deprecated =~ /1|0/ && $coding =~ /\-1|0|1/ && $outFile) {
+    print "\n", 'usage: dumpGeneSeqs <taxonId> <genomeDbRlsId> ' .
+          '<splicedOnly?(0|1+)> <stableOnly?(0|1)> <excDeprecated?(0|1)> ' .
+	  '<coding?(-1|0|1)> <outFile> [useAG]' . "\n\n";
+    exit;
+}
+
+# turn off output buffering
+$| = 1;
+
+# database conneciton to use
+my $gusconfig = GUS::Common::GusConfig->new($gusConfigFile);
+my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
+					$gusconfig->getReadOnlyDatabaseLogin(),
+					$gusconfig->getReadOnlyDatabasePassword,
+					0,0,1,
+					$gusconfig->getCoreSchemaName(),
+					$gusconfig->getOracleDefaultRollbackSegment());
+my $dbh = $db->getQueryHandle();
+my $aid = &DoTS::Gene::Util::getAnalysisId($dbh, $taxonId, $genomeId);
+
+# get all chromosomes
+my @chroms = &DoTS::Gene::Util::getChromsInfo($dbh, $genomeId);
+
+open OUT, ">$outFile";
+my $count = 0;
+
+foreach my $c (@chroms) {
+    my $chr = $c->{chr};
+    my $chr_id = $c->{chr_id};
+    print STDERR "processing chr$chr...\n";
+
+    # the query result and print
+    my $sql = &getGeneSelectionSql ($aid, $chr, $spliced, $stable, $exc_deprecated, $coding);
+
+    print STDERR "running: $sql\n";
+    my $sth = $dbh->prepare($sql) or die "bad sql $sql: !\n";
+    $sth->execute or die "could not run $sql: $!";
+    while (my ($agid, $chr, $strand, $ec, $es, $ee, $cs, $ce) = $sth->fetchrow_array) {
+	my @ess = split(/,/, $es);
+	my @ees = split(/,/, $ee);
+	die "unexpected exon coordinates $es and $ee" unless $ec == scalar(@ess) && $ec == scalar(@ees);
+	my ($sth2, $seq);
+	for (my $i=0; $i<$ec; $i++) {
+	    my ($s, $len) = ($ess[$i]+1, $ees[$i] - $ess[$i]);
+	    if ($len == 0) {
+		print "WARNING 0 length exon for ag.$agid, this might be due to BLAT 0bp block\n";
+		next;
+	    }
+	    $sql = "select substr(sequence, $s, $len) from DoTS.VirtualSequence " 
+		. "where na_sequence_id = $chr_id";
+	    $sth2 = $dbh->prepare($sql);
+	    $sth2->execute;
+	    my $exon_seq;
+	    if ($exon_seq = $sth2->fetchrow_array) { ; }
+	    die "could not get $len bp from chr$chr:$s for ag.$agid\n" unless $exon_seq;
+	    $seq .= $exon_seq;
+	}
+	$sth2->finish;
+
+	if ($strand =~ /\-/) {
+	    $seq = &reverseComplement($seq)
+	    }
+
+	my $id;
+	if ($use_ag) {
+	    $id = "AG.$agid";
+	} else {
+	    $id = &getDisplayId($dbh, $agid);
+	}
+	my $desc = "chr$chr:$cs-$ce ($strand)";
+
+	my $oneSeq = &formatSequence($id, $desc, $seq);
+	print OUT $oneSeq;
+	print "dumped $count entries\n" unless ++$count % 1000;
+    }
+    $sth->finish;
+}
+
+close OUT;
+
+###################
+
+sub getDisplayId {
+  my ($dbh, $agid) = @_;
+  my $sql = "select gene_id from Allgenes.AlignedGene "
+          . "where aligned_gene_id = $agid";
+  my $sth = $dbh->prepare($sql);
+  $sth->execute;
+  my ($gid) = $sth->fetchrow_array;
+  $gid ? "DG.$gid" : "ag.$agid";
+}
+
+sub reverseComplement {
+    my ($seq) = @_;
+    $seq =~ tr/ATCGatcg/TAGCtagc/;
+    return reverse $seq;
+}
+
+sub formatSequence {
+    my ($id, $desc, $seq) = @_;
+
+    my $res = ">$id $desc\n";
+
+    my $step = 100;
+    my $lines = length($seq) / $step;
+    my $l = int $lines;
+    for (my $i=0; $i <= $l; $i++) {
+	$res .= uc(substr($seq, $i*$step, $step)) . "\n";
+    }
+    return $res;
+}
+
+sub getGeneSelectionSql {
+    my ($aid, $chr, $spliced, $stable, $exc_deprecated, $coding, $count_only) = @_;
+
+    my $sql = ($count_only ? "select count(*) "
+	       : "select aligned_gene_id, chromosome, strand, number_of_exons, "
+	       . "exonstarts, exonends, chromosome_start, chromosome_end ")
+	    . "from Allgenes.AlignedGene ag "
+	    . "where aligned_gene_analysis_id = $aid and chromosome = '$chr' ";
+    if ($spliced == 1) {
+        my $dtIntron = "aligned_gene_id in (select  aga.aligned_gene_id "
+                     . "from Allgenes.AlignedGeneAssembly aga, dots.blatalignment b "
+                     . "where aga.aligned_gene_id = ag.aligned_gene_id "
+                     . "and aga.blat_alignment_id = b.blat_alignment_id and b.max_target_gap >= 47)";
+        $sql .= "and ($dtIntron or max_intron >= 47 or contains_mrna = 1 or number_of_est_p53pairs > 1) ";
+    } elsif ($spliced > 1) {
+        $sql .= "and number_of_exons > $spliced ";
+    }
+    if ($exc_deprecated) {
+        $sql .= 'and (deprecated is null or deprecated = 0) ';
+    }
+    if ($coding >= 0) {
+        $sql .= 'and (' . ($coding ? 'min_orf_pval <= 0.05 or max_orf_length >= 100'
+                                   : 'min_orf_pval > 0.05 and max_orf_length < 100') . ') ';
+    }
+    if ($stable) {
+	$sql .= "and not gene_id is null";
+    }
+    return $sql;
+}

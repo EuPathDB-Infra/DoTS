@@ -128,7 +128,9 @@ $mgr->waitForAction("FrameFinder annotation", "waitFrameFinder");
 
 &makeGffFiles($mgr);
 &addUcscHeaders($mgr);
-&dumpCodingGeneSeqs($mgr);
-&dumpNoncodingGeneSeqs($mgr);
+&dumpGeneSeqs($mgr, 'Coding');
+&dumpGeneSeqs($mgr, 'Noncoding');
+&mapUQueenslandAcc($mgr, 'NIA');
+&mapUQueenslandAcc($mgr, 'CGEN');
 
 $mgr->goodbye("DoTS gene pipeline completed!\n");

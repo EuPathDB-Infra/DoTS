@@ -1,0 +1,57 @@
+#!@perl@
+
+use strict;
+
+my $genome = shift;
+my $chr_gff_dir = shift;
+my $out_dir = shift;
+die "usage: adducscHeader <genomeVer> <InDir> [outDir]\n" unless $genome && -d $chr_gff_dir;
+`mkdir -p $out_dir` unless -d $out_dir;
+
+opendir(CD, $chr_gff_dir);
+my @files = readdir(CD);
+closedir(CD);
+
+my @matches = grep(/chr.+.*\.gff$/, @files);
+
+foreach my $inf (@matches) {
+    my $chr;
+    if ($inf =~ /chr(\S+?)\./i) { $chr = $1; }
+
+    my $hf = 'tmp_ucsc_header.txt';
+    &printHeader($hf, $chr, $genome);
+
+    my $outf = $inf; $outf =~ s/\.gff$/\.ucscgff/;
+    
+    my $cmd = "cat $hf $chr_gff_dir/$inf > $out_dir/$outf";
+    print "running: $cmd\n";
+    `$cmd`;
+    
+    `rm -f $hf`;
+}
+
+sub printHeader {
+    my ($f, $chr, $genome) = @_;
+
+    open OUT, ">$f";
+    print OUT "###############\n" .
+              "# browser lines\n" .
+              "###############\n" .
+              "browser position chr$chr\n" .
+              "browser pix 800\n" .
+              "browser hide all\n" .
+              "browser dense ruler refGene ensGene tigrGeneIndex sanger22 uniGene genscan\n" .
+              "\n\n" .
+              "#############\n" .
+              "# track lines\n" .
+              "#############\n" .
+              "track name=\"DoTS Genes\" " .
+              "description=\"CBIL genes created from genomic alignments of DoTS\" " .
+              "color=100,50,0 visibility=1 priority=1 useScore=1 " .
+              "url=\"http://www.allgenes.org/allgenes/servlet?page=gene&seq=$genome&id=\$\$\"\n" .
+              "\n\n" .
+              "######\n" .
+              "# data\n" .
+              "######\n\n";
+    close OUT; 
+}

@@ -1,0 +1,273 @@
+#!@perl@
+
+# --------------------------------------------------
+# dump DoTS genes from database in GFF format
+#
+# Y. Thomas Gan March 12, 2003
+# --------------------------------------------------
+
+use strict;
+use lib "$ENV{GUS_HOME}/lib/perl";
+use Getopt::Long;
+use GUS::ObjRelP::DbiDatabase;
+use GUS::Common::GusConfig;
+use DoTS::Gene::Util;
+
+# command line options and usage
+my $taxonId = shift;
+my $genomeId = shift;
+my ($gusConfigFile, $coords, $score, $spliced, $stable,
+    $format, $out_dir, $out_fn_pref, $ucsc_header_only, $help);
+&GetOptions("gusConfigFile=s" => \$gusConfigFile, 
+	    "coords:s" => \$coords,
+            "score:i" => \$score,
+	    "spliced:i" => \$spliced,
+	    "stable!" => \$stable,
+	    "format:s" => \$format,
+            "out_dir:s" => \$out_dir,
+            "out_fn_pref:s" => \$out_fn_pref,
+	    "ucsc_header_only" => \$ucsc_header_only,
+	    "help!" => \$help,
+	    ) or &usage;
+$format = 'gff' unless $format;
+$out_dir = '.' if $out_dir eq 'pwd';
+&usage if $help;
+&usage unless $taxonId && $genomeId && -d $out_dir && $out_fn_pref;
+
+$| = 1;
+
+
+# for custom annoation track at UCSC
+my $track_name = 'DoTS Genes';
+my $track_desc = 'CBIL genes created from genomic alignments of DoTS';
+if ($ucsc_header_only) {
+    &_printUCSCHeader($track_name, $track_desc);
+    exit;
+}
+
+# database conneciton to use
+my $gusconfig = GUS::Common::GusConfig->new($gusConfigFile);
+
+my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
+					$gusconfig->getReadOnlyDatabaseLogin(),
+					$gusconfig->getReadOnlyDatabasePassword,
+					0,0,1,
+					$gusconfig->getCoreSchemaName(),
+					$gusconfig->getOracleDefaultRollbackSegment());
+
+my $dbh = $db->getQueryHandle();
+my $aid = &DoTS::Gene::Util::getAnalysisId($dbh, $taxonId, $genomeId);
+
+# get all the chromosome/coordinates to work on
+my @all_coords = &_getAllCoordinates($dbh, $aid, $coords);
+
+# get all genes from each region and print
+foreach (@all_coords) {
+    my ($chr, $start, $end) = ($_->{chr}, $_->{start}, $_->{end});
+    my $fn = $out_fn_pref . "chr$chr" . ($start ? ":$start" : "") . ($end ? "-$end" : "")
+           . ($spliced eq '1' ? '' : ".spliced$spliced") . ($stable ? '' : '.unstable') . ".$format";
+    my $of = ($out_dir ? "$out_dir/$fn" : "");
+    my $genes = &_getGenes($dbh, $aid, $chr, $start, $end, $score, $spliced, $stable);
+
+    my $msg = "\n# chr$chr" . ($start ? ":$start-$end" : "") . "\n#\n";
+    if ($of) {
+        open OF, ">$of" or die "could not open $of for write: $!\n";
+	print OF $msg;
+	foreach my $g (@$genes) {
+	   print OF &_GeneAsString($g, $format, 'DoTS2Gene');
+        }
+        close OF;
+    } else {
+        print $msg;
+        foreach my $g (@$genes) {
+           print &_GeneAsString($g, $format, 'DoTS2Gene');
+        }
+    }
+}
+
+####################### sub routines ###############################
+
+sub _GeneAsString {
+    my ($g, $format, $gene_prog) = @_;
+
+    my $gid = $g->{gid};
+    my $chr = $g->{chr};
+    my $strand = $g->{strand};
+    my $start = $g->{start};
+    my $end = $g->{end};
+    my $exons = $g->{exons};
+    my $dep = $g->{deprecated};
+    my $est_plot_score = $g->{est_plot_score};
+    my $confidence_score = $g->{confidence_score};
+    my $score = 200;
+    if ($confidence_score > 0) {
+        $score += $confidence_score * (900/15);
+    }
+    $score = 1000 if $score > 1000;
+
+    my $msg = "";
+    $msg = '[reversed]' if $dep;
+    $msg .= '[merge]' if $est_plot_score == -100;
+    my $gas = "# $gid: ($strand) chr$chr:$start-$end $msg\n";
+    if ($format =~ /gff/) {
+	$gas .=_GFFexonsAsString({ 'seqname' => "chr$chr", 'source' => $gene_prog,
+				   'feature' => 'exon', 'coords' => $exons, 'score' => $score,
+				   'strand' => $strand, 'frame' => '.', 'group' => $gid });
+    } else {
+	die "output format $format is not supported yet\n";
+    }
+    $gas;
+}
+
+sub _GFFexonsAsString {
+    my ($gff) = @_;
+    my $exons = $gff->{'coords'};
+    my $res = "";
+    foreach my $exon (@$exons) {
+	my ($s, $e) = @$exon;
+	$res .= $gff->{'seqname'} . "\t" .
+                $gff->{'source'} . "\t" . 
+                $gff->{'feature'} . "\t" .
+	        $s . "\t" .
+                $e . "\t" .
+                $gff->{'score'} . "\t" .
+                $gff->{'strand'} . "\t" . 
+	        $gff->{'frame'} . "\t" . 
+                $gff->{'group'} . "\n";
+    }
+    $res;
+}
+
+sub _getGenes {
+    my ($dbh, $aid, $chr, $start, $end, $score, $spliced, $stable) = @_;
+
+    my $sql = "select aligned_gene_id, chromosome, strand, chromosome_start, chromosome_end, "
+	. "number_of_exons, exonstarts, exonends, deprecated, est_plot_score, confidence_score "
+	. "from Allgenes.AlignedGene gdg where aligned_gene_analysis_id = $aid"
+	. ($chr ? " and chromosome = '$chr'" : "")
+	. ($start ? " and chromosome_end >= $start" : "")
+	. ($end ? " and chromosome_start <= $end" : "")
+	. ($score ? " and confidence_score >= $score" : "")
+    	. ($stable ? " and gene_id is not null" : "");
+	
+    if ($spliced > 0) {
+        my $dtIntron = "aligned_gene_id in (select gdt.aligned_gene_id "
+                     . "from Allgenes.AlignedGeneAssembly gdt, dots.blatalignment b "
+                     . "where gdt.aligned_gene_id = gdg.aligned_gene_id "
+                     . "and gdt.blat_alignment_id = b.blat_alignment_id and b.max_target_gap >= 47)";
+	if ($spliced == 1) {
+	    $sql .=  " and ($dtIntron or max_intron >= 47 or contains_mrna = 1 or number_of_est_p53pairs > 1)";
+	} else {
+	    $sql .= " and number_of_exons > $spliced ";
+	}
+    } elsif ($spliced < 0) {
+	$sql .= " and max_intron < 47";
+    }
+
+    print STDERR "# running $sql...\n";
+    my $sth = $dbh->prepare($sql) or die "bad sql $sql: $!\n";
+    $sth->execute or die "could not run $sql: $!\n";
+    my @genes;
+    while (my ($agid, $chr, $strand, $cs, $ce, $ec, $ess, $ees, $dep,
+	       $est_plot_score, $confidence_score) = $sth->fetchrow_array) {
+	my @ess = split(/,/, $ess);
+	my @ees = split(/,/, $ees);
+	die "unexpected exon starts $ess or ends $ees\n" 
+	    unless scalar(@ess) == $ec && scalar(@ees) == $ec;
+	my @exons;
+	for (my $i=0; $i<$ec; $i++) { push @exons, [$ess[$i], $ees[$i]]; }
+
+	my $dgid = &_getStableId($dbh, $agid);
+	my $gid = ($dgid ? "DG.$dgid" : "ag.$agid");
+	push @genes, { gid=>$gid, chr=>$chr, start=>$cs, end=>$ce, strand=>$strand, exons=>\@exons,
+                       deprecated=>$dep, est_plot_score=>$est_plot_score, confidence_score=>$confidence_score};
+    }
+    $sth->finish;
+
+    \@genes;
+}
+
+sub _getStableId {
+    my ($dbh, $agid) = @_;
+
+    my $sql = "select gene_id from Allgenes.AlignedGene where aligned_gene_id = $agid";
+    my $sth = $dbh->prepare($sql) or die "bad sql $sql: $!\n";
+    $sth->execute or die "could not run $sql: $!\n";
+    my $stable_id;
+    if (($stable_id) = $sth->fetchrow_array) { ; }
+
+    $stable_id;
+}
+
+sub _getAllCoordinates {
+    my ($dbh, $aid, $coords) = @_;
+
+    my @all_coords;
+    if ($coords) {
+	my @cs = split(/,/, $coords);
+	foreach my $c (@cs) {
+	    if ($c =~ /:/) {
+		if ($c =~ /^chr(\S+):(\d+)-(\d+)?/i) {
+		    push @all_coords, { chr=>$1, start=>$2, end=>$3 };
+		} else {
+		    die "invalid coordinate specification $c\n";
+		}
+	    } else {
+                $c =~ s/chr//i;
+		push @all_coords, { chr=>$c };
+	    }
+	}
+    } else {
+	my $sql = "select distinct chromosome from Allgenes.AlignedGene "
+		. "where aligned_gene_analysis_id = $aid";
+	my $sth = $dbh->prepare($sql) or die "bad sql $sql: $!\n";
+	$sth->execute or die "could not run $sql: $!\n";
+	while (my ($chr) = $sth->fetchrow_array) {
+	    push @all_coords, { chr=> $chr };
+	}
+	$sth->finish;
+    }
+    @all_coords;
+}
+
+sub _printUCSCHeader {
+    my ($track_name, $track_desc) = @_;
+
+    my $init_pos = 'chr1:10000000-15000000';
+    print "###############\n"
+	. "# browser lines\n"
+	. "###############\n"
+	. "browser position $init_pos\n" 
+	. "browser pix 800\n"
+        . "browser hide all\n"
+        . "browser dense ruler refGene ensGene tigrGeneIndex sanger22 uniGene genscan\n"
+        . "\n\n"
+        . "#############\n"
+        . "# track lines\n"
+        . "#############\n"
+        . "track name=\"$track_name\" description=\"$track_desc\" "
+        . "color=255,0,0 visibility=1 priority=1\n"
+        . "\n\n"
+        . "######\n"
+        . "# data\n"
+        . "######\n\n\n";  
+}
+
+sub usage {
+    my $me = `basename $0`;
+    chomp $me;
+
+    print STDERR "\nusage: $me <taxonId> <GenomeDbRlsId> [options] where:\n"
+	. "\t--gusConfigFile: config file for db connection info\n"
+        . "\t--out_dir: where to put result files, use <pwd> for working dir\n"
+        . "\t--out_fn_pref: prefix for result files e.g. mus_dots_gene\n"
+	. "\t--coords: coordinates (e.g. chr2:1-100,chr4,chr9:100-), all chrs if ommited\n"
+        . "\t--score: only those with a confidence score >= specified\n"
+	. "\t--spliced: only output genes that are spliced or has > specified num exons (-1 for unspliced only)\n"
+	. "\t--stable (switch): only output genes with stable id assigned\n"
+        . "\t--format: format of output, e.g. GFF, BED, GTF, for now just GFF\n"
+	. "\t--ucsc_header_only: print the header for custom track at UCSC\n"
+	. "\t--help: print this help message\n\n";
+
+    exit(1);
+}
