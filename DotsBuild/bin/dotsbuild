@@ -388,6 +388,8 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &makeAssemblyTMDomainSummaryTable();
 
+&makePromoterRegionTable();
+
 &createManuallyReviewedDoTSFile();
 
 &writeReadmeFile();
@@ -2879,6 +2881,28 @@ sub makeDTOrfPValueTable {
   my $args = "--verbose --taxon $taxonId --allgenesSchema $allgenesSchema";
 
   my $cmd = "makeDTOrfPvalue $args 2>> $logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+}
+
+sub makePromoterRegionTable {
+
+  my $signal = "makePromoterRegionTable";
+
+  return if $mgr->startStep("Insert entries into Allgenes.PromoterRegion table", $signal);
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $allgenesSchema = $propertySet->getProp('allgenesSchema');
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $args = "--verbose --taxon $taxonId --allgenesSchema $allgenesSchema";
+
+  my $cmd = "makePromoterRegionTable $args 2>> $logFile";
 
   $mgr->runCmd($cmd);
 
