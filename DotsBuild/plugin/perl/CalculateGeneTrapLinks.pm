@@ -35,6 +35,10 @@ sub new {
 	  t => 'float',
 	  h => "Minimum percent of the tag's length for a match/HSP to be loaded.",
 	  d => 50.0,
+	 },
+         {o => 'logfile',
+	  t => 'string',
+          h => 'log used for output and restart',
 	 }
 	 ];
     
@@ -60,9 +64,12 @@ sub run {
     my $extDbRel = $ctx->{cla}->{external_db_release};
     my $minPctId = $ctx->{cla}->{min_pct_id};
     my $minPctLen = $ctx->{cla}->{min_pct_len};
-    
+    my $logfile = $ctx->{cla}->{logfile};
+
     # Query for and cache the na_sequence_id, name, and length of each tag
     #
+
+    my $restartHash = &getRestartHash($logfile) if (-s $logfile);
     my $tagSeqs = &getTagSequences($dbh, $extDbRel);
     my $nTags = scalar(@$tagSeqs);
     my $nLinks = 0;
@@ -80,12 +87,28 @@ sub run {
 	    print STDERR "ERROR - could not find $bfile\n";
 	}
 
-	$nLinks += &processBLASTResults($t, $bfile, $minPctId, $minPctLen);
+	$nLinks += &processBLASTResults($t, $bfile, $minPctId, $minPctLen,$restartHash);
     }
 
     my $summary = "Generated $nLinks links for $nTags gene trap tag sequence(s).";
     print STDERR $summary, "\n";
     return $summary;
+}
+sub getRestartHash {
+    my ($logfile) = @_;
+    my %restartHash;
+
+    open (LOG, $logfile) || die "Can't open $logfile\n";
+
+    while (<LOG>) {
+      chomp;
+      if ($_ =~ /for\s(\S+)$/) {
+	$restartHash{$1}=1;
+      }
+    }
+
+    close (LOG);
+    return \%restartHash;
 }
 
 sub getTagSequences {
@@ -109,9 +132,11 @@ sub getTagSequences {
 }
 
 sub processBLASTResults {
-    my($tag, $bfile, $minPct, $minLenPct) = @_;
+    my($tag, $bfile, $minPct, $minLenPct,$restartHash) = @_;
     my $tagId = $tag->{na_sequence_id};
     my $tagSrcId = $tag->{source_id};
+    my $restart = "0 (done in previous run - skipping)\n";
+    return $restart if (${$restartHash->{$tagSrcId}} == 1);
     my $tagLen = $tag->{length};
     my $minMatchLen = ($minLenPct / 100.0) * $tagLen;
 
