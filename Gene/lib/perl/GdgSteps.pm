@@ -56,7 +56,7 @@ sub downloadGenome {
   my $propertySet = $mgr->{propertySet};
 
   my $signal = "downloadGenome";
-  my $doDo = $propertySet->getProp('isNewGenome');
+  my $doDo = 'isNewGenome';
 
   return if $mgr->startStep("Downloading genome", $signal, $doDo);
 
@@ -85,7 +85,7 @@ sub createGenomeDbRelease {
   my $signal = 'createGenomeDbRelease';
   my $doDo = 'isNewGenome';
 
-  # return if $mgr->startStep("Creating ExternalDatabaseRelease in GUS", $signal, 'isNewGenome');
+  return if $mgr->startStep("Creating ExternalDatabaseRelease in GUS", $signal, 'isNewGenome');
 
   my $dbrXml = "$pipelineDir/genome/genome_release.xml";
   my $gDbId = $propertySet->getProp('genome_db_id');
@@ -99,7 +99,7 @@ sub createGenomeDbRelease {
   $mgr->runPlugin($signal, "GUS::Common::Plugin::UpdateGusFromXML",
 		  $args, "Making genome release", $doDo);
 
-  # $mgr->endStep($signal);
+  $mgr->endStep($signal);
 }
 
 sub useNewGenomeDbRelease {

@@ -9,6 +9,7 @@ use CBIL::Util::GenomeDir;
 use CBIL::Bio::BLAT::PSLDir;
 use File::Basename;
 use DoTS::Gene::GdgSteps;
+use GUS::Pipeline::SshCluster;
 
 $| = 1;
 umask 002;
@@ -64,7 +65,7 @@ my $pipelineDir = "$dotsGeneBuildDir/$buildName";
 ###################  The Pipeline  ##########################
 my $cluster;
 if ($propertySet->getProp('clusterServer') ne "none") {
-  $cluster = GUS::Pipeline::SshCluster->new($propertySet->getProp('clusterServer')
+  $cluster = GUS::Pipeline::SshCluster->new($propertySet->getProp('clusterServer'),
 					  $propertySet->getProp('clusterUser') );
 } else {
   $cluster = GUS::Pipeline::NfsCluster->new();
