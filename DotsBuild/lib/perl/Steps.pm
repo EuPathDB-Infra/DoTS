@@ -497,10 +497,12 @@ sub copyPipelineDirToLiniac {
 sub startGenomicAlignmentOnLiniac {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
+
   my $liniacServer = $propertySet->getProp('liniacServer');
   my $serverPath = $propertySet->getProp('serverPath');
-  my $buildName = "release".$propertySet->getProp('dotsRelease')."/$propertySet->getProp('speciesNickname')";
+  my $buildName = "release".$propertySet->getProp('dotsRelease')."/".$propertySet->getProp('speciesNickname');
   my $signal = "rungenomealign";
+
   return if $mgr->startStep("Starting genomic alignment", $signal);
 
   $mgr->endStep($signal);
@@ -509,6 +511,42 @@ sub startGenomicAlignmentOnLiniac {
 
   $mgr->exitToLiniac($liniacCmdMsg, $liniacLogMsg, 1);
 }
+
+sub insertGenome {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+  my $signal = "insertGenome";
+  return if $mgr->startStep("Inserting genome sequences into GUS", $signal, 'downloadGenome');
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+  my $genomeVer = $propertySet->getProp('genomeVersion');
+  my $dbi_str = $propertySet->getProp('dbi_str');
+  my $genomeDir = "$externalDbDir/goldenpath/$genomeVer";
+  my $gapDir = "$externalDbDir/goldenpath/$genomeVer" . 'gaps';
+  my $temp_login = $propertySet->getProp('tempLogin');  
+  my $temp_password = $propertySet->getProp('tempPassword'); 
+  my $gd = CBIL::Util::GenomeDir->new($genomeDir);
+  my $taxon = $propertySet->getProp('taxonId');
+  my $genome_rel = $propertySet->getProp('genome_db_rls_id');
+  my $dbrXml = "$genomeDir/gusExtDbRel.xml";
+  $gd->makeGusExtDbRelXML($taxon, $genome_rel, $dbrXml);
+
+  my $args = "--comment \"add this ext db rel for $genomeVer\" --filename $dbrXml";
+  $mgr->runPlugin("makeGenomeReleaseId", "GUS::Common::Plugin::UpdateGusFromXML",
+		    $args, "Making genome release", 'downloadGenome');
+
+  $args = "--comment \"load genomic seqs for $genomeVer\" "
+	. "--genomeDir $genomeDir --genomeVersion $genomeVer";
+  $mgr->runPlugin("insertGenomeSequences", "GUS::Common::Plugin::UpdateNASequences",
+		  $args, "Loading genomic sequences", 'downloadGenome');
+
+  $args = "--tempLogin \"$temp_login\" --tempPassword \"$temp_password\" "
+    . "--dbiStr \"$dbi_str\" --gapDir $gapDir";
+  $mgr->runPlugin("loadGenomeGaps", "GUS::Common::Plugin::LoadGenomeGaps",
+		  $args, "Loading genome gaps", 'downloadGenome');
+
+  $mgr->endStep($signal);
+}
+
 
 sub qualityStart {
   my ($mgr) = @_;
@@ -1155,45 +1193,49 @@ sub copyProteinDBsToLiniac {
   my $liniacServer = $propertySet->getProp('liniacServer');
 
   my $signal = "proteinDBs2Liniac";
-  return if $mgr->startStep("Copying NRDB, CDD and Prodom to $serverPath/$mgr->{buildName}/seqfiles on $liniacServer", $signal, 'copyProteinDbs');
+  return if $mgr->startStep("Copying NRDB, CDD and Prodom to $serverPath/$mgr->{buildName}/seqfiles on $liniacServer", $signal);
 
   my $release = "release" . $propertySet->getProp('dotsRelease');
+  my $proteinRelease = "release" . $propertySet->getProp('proteinRelease');
   my $speciesNickname = $propertySet->getProp('speciesNickname');
   my $proteinDir = $propertySet->getProp('proteinDir');
   my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
   my $seqfilesDir = "$dotsBuildDir/$release/$speciesNickname/seqfiles";
+
+  my $copyNRDBToLiniac = $propertySet->getProp('copyNRDBToLiniac');
   my $f = "nrdb.fsa";
-  if ($speciesNickname eq $proteinDir) {
+  if ($copyNRDBToLiniac eq 'yes') {
     $mgr->copyToLiniac($seqfilesDir, $f, $liniacServer,
 		       "$serverPath/$mgr->{buildName}/seqfiles");
   } else {
-    my $linkCmd = "ln $dotsBuildDir/$release/$proteinDir/seqfiles/$f $dotsBuildDir/$release/$speciesNickname/seqfiles/$f";
+    my $linkCmd = "ln $dotsBuildDir/$proteinRelease/$proteinDir/seqfiles/$f $dotsBuildDir/$release/$speciesNickname/seqfiles/$f";
     $mgr->runCmdOnLiniac($liniacServer, $linkCmd);
   }
 
   my $externalDbDir = $propertySet->getProp('externalDbDir');
-
   my $date = $propertySet->getProp('cddDate');
-
   my $downloadSubDir = "$externalDbDir/cdd";
-
   my $tmpCddDir = "$downloadSubDir/cdd";
-
   die "$tmpCddDir exists but it shouldn't" if -e $tmpCddDir;
+  my $copyCDDToLiniac = $propertySet->getProp('copyCDD');
+  $mgr->runCmd("mv $downloadSubDir/$date $tmpCddDir") if ($copyNRDBToLiniac eq 'yes');
+  $f = "cdd";
+  if ($copyNRDBToLiniac eq 'yes') {
+    $mgr->copyToLiniac($downloadSubDir, "cdd", $liniacServer, 
+		       "$serverPath/$mgr->{buildName}/seqfiles");
+  }else {
+    my $linkCmd = "ln $dotsBuildDir/$proteinRelease/$proteinDir/seqfiles/$f $dotsBuildDir/$release/$speciesNickname/seqfiles/$f";
+    $mgr->runCmdOnLiniac($liniacServer, $linkCmd);
+  }
+  $mgr->runCmd("mv $tmpCddDir $downloadSubDir/$date") if ($copyNRDBToLiniac eq 'yes');
 
-  $mgr->runCmd("ln -s $downloadSubDir/$date $tmpCddDir");
-
-  $mgr->copyToLiniac($downloadSubDir, "cdd", $liniacServer,
-		     "$serverPath/$mgr->{buildName}/seqfiles");
-
-  $mgr->runCmd("rm -f $tmpCddDir");
-
+  my $copyProdomToLiniac = $propertySet->getProp('copyProdomToLiniac');
   $f = "prodom.fsa";
-  if ($speciesNickname eq $proteinDir) {
+  if ($copyProdomToLiniac eq 'yes') {
     $mgr->copyToLiniac($seqfilesDir, $f, $liniacServer,
 		       "$serverPath/$mgr->{buildName}/seqfiles");
   } else {
-    my $linkCmd = "ln $dotsBuildDir/$release/$proteinDir/seqfiles/$f $dotsBuildDir/$release/$speciesNickname/seqfiles/$f";
+    my $linkCmd = "ln $dotsBuildDir/$proteinRelease/$proteinDir/seqfiles/$f $dotsBuildDir/$release/$speciesNickname/seqfiles/$f";
     $mgr->runCmdOnLiniac($liniacServer, $linkCmd);
   }
 
