@@ -1,0 +1,86 @@
+#!@perl@
+
+use strict;
+use lib "$ENV{GUS_HOME}/lib/perl";
+use Getopt::Long;
+use GUS::ObjRelP::DbiDatabase;
+use GUS::Common::GusConfig;
+
+
+my ($verbose, $inputFile, $taxon_id, $gusConfigFile, $regex);
+&GetOptions("verbose!"=> \$verbose,
+            "inputFile=s" => \$inputFile,
+	    "taxon_id=i" => \$taxon_id,
+            "gusConfigFile=s" => \$gusConfigFile,
+            "regex=s" => \$regex);
+
+my $usage = "
+usage: makeMGC2DoTSfile --inputFile  --taxon_id --verbose --gusConfigFile [\$GUS_CONFIG_FILE]\n
+
+Create mapping between MGC and DoTS.  
+
+Input is a 11 column tab delimited file, where each row is: 
+clone_id is [0], accession is [9], setname is [8] (we want FANTOM2 set) 
+
+Output is 2 column space delimited, where each row is:
+clone_id\tdots.externalnasequence.na_sequence_id
+";
+
+die $usage unless ($inputFile && $taxon_id);
+
+print STDERR "Establishing dbi login\n" if $verbose;
+
+my %fantom2naseqid = &parseFantomFile($inputFile);
+
+my $gusconfig = GUS::Common::GusConfig->new($gusConfigFile);
+
+my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
+					$gusconfig->getReadOnlyDatabaseLogin(),
+					$gusconfig->getReadOnlyDatabasePassword(),
+					$verbose,0,1,
+					$gusconfig->getCoreSchemaName());
+
+my $dbh = $db->getQueryHandle();
+
+my $sql = "select na_sequence_id from dots.ExternalNASequence where source_id = ? and taxon_id = $taxon_id";
+
+print STDERR "Query: $sql\n" if $verbose;
+
+my $stmt = $dbh->prepare($sql);
+
+my $c;
+
+foreach my $fantom (keys %fantom2naseqid) {
+  $stmt->execute($fantom2naseqid{$fantom});
+  my ($id) = $stmt->fetchrow_array();
+  print "$fantom\t$id\n" if $id;
+  $stmt->finish();
+  $c++;
+  print STDERR "Processed $c\n" if $verbose && $c % 1000 == 0;
+}
+
+$db->logout();
+
+sub parseFantomFile {
+    my ($file) = @_;
+
+    open(F, $file) || die "Can't open input file $file";
+
+    while(<F>) {
+      chomp;
+      my $fantom;
+      my @line = split(/\t/,$_);
+      if ($line[8] =~ /FANTOM2/) {
+	$fantom = $line[0];
+      }
+      else {
+	next;
+      }
+      my $acc = $line[9];
+      $acc =~ s/\.\d+//;
+      $fantom2naseqid{$fantom}=$acc;
+    }
+    return %fantom2naseqid;
+}
+
+
