@@ -348,10 +348,6 @@ $mgr->waitForLiniac("genomic alignments of assemSeqs", "waitGenomeAlignAss");
 
    &prepareEPConBlastSiteFiles($mgr);
 
-   &prepareDownloadSiteFiles($mgr);
-
-   &prepareBlastSiteFiles($mgr);
-
    &formatFinalDots($mgr);
 
    &deleteGeneTrapAssembly($mgr);
