@@ -11,13 +11,12 @@ use GUS::Common::GusConfig;
 
 $| = 1;
 
-my ($verbose, $go_cvs_version, $createTmpTableOnly,$dbLogin,$dbPassword,
+my ($verbose, $createTmpTableOnly,$dbLogin,$dbPassword,
     $useExistingTmpTable, $goRowTemplateFile, $templateFile, $totalBarWidth);
 
 &GetOptions("dbLogin=s" => \$dbLogin,
 	    "dbPassword=s" => \$dbPassword,
             'verbose!' => \$verbose, 
-	    'go_cvs_version=s' => \$go_cvs_version,
             'useExistingTmpTable!' => \$useExistingTmpTable,
 	    'goRowTemplateFile=s' => \$goRowTemplateFile,
 	    'templateFile=s' => \$templateFile,
@@ -120,7 +119,7 @@ where na_sequence_id in (
       where contains_mrna = 1 )
 and total_seqs = 1";
 
-  ##want to updat total_seqs to two where sequence is singleton but mRNA
+  ##want to update total_seqs to two where sequence is singleton but mRNA
   print STDERR "  Updating total_seqs for mRNAs: ".$dbh->do($sql)." rows\n";
   $dbh->commit();
   print STDERR "  Updating number_of_contained_sequences: ".$dbh->do("update PrintStatsTmp set number_of_contained_sequences = 2 where number_of_contained_sequences > 1")." rows\n";
@@ -182,20 +181,21 @@ sub formatGOTable {
   print STDERR "Formatting GO Distribution Table\n";
 
   my @sortedGoFuncs = 
-    sort{$humDoTSGOHash->{$b} <=> $humDoTSGOHash->{$a}} keys %$humDoTSGOHash;
+    sort { $humDoTSGOHash->{$b} <=> $humDoTSGOHash->{$a} } keys %$humDoTSGOHash;
 
   my $tableString;
-  foreach my $func (@sortedGoFuncs) {
-
-    my $funcBrief = $func;
-    $funcBrief = substr($func,0,30) . "..." if (length($func) > 30);
-    my %values = &findGOValues($funcBrief,
-			       $humDoTSGOHash->{$func}, $humDoTSGOTot,
-			       $musDoTSGOHash->{$func}, $musDoTSGOTot,
-			       $totalBarWidth
-			      );
-    my $rowString = &substituteValues($rowTemplate, %values);
-    $tableString .= $rowString;
+  foreach my $funcKey (@sortedGoFuncs) {
+      my($goTermId, $func) = ($funcKey =~ /^(\d+)\|(.*)$/);
+      my $funcBrief = $func;
+      $funcBrief = substr($func,0,30) . "..." if (length($func) > 30);
+      my %values = &findGOValues($funcBrief,
+				 $goTermId,
+				 $humDoTSGOHash->{$funcKey}, $humDoTSGOTot,
+				 $musDoTSGOHash->{$funcKey}, $musDoTSGOTot,
+				 $totalBarWidth
+				 );
+      my $rowString = &substituteValues($rowTemplate, %values);
+      $tableString .= $rowString;
   }
   return $tableString;
 }
@@ -205,11 +205,12 @@ sub formatGOTable {
 # humCount, humBarWidth, humBarRemainder, humPercent,
 # musCount, musBarWidth, musBarRemainder, musPercent,
 sub findGOValues {
-  my ($func, $humCount, $humTotal, $musCount, $musTotal, $totalBarWidth) = @_;
+  my ($func, $goTermId, $humCount, $humTotal, $musCount, $musTotal, $totalBarWidth) = @_;
 
   my %values;
 
   $values{funcname} = $func;
+  $values{goTermId} = $goTermId;
   $values{humCount} = $humCount? $humCount : 0;
   $values{musCount} = $musCount? $musCount : 0;
   $values{humPercent} = &findPercent($values{humCount}, $humTotal);
@@ -280,8 +281,6 @@ sub countAssembliesAndTheirSeqs {
     } elsif ($taxon_id == 14) {
       $musAssSeqs = $num;
       $totalMusAssemblies = $count;
-    } else {
-      print STDERR "ERROR: unknown taxon_id '$taxon_id' has $num AssemblySequences\n";
     }
   }
   print STDERR "...done\n";
@@ -301,8 +300,6 @@ sub countNonSingletons {
       $humNonSingletons = $nonSing;
     } elsif ($taxon_id == 14) {
       $musNonSingletons = $nonSing;
-    } else {
-      print STDERR "ERROR: unknown taxon_id '$taxon_id' has $nonSing nonSingletons\n";
     }
   }
   print STDERR "  Human: $humNonSingletons\n  Mouse: $musNonSingletons\n\n" ;
@@ -325,8 +322,6 @@ sub countDoTSGenes {
       $humDoTSGenes = $num;
     } elsif ($taxon_id == 14) {
       $musDoTSGenes = $num;
-    } else {
-      print STDERR "ERROR: unknown taxon_id '$taxon_id' has $num Genes\n";
     }
   }
   print STDERR "  Human: $humDoTSGenes\n  Mouse: $musDoTSGenes\n\n" ;
@@ -354,8 +349,6 @@ sub countGenesWithGoodAlignment {
       $humDoTSConsGenes = $num;
     } elsif ($taxon_id == 14) {
       $musDoTSConsGenes = $num;
-    } else {
-      #		print STDERR "ERROR: unknown taxon_id '$taxon_id' has $num AssemblySequences\n";
     }
   }
   print STDERR "  Human: $humDoTSConsGenes\n  Mouse: $musDoTSConsGenes\n\n" ;
@@ -387,8 +380,6 @@ sub countDoTSWithGoodAlignment {
 	$musConsAssemblies = $count;
       }
       $musConsDoTS += $count;	##total number...
-    } else {
-      print STDERR "ERROR: unknown taxon_id '$taxon_id' has $count consistent\n";
     }
   }
   print STDERR "  Human: $humConsDoTS, $humConsAssemblies \n  Mouse: $musConsDoTS, $musConsAssemblies\n\n" ;
@@ -410,8 +401,6 @@ sub countKnownGenes {
       $humGenesWithNR = $totGenes;
     } elsif ($taxon_id == 14) {
       $musGenesWithNR = $totGenes;
-    } else {
-      print STDERR "ERROR: unknown taxon_id '$taxon_id' has $totGenes Assembly neighbors\n";
     }
   }
   print STDERR "  Human: $humGenesWithNR\n  Mouse: $musGenesWithNR\n\n" ;
@@ -435,8 +424,6 @@ sub countKnownDoTs {
     } elsif ($taxon_id == 14) {
       $musAssWithNR = $num unless $num_seqs == 1;
       $musDoTSWithNR += $num;
-    } else {
-      print STDERR "ERROR: unknown taxon_id '$taxon_id' has $num Assembly neighbors\n";
     }
   }
   print STDERR "  Human: Assem: $humAssWithNR, DoTS: $humDoTSWithNR\n  Mouse: Assem: $musAssWithNR, DoTS: $musDoTSWithNR\n\n" ;
@@ -455,6 +442,8 @@ from PrintStatsTmp pst, Dots.GOAssociation ga
 where pst.total_seqs > 1 
 and ga.row_id = pst.protein_id 
 and ga.table_id = '180'
+and ga.is_deprecated = 0 
+and ga.is_not = 0
 group by pst.taxon_id";
 
   my $stmt = $dbh->prepare($sql);
@@ -466,8 +455,6 @@ group by pst.taxon_id";
       $humGenesWithGOFunction = $totGenes;
     } elsif ($taxon_id == 14) {
       $musGenesWithGOFunction = $totGenes;
-    } else {
-      print STDERR "ERROR: unknown taxon_id '$taxon_id' has $totGenes GOFunction\n";
     }
   }
   print STDERR "  Human: $humGenesWithGOFunction Mouse: $musGenesWithGOFunction\n\n" ;
@@ -487,6 +474,8 @@ from PrintStatsTmp pst, Dots.GOAssociation ga
 where pst.total_seqs > 1 
 and ga.row_id = pst.protein_id 
 and ga.table_id = '180'
+and ga.is_deprecated = 0 
+and ga.is_not = 0
 group by pst.taxon_id, pst.number_of_contained_sequences";
 
   my $stmt = $dbh->prepare($sql);
@@ -503,8 +492,6 @@ group by pst.taxon_id, pst.number_of_contained_sequences";
     } elsif ($taxon_id == 14) {
       $musAssWithGOFunction = $num unless $num_seqs == 1;
       $musDoTSWithGOFunction += $num;
-    } else {
-      print STDERR "ERROR: unknown taxon_id '$taxon_id' has $num GOFunction\n";
     }
   }
   print STDERR "  Human: Assem: $humAssWithGOFunction, DoTS: $humDoTSWithGOFunction, Mouse: Assem: $musAssWithGOFunction, DoTS: $musDoTSWithGOFunction\n\n" ;
@@ -516,24 +503,40 @@ group by pst.taxon_id, pst.number_of_contained_sequences";
 sub getGODistribution {
   my ($dbh) = @_;
 
-  print STDERR "Determining breakdown of GOFunctions DoTS Genes:\n";
+  print STDERR "Determining breakdown of GOFunctions for DoTS Genes:\n";
 
   my $sql = 
-"select pst.taxon_id, t.name, count(distinct pst.gene_id)
-      from PrintStatsTmp pst, Dots.GOAssociation ga, SRes.GOTerm t
-      where pst.total_seqs > 1
-      and ga.table_id = 180
-      and ga.row_id = pst.protein_id
-      and ga.go_term_id = t.go_term_id
-      and ga.defining = 1
-      and ga.is_deprecated != 1
-      and ga.is_not != 1
-      group by pst.taxon_id, t.name";
-
-# FIX
-#      and ga.defining = 1
-#      and ga.deprecated != 1
-#      and ga.is_not != 1
+"select pst.taxon_id, t.name, t.go_term_id, count(distinct pst.gene_id)
+   from PrintStatsTmp pst, Dots.GOAssociation ga, SRes.GOTerm t
+   where pst.total_seqs > 1
+   and ga.table_id = 180
+   and ga.row_id = pst.protein_id
+   and ga.go_term_id = t.go_term_id
+   and ga.is_deprecated = 0 
+   and ga.is_not = 0
+   and t.external_database_release_id = 6918
+   and t.name in
+('enzyme activity',
+'antioxidant activity',
+'anticoagulant activity',
+'storage protein',
+'cell adhesion molecule activity',
+'structural molecule activity',
+'apoptosis regulator activity',
+'transporter activity',
+'cytoskeletal regulator activity',
+'toxin activity',
+'protein tagging activity',
+'chaperone regulator activity',
+'enzyme regulator activity',
+'binding activity',
+'signal transducer activity',
+'nucleic acid binding activity',
+'cell cycle regulator',
+'chaperone activity',
+'motor activity',
+'defense/immunity protein activity')
+group by pst.taxon_id, t.name, t.go_term_id ";
 
   my $stmt = $dbh->prepare($sql);
   $stmt->execute();
@@ -541,20 +544,18 @@ sub getGODistribution {
   my %humDoTSGOFun;
   my %musDoTSGOFun;
   my ($totalDoTShumGOFun, $totalDoTSmusGOFun);
-  while (my($taxon_id,$name,$count) = $stmt->fetchrow_array()) {
+  while (my($taxon_id,$name,$go_term_id,$count) = $stmt->fetchrow_array()) {
     next if $name eq 'obsolete' || $name =~ /unknown/;
     if ($taxon_id == 8) {
-      $humDoTSGOFun{$name} = $count;
+      $humDoTSGOFun{$go_term_id . "|" . $name} = $count;
       $totalDoTShumGOFun += $count;
     } elsif ($taxon_id == 14) {
-      $musDoTSGOFun{$name} = $count;
+      $musDoTSGOFun{$go_term_id . "|" . $name} = $count;
       $totalDoTSmusGOFun += $count;
-    } else {
-      print STDERR "unknown taxon_id $taxon_id for $name, $count\n";
     }
   }
 
-  foreach my $a (keys%humDoTSGOFun) {
+  foreach my $a (keys %humDoTSGOFun) {
     print STDERR "  $a: human=$humDoTSGOFun{$a}, mus=$musDoTSGOFun{$a}\n";
   }
 
@@ -567,7 +568,4 @@ sub getDate {
   return "$date[1] $date[2], $date[-1]";
 }
 
-
-
 1;
-
