@@ -124,7 +124,7 @@ sub insertProjectLink {
 
     print STDERR ("$num assembly ids to be entered into ProjectLink\n");
 
-    my $nextvalSql = $db->getDbPlatform()->getNextValSql("dots.ProjectLink");
+    my $nextvalSql = $db->getDbPlatform()->nextVal("dots.ProjectLink");
 
     my $sql = "insert into dots.ProjectLink Values ($nextvalSql,$project,56,?,null,SYSDATE,1,1,1,1,1,0,12,0,$project,0)";
     print STDERR ("$sql\n");
