@@ -77,9 +77,6 @@ sub run {
 
   $dbh = $ctx->{self_inv}->getQueryHandle();
 
-  my $tree = &makeTree($dbh);
-  &getTreeCounts($tree,$taxon_id,$dbh);
-
   my %ignore;
   if ($ctx->{cla}->{'restart'}) {
     $stmt = $dbh->prepare("select distinct na_sequence_id from DoTS.AssemblyAnatomyPercent where modification_date >= '$ctx->{cla}->{restart}'");
@@ -89,8 +86,6 @@ sub run {
     }
     print "Restarting: ignoring ".scalar(keys%ignore). " Assemblies\n";
   }
-
-  
 
   ##now need to step through the assemblies and get the source_library for each EST
   ##calculating the % contribution...
@@ -199,7 +194,7 @@ sub run {
     print STDERR "IDS: ",join(', ',keys%library),"\n" if $debug;
     if ($est_count > 0) {
       #      last;  ##for debugging the multiple problem!!
-      $countAssign += &analyzeLib($na_sequence_id,$taxon_id,$est_count,\%mult,$tree,%library);
+      $countAssign += &analyzeLib($na_sequence_id,$taxon_id,$est_count,\%mult,%library);
     }
     print "Processing $na_sequence_id: $countEntries, $countAssign assigned, ",($totalToDo - $countEntries)," remaining\n" if $countEntries % 100 == 0; 
 
@@ -213,55 +208,14 @@ sub run {
   return $results;
 }
 
+
+
+
+
 1;
 
-sub makeTree {
-
-  my ($dbh) = @_;
-
-  my %tree;
-
-  my $sql = "select anatomy_id,parent_id from sres.anatomy order by hier_level";
-
-  my $stmt = $dbh->prepareAndExecute($sql) || die "Can't prepareAndExecute  sql: $sql\n";
-
-  my $count = 0;
-
-  while (my ($anatomy_id,$parent_id) = $stmt-> fetchrow_array()) {
-    $parent_id = 'root' if (!defined $parent_id);
-    $tree{$anatomy_id} = {parent => $parent_id,count => $count};
-  }
-  return \%tree;
-} 
-
-sub getTreeCounts {
-  
-  my ($tree,$taxon,$dbh) = @_;
-
-  my $sql = "select /*+ RULE */ al.anatomy_id, count(e.na_sequence_id) from dots.anatomylibrary al,dots.library l, dots.assemblysequence a, dots.est e where a.assembly_na_sequence_id is not null and a.na_sequence_id = e.na_sequence_id and l.taxon_id = $taxon and e.library_id = l.library_id and l.dbest_id = al.dbest_library_id group by al.anatomy_id";
-  
-  my $stmt = $dbh->prepareAndExecute($sql) || die "Can't prepareAndExecute  sql: $sql\n";
-
-  while (my ($anatomy_id,$count) = $stmt-> fetchrow_array()) {
-    &traverseTree($tree,$anatomy_id,$count);
-  }
-}
-    
-sub traverseTree {
- 
-  my ($tree,$anatomy_id,$count) = @_;
-
-  $tree->{$anatomy_id}->{count} += $count;
-
-  my $parent = $tree->{$anatomy_id}->{parent};
-
-  return if $parent eq 'root';
-
-  &traverseTree($tree,$parent,$count);
-}
-
 sub analyzeLib{
-  my($na_sequence_id,$taxon_id,$total,$mult,$tree,%libs) = @_;
+  my($na_sequence_id,$taxon_id,$total,$mult,%libs) = @_;
   my %totLibs;
   my %multAnat;
   my %track;
@@ -306,14 +260,8 @@ sub analyzeLib{
   }
   my $totalPercent = 0;
   my @libdist;
-  my $normalizedTotal;
-
   foreach my $key (keys%totLibs) { ##this should do it...
-    $normalizedTotal += $totLibs{$key}/$tree->{$key}->{count};
-  }
-  foreach my $key (keys%totLibs) { ##this should do it...
-    my $normalizedCount = $totLibs{$key}/$tree->{$key}->{count};
-    my $percent = ($normalizedCount/$normalizedTotal)*100;
+    my $percent = ($totLibs{$key}/$total)*100;
     $totalPercent += $percent;
     push(@libdist,&makeLibDist($na_sequence_id,$taxon_id,$key,$percent,$totLibs{$key},$total)) if $percent > 0;
     print STDERR "\tAnat_id: $key = $percent percent\n" if $debug;
