@@ -140,7 +140,7 @@ sub processBLASTResults {
     my $tagSrcId = $tag->{source_id};
     my $restart = 0;
     if ($restartHash->{$tagSrcId} == 1) {
-      print "skipping $tagId : $tagSrcId, results loaded in previous run\n":
+      print "skipping $tagId : $tagSrcId, results loaded in previous run\n";
       return $restart;
     }
     my $tagLen = $tag->{length};
