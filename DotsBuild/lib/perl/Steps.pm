@@ -1023,7 +1023,7 @@ sub deleteGeneTrapAssembly {
 
   my $taxonId = $propertySet->getProp('taxonId');
 
-  my $logFile = "$pipelineDir/logs/${signal}.log";
+  my $logFile = "$mgr->{pipelineDir}/logs/${signal}.log";
 
   my $sql = "select gene_trap_assembly_id from dots.genetrapassembly g, dots.assembly a where a.na_sequence_id=g.assembly_na_sequence_id and a.taxon_id=$taxonId";
 
@@ -1050,8 +1050,8 @@ sub extractGeneTrapTags {
 
   foreach my $db (@DBs) {
     my ($name, $id) = split(/:/, $db);
-    my $seqFile = "$pipelineDir/genetrap/${name}.fsa";
-    my $logFile = "$pipelineDir/logs/geneTrapTag${name}.log";
+    my $seqFile = "$mgr->{pipelineDir}/genetrap/${name}.fsa";
+    my $logFile = "$mgr->{pipelineDir}/logs/geneTrapTag${name}.log";
 
     my $sql = "select na_sequence_id,sequence from dots.ExternalNASequence where taxon_id = $taxonId and external_database_release_id = $id";
 
@@ -1071,7 +1071,7 @@ sub blastGeneTrapTags {
 
   return if $mgr->startStep("Blasting gene trap tags vs final mouse DoTS", $signal, 'blastGeneTrapAssembly');
 
-  my $dotsFile = "$pipelineDir/blastSite/musDoTS";
+  my $dotsFile = "$mgr->{pipelineDir}/blastSite/musDoTS";
 
   my $blastBinDir = $propertySet->getProp('wuBlastBinPath');
 
@@ -1083,13 +1083,13 @@ sub blastGeneTrapTags {
 
     my ($name, $id) = split(/:/, $db);
 
-    my $tagFile = "$pipelineDir/genetrap/${name}.fsa";
+    my $tagFile = "$mgr->{pipelineDir}/genetrap/${name}.fsa";
 
     my $dotsRelease = $propertySet->getProp('dotsRelease');
 
-    my $outputDir = "$pipelineDir/genetrap/$name";
+    my $outputDir = "/$mgr->{pipelineDir}genetrap/$name";
 
-    my $logFile = "$pipelineDir/logs/${name}Blast.log";
+    my $logFile = "$mgr->{pipelineDir}/logs/${name}Blast.log";
 
     my $mkdir = "mkdir $outputDir";
 
@@ -1115,7 +1115,7 @@ sub loadGeneTrapAssembly {
   
   foreach my $db (@DB) {
     my ($name, $id) = split(/:/, $db);
-    my $blastDir = "$pipelineDir/genetrap/$name";
+    my $blastDir = "$mgr->{pipelineDir}/genetrap/$name";
     my $args = "--external_db_release $id --blast_dir $blastDir";
     $mgr->runPlugin("load${name}GeneTrapBlast", "DoTS::DotsBuild::Plugin::CalculateGeneTrapLinks", $args, "loading blast results for $name gene trap tags",'loadGeneTrapAssembly');
   } 
