@@ -411,7 +411,11 @@ sub loadGenomeAlignments {
   my @pslFiles = $pslReader->getPSLFiles();
 
   my $qFile = "$pipelineDir/repeatmask/$queryName/master/mainresult/blocked.seq";
-  $qFile = "$pipelineDir/seqfiles/finalDots.fsa" if $queryName =~ /dots/i;
+  #$qFile = "$pipelineDir/seqfiles/finalDots.fsa" if $queryName =~ /dots/i;
+  $qFile = "/tmp/genome/$queryName-$targetName/finalDots.fsa" if $queryName =~ /dots/i;
+  $mgr->runCmd("makedir -p /tmp/genome");
+  $mgr->runCmd("cp $qFile /tmp/genome");
+  $qFile = "/tmp/genome/$qFile";
   my $qTabId = ($queryName =~ /dots/i ? 56 : 57);
 
   my $args = "--query_file $qFile --keep_best 2 "
@@ -444,7 +448,7 @@ sub loadGenomeAlignments {
   $mgr->runPlugin($signal . "SetBest", "GUS::Common::Plugin::LoadBLATAlignments",
 		  "$args --action setbest", "set top alignment status, delete unwanted alignments");      
 
-
+  $mgr->runCmd("rm -f $qFile");
   $mgr->endStep($signal);
 }
 
