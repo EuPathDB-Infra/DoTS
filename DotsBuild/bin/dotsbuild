@@ -313,7 +313,7 @@ $mgr->waitForLiniac("genomic alignments of assemSeqs", "waitGenomeAlignAss");
 
    &loadRNAClusters($mgr);
 
-   #&deleteGenesWithNoRNA($mgr);
+   &deleteGenesWithNoRNA($mgr);
 
    &makeFrameFinder($mgr);
 
@@ -351,6 +351,10 @@ $mgr->waitForLiniac("genomic alignments of assemSeqs", "waitGenomeAlignAss");
 
    &getAssembliesPerGene($mgr);
 
+   &getmRNAPerAssembly($mgr);
+
+   &makePredictedProteinFile($mgr);
+
    &makeEpconFastaFiles($mgr);
 
    &prepareEPConBlastSiteFiles($mgr);
@@ -386,10 +390,6 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 &indexSimilarityWords($mgr);
 
 &indexNRDBWords($mgr);
-
-&getmRNAPerAssembly($mgr);
-
-&makePredictedProteinFile($mgr);
 
 &makeProteinChunks($mgr);
 
