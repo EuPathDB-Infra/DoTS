@@ -24,7 +24,7 @@ sub new {
     ];
   
   $self->initialize({requiredDbVersion => {},
-		     cvsRevision => '$ $',  # cvs fills this in!
+		     cvsRevision => 'Revision: $ $',  # cvs fills this in!
 		     cvsTag => '$Name$', # cvs fills this in!
 		     name => ref($self),
 		     revisionNotes => ' ',
