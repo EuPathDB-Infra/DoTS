@@ -306,7 +306,11 @@ sub analyzeLib{
   }
   my $totalPercent = 0;
   my @libdist;
-  my $normalizedTotal = $total/$tree->{0}->{count}; 
+  my $normalizedTotal;
+
+  foreach my $key (keys%totLibs) { ##this should do it...
+    $normalizedTotal += $totLibs{$key}/$tree->{$key}->{count};
+  }
   foreach my $key (keys%totLibs) { ##this should do it...
     my $normalizedCount = $totLibs{$key}/$tree->{$key}->{count};
     my $percent = ($normalizedCount/$normalizedTotal)*100;
