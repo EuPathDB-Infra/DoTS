@@ -52,10 +52,10 @@ sub percolateAndWrite {
   }
 
   # write
-  my $percent = $effective_percolated / $sumEffective;
+  my $percent = $effective_percolated / $sumEffective * 100;
   my $anatomyESTs = $raw_percolated;
 
-  my $args = {percent => $effective_percolated / $sumEffective * 100,
+  my $args = {percent => $percent,
 	      anatomy_ests => $raw_percolated,
 	      anatomy_id => $self->{anatomyId},
 	      EST_count => $sumRaw,
@@ -64,6 +64,7 @@ sub percolateAndWrite {
 	     };
   my $assemblyAnatPercent = new GUS::Model::DoTS::AssemblyAnatomyPercent($args);
   $assemblyAnatPercent->submit();
+  return ($raw_percolated,$effective_percolated);
 }
 
 
