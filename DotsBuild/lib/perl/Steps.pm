@@ -3675,6 +3675,27 @@ sub createManuallyReviewedDoTSFile {
   $mgr->endStep($signal);
 }
 
+sub makeStatisticsPage {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "makeStatisticsPage";
+
+  return if $mgr->startStep("Making statistics html file", $signal,'makeStatPage');
+
+  my $pipelineDir = $mgr->{pipelineDir};
+
+  my $output = "$pipelineDir/misc/statistics.html.in";
+
+  my $logfile = "$pipelineDir/logs/${signal}.log";
+
+  my $cmd = "dotsStatistics --templateFile $ENV{GUS_HOME}/data/DoTS/DotsBuild/statsTemplate.html.in --goRowTemplateFile $ENV{GUS_HOME}/data/DoTS/DotsBuild/statsGoRowTemplate.txt --goBarGraphWidth 200 > $output 2>> $logfile"; 
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
+
 
 sub makeBuildName {
   my ($nickName, $release) = @_;
