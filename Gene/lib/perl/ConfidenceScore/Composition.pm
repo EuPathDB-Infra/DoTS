@@ -79,7 +79,12 @@ sub _getEstLibCloneAndPairCounts {
             my $sameClone = ($w1 eq $w2 && $w1) || ($i1 eq $i2 && $i1);
             my $pairEnds = ($p1 eq '5' && $p2 eq '3') || ($p1 eq '3' && $p2 eq '5');
             $pairs++ if $sameLib && $sameClone && $pairEnds;
+	    if ($pairs == 999) {
+		print STDERR "WARNING: p53 est pairs for GDG.$gid exceeds 999, stop looking\n";
+		last
+	    }
         }
+	last if $pairs == 999;
     }
 
     ($libs, $clones, $pairs);

@@ -1,4 +1,4 @@
-package ConfidenceScore::Overall;
+package DoTS::Gene::ConfidenceScore::Overall;
 
 use strict;
 1;
