@@ -75,7 +75,7 @@ sub run {
   $sql .= " and na_sequence_id not in (select na_sequence_id from dots.assemblyanatomypercent where taxon_id = $taxonId)" if $self->getArg('restart');
   my $stmt = $dbh->prepareAndExecute($self->getArg('idSQL'));
   my $count;
-  while (my @row = $stmt->fetchRowArray()) {
+  while (my @row = $stmt->fetchrow_array()) {
     die "Error: The idSQL query did not return a single column (na_sequence_id)\n" if (scalar(@row) != 1);
     my $dt = $row[0];
     die "Error: na_sequence_id '$dt' returned in the result set is not an integer" unless $dt =~ /\d+/;
