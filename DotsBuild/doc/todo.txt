@@ -7,6 +7,10 @@ There are 81 duplications of assemblies in the MergeSplit table that are the res
 
 Information from the MGI info file needs to be loaded into the dbref table-probably in gus development and production-rewrite the script and add to pipeline
 
+
+QUESTION:  DO INCREMENTAL UPDATES NEED TO CORRECT THE EXTERNAL_DB_RLS_ID IN EXTERNALNASEQUENCE (GENBANK PARSER)
+
+
 PLUGIN BUGS
 
 d 1  2.00 - why aren't identical RNAs in the same assembly 
