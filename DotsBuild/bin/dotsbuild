@@ -169,11 +169,11 @@ my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFil
 
    &extractProdom();
 
-   &insertNRDB();
+#   &insertNRDB();
 
-   &extractNRDB();
+#   &extractNRDB();
 
-   &copyProteinDBsToLiniac();
+#   &copyProteinDBsToLiniac();
 
 $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
 
