@@ -1580,10 +1580,12 @@ sub prepareDownloadSiteFiles {
     $mgr->runCmd($cmd);
 
     my $accsPerAssemFile = "${prefix}_accessionsPerAssembly.dat";
+    my $assPerGeneFile = "${prefix}_DTperDG.dat";
     my $nrdbHitsFile = "${prefix}_bestNRDBHits.dat";
 
     my @files = ("$pipelineDir/seqfiles/$fastaFile",
 		 "$pipelineDir/misc/$accsPerAssemFile",
+		 "$pipelineDir/misc/$assPerGeneFile",
 		 "$pipelineDir/misc/$nrdbHitsFile",
                  "$pipelineDir/seqfiles/$predictedProteinsFile");
 
@@ -1608,7 +1610,7 @@ sub prepareDownloadSiteFiles {
     }
 
     &writeReadmeFile($prefix, $dotsRelease, $speciesNickname,$speciesFullname,
-		     $fastaFile, $accsPerAssemFile, $nrdbHitsFile);
+		     $fastaFile, $accsPerAssemFile, $nrdbHitsFile, $assPerGeneFile);
 
     &writeHtaccessFile();
 
@@ -1626,6 +1628,7 @@ sub writeHtaccessFile {
 AddDescription "The sequence for the consensus transcripts" *fasta*
 AddDescription "The Genbank accessions of ESTs and mRNAs contained in each assembled transcript" *acc*
 AddDescription "The best hit in NRDB for each consensus transcript" *NRDB*
+AddDescription "assembled transcripts belonging to each gene" *DTperDG*
 ';
     close(F);
 
@@ -1633,7 +1636,7 @@ AddDescription "The best hit in NRDB for each consensus transcript" *NRDB*
 
 sub writeReadmeFile {
     my ($prefix, $dotsRelease, $speciesNickname, $speciesFullname, $fastaFile, 
-	$accsPerAssemFile, $nrdbHitsFile, $proteinsFile) = @_;
+	$accsPerAssemFile, $nrdbHitsFile, $assPerGeneFile, $proteinsFile) = @_;
 
     my $readme = "$pipelineDir/downloadSite/${speciesNickname}_README.txt";
 
@@ -1669,6 +1672,9 @@ The files available are:
 
     $nrdbHitsFile      
        The best hit in NRDB for each consensus sequence.
+
+    $assPerGeneFile
+       The assembled transcripts belonging to each gene
 
     $proteinsFile
        The sequence of predicted translations for each consensus sequence.
