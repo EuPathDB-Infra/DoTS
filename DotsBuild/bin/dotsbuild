@@ -100,7 +100,10 @@ my @properties =
  ["loadLocusLink", "", "yes or no"],
  ["projectLinkRestart", "", "yes or no"],
  ["allgenesVersion", "", "version number for allgenes, e.g. 5.0"],
- ["downloadDir", "", "directory for downloaded data from external databases"]
+ ["downloadDir", "", "directory for downloaded data from external databases"],
+ ["genbankRel", "", "GenBank release number found in the README file"],
+ ["gb_db_rel_id", "", "external_database_release_id for GenBank"],
+ ["gbFiles", "", "list of comma delinieated genbank files to be parsed into GUS"]
  ); 
 
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
@@ -120,7 +123,7 @@ my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFil
 
 &downloadRefSeq();
 
-&downloaddbEST();
+##&downloaddbEST(); automatic download and mirror site maintenance planned, sub left in place for now
 
 &downloadTaxon();
 
@@ -128,7 +131,7 @@ my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFil
 
 &insertTaxon();
 
-###&parseGenbank();
+&parseGenbank();
 
 ###&parsedbEST();
 
@@ -441,7 +444,7 @@ sub downloadGenbank {
 sub downloadRefSeq {
     my $signal = "downloadRefSeq";
     
-    return if $mgr->startStep("Downloading RefSeq", $signal);
+    return if $mgr->startStep("Downloading RefSeq", $signal,'downloadGenbank');
 
     $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
 
@@ -451,23 +454,15 @@ sub downloadRefSeq {
 
     my $downloadSubDir = "$downloadDir/refseq";
 
-    my $ftpsite;
-
-    my $ftpfile;
-
-    if ($propertySet->getProp('taxonId') == 8) {
-
-	$ftpsite = "ftp://ftp.ncbi.nih.gov/ref_seq/H_sapiens/mRNA_Prot/";
-	$ftpfile = "hs.gbff.gz";
-    }
-
-    else {
-
-	$ftpsite = "ftp://ftp.ncbi.nih.gov/ref_seq/M_musculus/mRNA_Prot/";
-	$ftpfile = "mouse.gbff.gz";
-    }
-
     my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=3 -A \"$ftpfile\" -P $downloadSubDir $ftpsite";
+
+    $ftpsite = "ftp://ftp.ncbi.nih.gov/ref_seq/H_sapiens/mRNA_Prot/";
+    $ftpfile = "hs.gbff.gz";
+
+    $mgr->runCmd($cmd);
+	
+    $ftpsite = "ftp://ftp.ncbi.nih.gov/ref_seq/M_musculus/mRNA_Prot/";
+    $ftpfile = "mouse.gbff.gz";
 
     $mgr->runCmd($cmd);
 
@@ -486,7 +481,7 @@ sub downloaddbEST {
 
     my $downloadDir = $propertySet->getProp('downloadDir');
 
-    my $downloadSubDir = "$downloadDir/dbEST";
+    my $downloadSubDir = "$downloadDir/dbest";
 
     my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=3 -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/repository/dbEST/bcp/";
 
@@ -558,25 +553,40 @@ sub insertTaxon {
     my $nodes = "$downloadDir/taxonomy/nodes.dmp";
     my $gencode = "$downloadDir/taxonomy/gencode.dmp";
     my $restart = $propertySet->getProp('insertTaxonRestart');
-
+    
     my $args = "--names $names --nodes $nodes --gencode $gencode --restart $restart";
-
+    
     $mgr->runPlugin("loadTaxon", "GUS::Common::Plugin::LoadTaxon", $args,
-	       "Loading Taxon tables");
+		    "Loading Taxon tables");
 }
 
 sub parseGenbank {
-    if ($propertySet->getProp('downloadGenbank') eq 'yes') {
 
-	# call plugin
-
-    } else {
-	$mgr->log(" skipping... downloadGenbank property set to 'no'\n\n"); 
-    }
+  my $genbankRel = $propertySet->getProp('genbankRel');
+  
+  my $gb_db_rel_id = $propertySet->getProp('gb_db_rel_id');
+  
+  my @gbFiles = split (/,/, $propertySet->getProp('gbFiles'));
+  
+  my $downloadDir = $propertySet->getProp('downloadDir');
+  
+  foreach my $file (@gbFiles) {
+    
+    my $dirAndFile = "$downloadDir/genbank/$file";
+    
+    my $log = "$pipelineDir/logs/${file}.err";
+    
+    my $args = "--gbRel $genbankRel --file $dirAndFile --log $log --db_rel_id $gb_db_rel_id";
+    
+    my $signal = "gbParse_${file}";
+    
+    $mgr->runPlugin($signal, "GUS::Common::Plugin::GBParser", $args, "Loading GenBank files into GUS");
+    
+  }
 }
 
 sub parsedbEST {
-   # put in mirror site, then into GUS
+  $mgr->runPlugin("loadDbEst", "GUS::Common::Plugin::GBParser", $args, "Loading dbEST files into GUS"
 }
 
 sub makeAssemSeqs {
@@ -1904,8 +1914,6 @@ sub blastGeneTrapTags {
     my $signal = "blastGeneTrapTags";
 
     return if $mgr->startStep("Blasting gene trap tags vs final mouse DoTS", $signal, 'loadGeneTrapAssembly');
-    
-    my %external_databases = $propertySet->getProp('geneTagDB');
 
     my $dotsRelease = $propertySet->getProp('dotsRelease');
 
@@ -1921,37 +1929,39 @@ sub blastGeneTrapTags {
     
     my $blastn = "$blastBinDir/blastn";
 
-    foreach my $db_id (keys %external_databases) {
-	
-	my $database_name = $external_databases{$db_id};
+    my @DB = split (/,/, $propertySet->getProp('geneTagDB'));
 
-	my $tagFile = "$pipelineDir/genetrap/${database_name}.fsa";
+    foreach my $db (@DB) {
 
-	my $dotsRelease = $propertySet->getProp('dotsRelease');
-
-	my $outputDir = "$pipelineDir/genetrap/$database_name";
-
-	my $mkdir = "mkdir $outputDir";
-	
-	$mgr->runCmd($mkdir);
-
-	my $cmd = "blastAll.pl --blastn $blastn --seqfile $tagFile --musdots $dotsFile --targetdir $outputDir";
-	
-	$mgr->runCmd($cmd);
+      my ($name, $id) = split(/:/, $db);
+      
+      my $tagFile = "$pipelineDir/genetrap/${name}.fsa";
+      
+      my $dotsRelease = $propertySet->getProp('dotsRelease');
+      
+      my $outputDir = "$pipelineDir/genetrap/$name";
+      
+      my $mkdir = "mkdir $outputDir";
+      
+      $mgr->runCmd($mkdir);
+      
+      my $cmd = "blastAll.pl --blastn $blastn --seqfile $tagFile --musdots $dotsFile --targetdir $outputDir";
+      
+      $mgr->runCmd($cmd);
     }
-
+    
     $mgr->endStep($signal);
 }
 
 sub loadGeneTrapAssembly {
 
-    my %external_databases = $propertySet->getProp('geneTagDB');
+    my @DB = split (/,/, $propertySet->getProp('geneTagDB'));
 
-    foreach my $db_id (keys %external_databases) {
-	my $database_name = $external_databases{$db_id};
-	$blastDir = "$pipelineDir/genetrap/$database_name";
-	my $args = "--extDbId $db_id --blastDir $blastDir";
-	$mgr->runPlugin("load${database_name}GeneTrapBlast", "DoTS::DotsBuild::Plugin::CalculateGeneTrapLinks", $args, "loading blast results for $database_name gene trap tags");
+    foreach my $db (@DB) {
+	my ($name, $id) = split(/:/, $db);
+	$blastDir = "$pipelineDir/genetrap/$name";
+	my $args = "--extDbId $id --blastDir $blastDir";
+	$mgr->runPlugin("load${name}GeneTrapBlast", "DoTS::DotsBuild::Plugin::CalculateGeneTrapLinks", $args, "loading blast results for $name gene trap tags");
     } 
 }
 
