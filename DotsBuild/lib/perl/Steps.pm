@@ -190,7 +190,7 @@ sub downloadNRDB {
   $mgr->runCmd("mkdir -p $downloadSubDir");
 
   my $cmd = "wget -t5 -b -m -np -nd -nH -o $logfile --cut-dirs=4 -A \"nr.gz\"  -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/blast/db/FASTA/";
-	
+
   $mgr->runCmd($cmd);
 
   $mgr->runCmd("gunzip $downloadSubDir/nr.gz");
@@ -222,7 +222,6 @@ sub insertTaxon {
 sub parseGenbank {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-  my $taxonPropertySet = $mgr->{taxonPropertySet};
 
   my $signal = "parseGenBank";
 
@@ -243,8 +242,8 @@ sub parseGenbank {
 
     my $signal = "gbParse_${file}";
 
-    $mgr->runPlugin($signal, "GUS::Common::Plugin::GBParser",
-		    $args, "Loading GenBank files into GUS");
+    $mgr->runPlugin($signal, "GUS::Common::Plugin::GBParser", $args,
+		    "Loading GenBank files into GUS", 'insertGenbank');
 
   }
 
@@ -253,7 +252,7 @@ sub parseGenbank {
 
     my $dotsRelease = "release" . $propertySet->getProp('dotsRelease');
 
-    my $buildName = &makeBuildName($taxonPropertySet->getProp('speciesNickname'),
+    my $buildName = &makeBuildName($propertySet->getProp('speciesNickname'),
 				   $propertySet->getProp('dotsRelease'));
 
     my $subDir = "gbParse_".$file;
@@ -275,13 +274,12 @@ sub parseGenbank {
 sub parsedbEST {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-  my $taxonPropertySet = $mgr->{taxonPropertySet};
 
   my $restart = $propertySet->getProp('dbESTRestart');
 
-  my $taxonId = $taxonPropertySet->getProp('taxonId');
+  my $taxonIdList = &getTaxonIdList($mgr);
 
-  my $args = "--log $mgr->{pipelineDir}/logs/dbest.log --fullupdate --span 500 --project 'dbEST Parser' --taxon_id $taxonId --restart_number $restart";
+  my $args = "--log $mgr->{pipelineDir}/logs/dbest.log --fullupdate --span 500 --project 'dbEST Parser' --taxon_id_list '$taxonIdList' --restart_number $restart";
 
   $mgr->runPlugin("loadDbEst", "GUS::Common::Plugin::dbEST", $args,
 		  "Loading dbEST files into GUS", 'loadDbEst');
@@ -290,19 +288,18 @@ sub parsedbEST {
 sub makeAssemSeqs {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-  my $taxonPropertySet = $mgr->{taxonPropertySet};
 
   my $externalDbDir = $propertySet->getProp('externalDbDir');
 
   my $file = $propertySet->getProp('fileOfRepeats');
 
-  my $taxonId = $taxonPropertySet->getProp('taxonId');
+  my $taxonIdList = &getTaxonIdList($mgr);
 
   my $repeatFile = "$externalDbDir/repeat/$file";
-	
+
   my $phrapDir = $propertySet->getProp('phrapDir');
 
-  my $args = "--taxon_id $taxonId --repeatFile $repeatFile --phrapDir $phrapDir";
+  my $args = "--taxon_id_list '$taxonIdList' --repeatFile $repeatFile --phrapDir $phrapDir";
 
   $mgr->runPlugin("makeAssemSeqs",
 		  "DoTS::DotsBuild::Plugin::MakeAssemblySequences", $args,
@@ -312,12 +309,11 @@ sub makeAssemSeqs {
 sub extractAssemSeqs {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-  my $taxonPropertySet = $mgr->{taxonPropertySet};
 
-  my $taxonId = $taxonPropertySet->getProp('taxonId');
+  my $taxonIdList = &getTaxonIdList($mgr);
 
   my $outputFile = "$mgr->{pipelineDir}/seqfiles/assemSeqs.fsa";
-  my $args = "--taxon_id=$taxonId --outputfile $outputFile --extractonly";
+  my $args = "--taxon_id_list '$taxonIdList' --outputfile $outputFile --extractonly";
 
   $mgr->runPlugin("extractAssemSeqs",
 		  "DoTS::DotsBuild::Plugin::ExtractAndBlockAssemblySequences",
@@ -330,7 +326,6 @@ sub extractAssemSeqs {
 sub extractDots {
   my ($name, $DTprefix, $mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-  my $taxonPropertySet = $mgr->{taxonPropertySet};
 
   $name = "${name}Dots";
   my $signal = "${name}Extract";
@@ -338,8 +333,8 @@ sub extractDots {
   return if $mgr->startStep("Extracting $name assemblies from GUS", $signal);
 
   my $gusConfigFile = $propertySet->getProp('gusConfigFile');
-  my $taxonId = $taxonPropertySet->getProp('taxonId');
-  my $species = $taxonPropertySet->getProp('speciesFullname');
+  my $taxonId = $propertySet->getProp('taxonId');
+  my $species = $propertySet->getProp('speciesFullname');
 
   my $seqFile = "$mgr->{pipelineDir}/seqfiles/$name.fsa";
   my $logFile = "$mgr->{pipelineDir}/logs/${name}Extract.log";
@@ -357,11 +352,10 @@ sub extractDots {
 sub copyPipelineDirToLiniac {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-  my $taxonPropertySet = $mgr->{taxonPropertySet};
 
   my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
 
-  my $nickName = $taxonPropertySet->getProp('speciesNickname');
+  my $nickName = $propertySet->getProp('speciesNickname');
   my $dotsRelease = "release" . $propertySet->getProp('dotsRelease');
   my $serverPath = $propertySet->getProp('serverPath') . "/$dotsRelease";
   my $liniacServer = $propertySet->getProp('liniacServer');
@@ -377,7 +371,6 @@ sub copyPipelineDirToLiniac {
 sub startBlastMatricesOnLiniac {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-  my $taxonPropertySet = $mgr->{taxonPropertySet};
 
   my $liniacServer = $propertySet->getProp('liniacServer');
   my $serverPath = $propertySet->getProp('serverPath');
@@ -387,7 +380,7 @@ sub startBlastMatricesOnLiniac {
   $mgr->endStep($signal);
 
   my $script = "runInitialMatrices";
-  if ($taxonPropertySet->getProp('firstTime') eq "yes") {
+  if ($propertySet->getProp('firstTime') eq "yes") {
     $script = "runAssemAssemMatrices";
   }
 
@@ -400,7 +393,6 @@ sub startBlastMatricesOnLiniac {
 sub copyBlastMatricesFromLiniac {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-  my $taxonPropertySet = $mgr->{taxonPropertySet};
 
   my $serverPath = $propertySet->getProp('serverPath');
   my $liniacServer = $propertySet->getProp('liniacServer');
@@ -414,7 +406,7 @@ sub copyBlastMatricesFromLiniac {
                        "$mgr->{pipelineDir}/repeatmask/assemSeqs");
 
   my @names = ("assemSeqs-assemSeqs", "prevDots-assemSeqs", "prevDots-prevDots");
-  if ($taxonPropertySet->getProp('firstTime') eq 'yes') {
+  if ($propertySet->getProp('firstTime') eq 'yes') {
     @names = ("assemSeqs-assemSeqs");
   }
 
@@ -431,9 +423,8 @@ sub copyBlastMatricesFromLiniac {
 sub initialCluster {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-  my $taxonPropertySet = $mgr->{taxonPropertySet};
 
-  if ($taxonPropertySet->getProp('firstTime') eq 'yes') {
+  if ($propertySet->getProp('firstTime') eq 'yes') {
     &cluster($mgr, "initial", "assemSeqs-assemSeqs");
   } else {
     &cluster($mgr, "initial", "prevdots-prevDots",
@@ -516,9 +507,8 @@ sub assemble {
 sub runAssemblePlugin {
   my ($file, $suffix, $name, $assembleOld, $reassemble, $mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-  my $taxonPropertySet = $mgr->{taxonPropertySet};
 
-  my $taxonId = $taxonPropertySet->getProp('taxonId');
+  my $taxonId = $propertySet->getProp('taxonId');
 
   my $reass = $reassemble eq "yes"? "--reassemble" : "";
   my $args = "--clusterfile $file.$suffix $assembleOld $reass --taxon_id $taxonId";
@@ -537,13 +527,12 @@ sub runAssemblePlugin {
 sub reassemble {
   my ($name, $mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-  my $taxonPropertySet = $mgr->{taxonPropertySet};
 
   my $signal = "${name}Reassemble";
 
   return if $mgr->startStep("Reassemble $name", $signal);
 
-  my $taxonId = $taxonPropertySet->getProp('taxonId');
+  my $taxonId = $propertySet->getProp('taxonId');
 
   my $sql = "select na_sequence_id from dots.assembly where taxon_id = $taxonId  and (assembly_consistency < 90 or length < 50 or length is null or description = 'ERROR: Needs to be reassembled')";
 
@@ -701,9 +690,7 @@ sub insertNRDB {
   my $args = "--temp_login \"$temp_login\" --sourceDB $sourceDB --temp_password \"$temp_password\" --dbi_str \"$dbi_str\" $restart --gitax $gitax --nrdb $nrdb --extDbRelId $nrdbReleaseId $maketemp $plugin $delete";
 
   $mgr->runPlugin("loadNRDB", "GUS::Common::Plugin::LoadNRDB", $args, "Loading NRDB", 'downloadNRDB');
-}	
-
-
+}
 
 sub extractNRDB {
   my ($mgr) = @_;
@@ -763,7 +750,7 @@ sub downloadCDD {
   $mgr->runCmd("mkdir -p $downloadSubDir");
 
   my $cmd = "wget -t5 -b -m -np -nd -nH -o $logfile --cut-dirs=3 -A \"cdd.tar.gz\"  -P $downloadSubDir ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/";
-	
+
   $mgr->runCmd($cmd);
 
   $mgr->endStep($signal);
@@ -824,8 +811,10 @@ sub unpackCDD {
 
   $mgr->runCmd("catFiles --fileGlob '$downloadSubDir/cd*.csq' --outFile $downloadSubDir/CD");
 
+  $mgr->runCmd("cd $downloadSubDir; cat LOAD PFAM SMART COG KOG CD > All");
+
   $mgr->runCmd("rm -r $downloadSubDir/cdd.tar");
-	
+
   $mgr->endStep($signal);
 }
 
@@ -1081,9 +1070,8 @@ sub copySimilaritiesFromLiniac {
 sub deleteOldSimilarities {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-  my $taxonPropertySet = $mgr->{taxonPropertySet};
 
-  my $taxonId = $taxonPropertySet->getProp('taxonId');
+  my $taxonId = $propertySet->getProp('taxonId');
   my $nrdbRel = $propertySet->getProp('nrdb_db_rls_id');
   my $prodomRel = $propertySet->getProp('prodom_db_rls_id');
   my $smartRel = $propertySet->getProp('smart_db_rls_id');
@@ -1156,12 +1144,11 @@ sub substituteCDDPKs {
 sub assignSequenceDescription {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-  my $taxonPropertySet = $mgr->{taxonPropertySet};
 
-  my $taxonId = $taxonPropertySet->getProp('taxonId');
+  my $taxonId = $propertySet->getProp('taxonId');
 
   my $dotsRelease = $propertySet->getProp('dotsRelease');
-  my $speciesNickname = $taxonPropertySet->getProp('speciesNickname');
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
   my $nrdbReleaseId = $propertySet->getProp('nrdb_db_rls_id');
 
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
@@ -1185,13 +1172,12 @@ sub assignSequenceDescription {
 sub deleteIndexWords {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-  my $taxonPropertySet = $mgr->{taxonPropertySet};
 
   my $signal = "deleteIndexWords";
 
   return if $mgr->startStep("Deleting index_word_link_ids for assemblies from GUS", $signal);
 
-  my $taxonId = $taxonPropertySet->getProp('taxonId');
+  my $taxonId = $propertySet->getProp('taxonId');
 
   my $gusConfigFile = $propertySet->getProp('gusConfigFile');
 
@@ -1209,9 +1195,8 @@ sub deleteIndexWords {
 sub makeIndexWords {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-  my $taxonPropertySet = $mgr->{taxonPropertySet};
 
-  my $taxonId = $taxonPropertySet->getProp('taxonId');
+  my $taxonId = $propertySet->getProp('taxonId');
 
   my $sql = "select na_sequence_id,description from dots.Assembly where taxon_id = $taxonId";
 
@@ -1306,9 +1291,8 @@ sub makeMotifIndexWordLink {
 sub indexSimilarityWords {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-  my $taxonPropertySet = $mgr->{taxonPropertySet};
 
-  my $taxonId = $taxonPropertySet->getProp('taxonId');
+  my $taxonId = $propertySet->getProp('taxonId');
 
   my $sql = "select a.na_sequence_id from dots.assembly a where a.taxon_id = $taxonId";
 
@@ -1325,9 +1309,8 @@ sub indexSimilarityWords {
 sub indexNRDBWords {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-  my $taxonPropertySet = $mgr->{taxonPropertySet};
 
-  my $taxonId = $taxonPropertySet->getProp('taxonId');
+  my $taxonId = $propertySet->getProp('taxonId');
 
   my $sql = "select a.na_sequence_id from dots.assembly a where a.taxon_id = $taxonId";
 
@@ -1345,18 +1328,17 @@ sub indexNRDBWords {
 sub getIdsPerAssembly {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-  my $taxonPropertySet = $mgr->{taxonPropertySet};
 
   my $signal = "getIdsPerAssembly";
 
   return if $mgr->startStep("Getting ids per assembly", $signal);
 
-  my $taxonId = $taxonPropertySet->getProp('taxonId');
+  my $taxonId = $propertySet->getProp('taxonId');
 
   my $gusConfigFile = $propertySet->getProp('gusConfigFile');
 
   my $dotsRelease = $propertySet->getProp('dotsRelease');
-  my $speciesNickname = $taxonPropertySet->getProp('speciesNickname');
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
 
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
 
@@ -1377,19 +1359,18 @@ sub getIdsPerAssembly {
 sub getAssembliesPerGene {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-  my $taxonPropertySet = $mgr->{taxonPropertySet};
 
   my $signal = "getAssembliesPerGene";
 
   return if $mgr->startStep("Getting assemblies per gene", $signal);
 
-  my $taxonId = $taxonPropertySet->getProp('taxonId');
+  my $taxonId = $propertySet->getProp('taxonId');
 
   my $gusConfigFile = $propertySet->getProp('gusConfigFile');
 
   my $dotsRelease = $propertySet->getProp('dotsRelease');
 
-  my $speciesNickname = $taxonPropertySet->getProp('speciesNickname');
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
 
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
 
@@ -1410,19 +1391,18 @@ sub getAssembliesPerGene {
 sub getmRNAPerAssembly {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-  my $taxonPropertySet = $mgr->{taxonPropertySet};
 
   my $signal = "getmRNAPerAssembly";
 
   return if $mgr->startStep("Getting mRNA per Assembly", $signal);
 
-  my $taxonId = $taxonPropertySet->getProp('taxonId');
+  my $taxonId = $propertySet->getProp('taxonId');
 
   my $gusConfigFile = $propertySet->getProp('gusConfigFile');
 
   my $dotsRelease = $propertySet->getProp('dotsRelease');
 
-  my $speciesNickname = $taxonPropertySet->getProp('speciesNickname');
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
 
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
 
@@ -1443,7 +1423,6 @@ sub getmRNAPerAssembly {
 sub prepareBlastSiteFiles {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-  my $taxonPropertySet = $mgr->{taxonPropertySet};
 
   my $signal = "prepareBlastSiteFiles";
 
@@ -1451,7 +1430,7 @@ sub prepareBlastSiteFiles {
 
   # make blast files for this species
   my $dotsRelease = $propertySet->getProp('dotsRelease');
-  my $speciesNickname = $taxonPropertySet->getProp('speciesNickname');
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
   my $blastBinDir = $propertySet->getProp('wuBlastBinPath');
 
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
@@ -1508,13 +1487,12 @@ sub markBadSeqs {
 sub makeProjectLink {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-  my $taxonPropertySet = $mgr->{taxonPropertySet};
 
   my $signal = "makeProjectLink";
 
   return if $mgr->startStep("Insert links between projectinfo and nasequence into projectlink table", $signal);
 
-  my $taxonId = $taxonPropertySet->getProp('taxonId');
+  my $taxonId = $propertySet->getProp('taxonId');
 
   my $allgenesVer = $propertySet->getProp('allgenesVersion');
 
@@ -1553,5 +1531,29 @@ sub usage {
   print STDERR "usage:  dotsbuild propertiesfile\n";
   exit 1;
 }
+
+############################# Utility Subroutines #############################
+
+# get list of taxonIds for the current species.  If the property
+# "includeSubspecies" equals "yes", then that's a comma-separated list
+# including the species taxonId (from the property "taxon_id") together with
+# any descendent nodes in the SRes::Taxon tree.  If includeSubspecies isn't
+# set, it's just the taxon_id (again, from the property).
+
+sub getTaxonIdList {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+  my $returnValue;
+
+  my $taxonId = $propertySet->getProp('taxonId');
+  if ($propertySet->getProp('includeSubspecies') eq "yes") {
+    $returnValue = $mgr->runCmd("getSubTaxa --taxon_id $taxonId");
+  } else {
+    $returnValue = $taxonId;
+  }
+
+  return $returnValue;
+}
+##################################### main ####################################
 
 1;
