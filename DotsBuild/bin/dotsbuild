@@ -108,7 +108,7 @@ my @properties =
  ["gbFiles", "", "list of comma delinieated genbank files to be parsed into GUS"],
  ["fileOfRepeats", "","subdirectory and library(file) of repeats, e.g. unknown_release/vector_humMitoRibo.lib"],
  ["refseqRel", "","RefSeq release, e.g 2001-01-08"],
- ["reseq_rel_id", "","external_database_release_id for the RefSeq release"],
+ ["refseq_rel_id", "","external_database_release_id for the RefSeq release"],
  ["refseqFile", "","RefSeq file. e.g. mouse.gbff.gz"]
  ); 
 
