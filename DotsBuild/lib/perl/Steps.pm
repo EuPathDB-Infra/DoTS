@@ -481,12 +481,11 @@ sub copyGenomeToLiniac {
 sub copyPipelineDirToLiniac {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-
   my $nickName = $propertySet->getProp('speciesNickname');
   my $dotsRelease = "release".$propertySet->getProp('dotsRelease');
   my $serverPath = $propertySet->getProp('serverPath') . "/$dotsRelease";
   my $liniacServer = $propertySet->getProp('liniacServer');
-  my $fromDir = $mgr->{'pipelineDir'};
+  my $fromDir =   $propertySet->getProp('dotsBuildDir') . "/$dotsRelease";
   my $signal = "dir2liniac";
   return if $mgr->startStep("Copying $fromDir to $serverPath on $liniacServer", $signal);
 
@@ -494,6 +493,43 @@ sub copyPipelineDirToLiniac {
 
   $mgr->endStep($signal);
 }
+
+sub startGenomicAlignmentOnLiniac {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+  my $liniacServer = $propertySet->getProp('liniacServer');
+  my $serverPath = $propertySet->getProp('serverPath');
+  my $buildName = "release".$propertySet->getProp('dotsRelease')."/$propertySet->getProp('speciesNickname')";
+  my $signal = "rungenomealign";
+  return if $mgr->startStep("Starting genomic alignment", $signal);
+
+  $mgr->endStep($signal);
+  my $liniacCmdMsg = "submitPipelineJob runGenomeAlign $serverPath/$buildName NUMBER_OF_NODES";
+  my $liniacLogMsg = "monitor $serverPath/$buildName/logs/*.log and xxxxx.xxxx.stdout";
+
+  $mgr->exitToLiniac($liniacCmdMsg, $liniacLogMsg, 1);
+}
+
+sub qualityStart {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+  my $date = $propertySet->getProp('qualityStartDate');
+  my $taxonIdList = &getTaxonIdList($mgr);
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+  my $file = $propertySet->getProp('fileOfRepeats');
+  my $repeatFile = "$externalDbDir/repeat/$file";
+  my $phrapDir = $propertySet->getProp('phrapDir');
+  
+  my $sql = "select a.assembly_sequence_id from dots.assemblysequence a, dotsver.externalnasequencever v where a.na_sequence_id = v.na_sequence_id and v.version_date > $date and v.taxon_id in ($taxonIdList)";
+
+  my $args = "--idSQL \"$sql\" --repeatFile $repeatFile --phrapDir $phrapDir";
+
+  $mgr->runPlugin("setQualityStart", 
+		   "DoTS::DotsBuild::Plugin::SetAssSeqQualStartStop",
+		   $args, "setting quality start in AssemblySequence",'runQualityStart');
+
+}
+
 
 sub startBlastMatricesOnLiniac {
   my ($mgr) = @_;
@@ -860,8 +896,6 @@ sub downloadCDD {
 
   return if $mgr->startStep("Downloading CDD", $signal, 'downloadCDD');
 
-  $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
-
   my $externalDbDir = $propertySet->getProp('externalDbDir');
 
   my $date = $propertySet->getProp('cddDate');
@@ -1057,8 +1091,6 @@ sub downloadProdom {
   $mgr->runCmd("mkdir -p $downloadSubDir");
 
   my $logfile = "$mgr->{pipelineDir}/logs/$signal.log";
-
-  $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
 
   $mgr->runCmd("/bin/rm -f $downloadSubDir/*");
 
