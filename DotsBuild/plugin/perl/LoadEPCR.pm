@@ -21,11 +21,6 @@ sub new {
 
   my $easycsp =
     [
-     {o => 'maptable',
-      t => 'string',
-      h => 'Name of mapping source table',
-      d => 'GeneMap',
-     },
      {o => 'idcol',
       h => 'Name of column from NASequenceImp to search for external ids',
       t => 'string', 
@@ -45,8 +40,7 @@ sub new {
      },
      {o => 'maptableid',
       t => 'string',
-      h => 'Id for mapping table, 471 for plasmo, 366 for genemap ',
-      d => '366',
+      h => 'Id for mapping table, ??? for plasmo, 2782 for genemap ',
      },
      {o => 'seqsubclassview',
       t => 'string',
@@ -79,7 +73,7 @@ sub new {
 my $debug = 0;
 
 sub run {
-	my $M   = shift;
+	my $self   = shift;
 	my $ctx = shift;
 
   print $ctx->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
@@ -88,13 +82,12 @@ sub run {
 	############################################################
 	# Put loop here...remember to undefPointerCache()!
 	############################################################
-	my ($idcol,$fh,$dir,$file,$count,$log,$maptable, $maptableid, $seqsubclassview,$is_reversed);
+	my ($idcol,$fh,$dir,$file,$count,$log,$maptableid, $seqsubclassview,$is_reversed);
 	$idcol = $ctx->{ cla }->{ idcol };
 	$dir = $ctx->{ cla }->{ dir };
 	$file = $ctx->{ cla }->{ file };
 	$fh = new FileHandle("$file", "<") || die "File $dir$file not open";
 	$log = new FileHandle("$ctx->{ cla }->{ log }", ">") || die "Log not open";
-	$maptable = $ctx->{cla}->{maptable};
         $maptableid = $ctx->{cla}->{maptableid};
 	$seqsubclassview = $ctx->{cla}->{seqsubclassview};	
 	while (my $l = $fh->getline()) {
