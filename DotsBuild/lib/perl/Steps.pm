@@ -2804,10 +2804,10 @@ sub prepareDownloadSiteFiles {
   addFileToReadme($mgr, "${predictedProteinsFile}.gz", $descrip);
 
   #DTAnatomy
-  my $DTAnatomyFile = "$mgr->{pipelineDir}/misc/${prefix}_DTAnatomy";
-  my $cmd = "makeDTAnatomyFile --taxonId $taxonId --outFile $DTAnatomyFile";
+  my $DTAnatomyFile = "${prefix}_DTAnatomy";
+  my $cmd = "makeDTAnatomyFile --taxonId $taxonId --outFile $mgr->{pipelineDir}/misc/$DTAnatomyFile";
   $mgr->runCmd($cmd);
-  $mgr->runCmd("gzip $DTAnatomyFile");
+  $mgr->runCmd("gzip $mgr->{pipelineDir}/misc/$DTAnatomyFile");
   push(@files, "$mgr->{pipelineDir}/misc/${DTAnatomyFile}.gz");
   $descrip = "The anatomy percent for assembled transcripts";
   $htaccessString .= "AddDescription \"$descrip\" *Anatomy*\n";
@@ -2935,181 +2935,81 @@ sub updateHtaccessFile {
   close(F);
 }
 
-sub downloadLocusLink {
+sub downloadGeneID {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-
-  my $signal = "downloadLocusLink";
-
-  return if $mgr->startStep("Downloading LocusLink", $signal,'downloadLocusLink');
-
+  my $signal = "downloadGeneId";
+  return if $mgr->startStep("Downloading GeneID", $signal,'downloadGeneId');
   my $pipelineDir = $mgr->{pipelineDir};
-
-  my $logfile = "$pipelineDir/logs/downloadLocusLink.log";
-
+  my $logfile = "$pipelineDir/logs/downloadGeneId.log";
   my $externalDbDir = $propertySet->getProp('externalDbDir');
-
   my $date = $propertySet->getProp('buildDate');
-
-  my $downloadSubDir = "$externalDbDir/locuslink/$date";
-
+  my $downloadSubDir = "$externalDbDir/geneId/$date";
   $mgr->runCmd("mkdir -p $downloadSubDir");
-
-  my $cmd = "wget -t5 -o $logfile -m -np -nd -nH --cut-dirs=2 -A \"loc2acc,loc2ref,LL.out.gz\"  -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/refseq/LocusLink/";
-
+  my $cmd = "wget -t5 -o $logfile -m -np -nd -nH --cut-dirs=2 -A \"gene2accession.gz,gene_info.gz\"  -P $downloadSubDir  ftp://ftp.ncbi.nlm.nih.gov/gene/DATA/";
   $mgr->runCmd($cmd);
-
-  $mgr->runCmd("gunzip LL.out.gz");
-
+  $mgr->runCmd("gunzip $downloadSubDir/gene2accession.gz");
+  $mgr->runCmd("gunzip $downloadSubDir/gene_info.gz");
   $mgr->endStep($signal);
 }
 
-sub deleteLocusLink {
+sub deleteGeneIdToNaSeq {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-
-  my $signal = "deleteLocusLinkToDots";
-
-  return if $mgr->startStep("Deleting LocusLink to DoTS entries from DbRefNASequence", $signal);
-
+  my $signal = "deleteGeneIdToNaSeq";
+  return if $mgr->startStep("Deleting GeneId to NASeq entries from DbRefNASequence", $signal,'downloadGeneId');
   my $pipelineDir = $mgr->{pipelineDir};
-
   my $taxonId = $propertySet->getProp('taxonId');
-
   my $gusConfigFile = $propertySet->getProp('gusConfigFile');
-
-  my $llDbRlsId = $propertySet->getProp('locuslink_db_rls_id');
-
+  my $geneIdDbRlsId = $propertySet->getProp('gene_db_rls_id');
   my $logFile = "$pipelineDir/logs/${signal}.log";
-
-  my $sql = "select n.db_ref_na_sequence_id from sres.dbref d, dots.dbrefnasequence n, dots.assembly a where d.external_database_release_id = $llDbRlsId and d.db_ref_id = n.db_ref_id and n.na_sequence_id = a.na_sequence_id and a.taxon_id = $taxonId";
-
+  my $sql = "select n.db_ref_na_sequence_id from sres.dbref d, dots.dbrefnasequence n, dots.externalnasequence a where d.external_database_release_id = $GeneIdDbRlsId and d.db_ref_id = n.db_ref_id and n.na_sequence_id = a.na_sequence_id and a.taxon_id = $taxonId";
   my $cmd = "deleteEntries.pl --table DoTS::DbRefNASequence --idSQL \"$sql\" --verbose 2>> $logFile";
-
   $mgr->runCmd($cmd);
-
   $mgr->endStep($signal);
-
 }
 
-
-
-sub parseLocusLink {
+sub parseGeneId {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-
-  my $signal = "parseLocusLinkToDoTS";
-
-  return if $mgr->startStep("Parsing LocusLink to DoTS entries from file", $signal);
-
+  my $signal = "parseGeneId";
+  return if $mgr->startStep("Parsing Gene to Genbank accesion from file", $signal,'downloadGeneId');
   my $pipelineDir = $mgr->{pipelineDir};
   my $logFile = "$pipelineDir/logs/${signal}.log";
-
   my $externalDbDir = $propertySet->getProp('externalDbDir');
-
   my $date = $propertySet->getProp('buildDate');
-
-  my $downloadSubDir = "$externalDbDir/locuslink/$date";
-
-  my $inputfile_acc = "$downloadSubDir/loc2acc";
-
-  my $species = $propertySet->getProp('speciesNickname');
-
-  my $outputfile_acc = "$pipelineDir/misc/${species}LL2DoTSacc";
-
-  my $taxonId = $propertySet->getProp('taxonId');
-
+  my $inputFile = "$externalDbDir/geneId/$date/gene2accession";
+  my $outputFile = "$pipelineDir/misc/gene2acc";
   my $tax_id = $propertySet->getProp('ncbiTaxId');
-
-  my $cmd = "makeLL2DoTSfile --inputFile $inputfile_acc --taxon_id $taxonId --tax_id $tax_id > $outputfile_acc 2>>$logFile";
-
+  my $taxonId = $propertySet->getProp('taxonId'); 
+  my $cmd = "makeGeneIdToNaSeqFile --inputFile $inputFile --taxon_id $taxonId --tax_id $tax_id > $outputFile 2>>$logFile";
   $mgr->runCmd($cmd);
-
-  my $inputfile_ref = "$downloadSubDir/loc2ref";
-
-  my $outputfile_ref = "$pipelineDir/misc/${species}LL2DoTSref";
-
-  my $cmd = "makeLLRef2DoTSfile --inputFile $inputfile_ref --taxon_id $taxonId --tax_id $tax_id > $outputfile_ref 2>>$logFile";
-
-  $mgr->runCmd($cmd);
-
-  my $outputfile_pre = "$pipelineDir/misc/${species}LL2DoTSpre";
-
-  $cmd = "cat $outputfile_acc $outputfile_ref > $outputfile_pre";
-
-  $mgr->runCmd($cmd);
-
-  my $outputfile_sort = "$pipelineDir/misc/${species}LL2DoTSsort";
-
-  $mgr->runCmd("sort $outputfile_pre >$outputfile_sort");
-
-  my $outputfile = "$pipelineDir/misc/${species}LL2DoTS";
-
-  $mgr->runCmd("uniq $outputfile_sort >$outputfile");
-
-  $cmd = "cp $outputfile $pipelineDir/downloadSite";
-
-  $mgr->runCmd($cmd);
-
-  my $dotsRelease = $propertySet->getProp('dotsRelease');
-
-  $cmd = "mv $pipelineDir/downloadSite/${species}LL2DoTS $pipelineDir/downloadSite/${species}DoTS_rel${dotsRelease}_LL2DoTS";
-
-  $mgr->runCmd($cmd);
-
-  $cmd = "gzip $pipelineDir/downloadSite/${species}DoTS_rel${dotsRelease}_LL2DoTS";
-
-  $mgr->runCmd($cmd);
-
-  my $descrip = "A mapping of DoTS to LocusLink";
-
-  &updateHtaccessFile($mgr, "AddDescription \"$descrip\" *LL*\n");
-
-  &addFileToReadme($mgr, "${pipelineDir}/downloadSite/${species}DoTS_rel${dotsRelease}_LL2DoTS", $descrip);
-
   $mgr->endStep($signal);
 }
 
-sub loadLocusLinkToDoTS {
+sub loadGeneIdToNaSeq {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-
   my $pipelineDir = $mgr->{pipelineDir};
-
-  my $species = $propertySet->getProp('speciesNickname');
-
-  my $file = "$pipelineDir/misc/${species}LL2DoTS";
-
-  my $llDbRlsId = $propertySet->getProp('locuslink_db_rls_id');
-
-  my $llDbId = $propertySet->getProp('ll_db_id');
-
-  my $llDeleteDbRef = $propertySet->getProp('llDeleteDbRef');
-
-  my $delete = $llDeleteDbRef eq "yes" ? "--delete" : "";
-
-  my $args = "--mappingfiles $file $delete --pattern1 '\\s+(\\d+)' --pattern2 'DT\.(\\d+)' --db_id $llDbId --db_rel_id $llDbRlsId";
-
-  $mgr->runPlugin("loadLLmapping", "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence", $args, "loading LL to DoTS mapping");
+  my $file = "$pipelineDir/misc/gene2acc";
+  my $geneIdDbRlsId = $propertySet->getProp('gene_db_rls_id');
+  my $geneIdDbId = $propertySet->getProp('gene_db_id');
+  my $geneIdDeleteDbRef = $propertySet->getProp('deleteGeneId');
+  my $delete = $geneIdDeleteDbRef eq "yes" ? "--delete" : "";
+  my $args = "--mappingfiles $file $delete --pattern1 '^(\\d+)\\t' --pattern2 '\\t(\\d+)' --db_id $geneIdDbId --db_rel_id $geneIdDbRlsId";
+  $mgr->runPlugin("loadGeneIdToNaSeq", "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence", $args, "loading GeneId to NaSeq mapping"\);
 }
 
-sub loadLocusLinkInfo {
+sub loadGeneIdInfo {
   my ($mgr)= @_;
   my $propertySet = $mgr->{propertySet};
-
   my $externalDbDir = $propertySet->getProp('externalDbDir');
-
   my $date = $propertySet->getProp('buildDate');
-
-  my $infoFile = "$externalDbDir/locuslink/$date/LL.out";
-
-  my $externalDbRel = $propertySet->getProp('locuslink_db_rls_id');
-
+  my $infoFile = "$externalDbDir/geneId/$date/gene_info";
+  my $externalDbRel = $propertySet->getProp('gene_db_rls_id');
   my $tax_id = $propertySet->getProp('ncbiTaxId');
-
   my $args = "--infoFile $infoFile --ncbiTaxId $tax_id --externalDbRel $externalDbRel";
-
-  $mgr->runPlugin("loadLLInfo", "DoTS::DotsBuild::Plugin::LoadLocusLinkInfo", $args, "loading LL information");
+  $mgr->runPlugin("loadGeneIdInfo", "DoTS::DotsBuild::Plugin::LoadGeneIdInfo", $args, "loading GeneId information");
 }
 
 sub deleteMGC {
