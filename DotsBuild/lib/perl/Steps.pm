@@ -7,7 +7,9 @@ use strict;
 #use File::Basename;
 
 sub createDotsPipelineDir {
-  my ($propertySet, $mgr) = @_;
+  my ($mgr) = @_;
+
+  my $propertySet = $mgr->{propertySet};
 
   my $buildName = $mgr->{buildName};
 
@@ -160,7 +162,7 @@ sub downloadRefSeq {
 
   return if $mgr->startStep("Downloading RefSeq", $signal,'downloadGenbank');
 
-  my $logfile = "$pipelineDir/logs/downloadRefSeq.log";
+  my $logfile = "$mgr->{pipelineDir}/logs/downloadRefSeq.log";
 
   my $externalDbDir = $propertySet->getProp('externalDbDir');
 
@@ -257,7 +259,7 @@ sub downloadGenome {
   my $downloadSubDir = "$externalDbDir/goldenpath/$genomeVer";
   my $downloadGapDir = "$externalDbDir/goldenpath/$genomeVer" . 'gaps';
 
-  my $logfile = "$pipelineDir/logs/downloadGenome.log";
+  my $logfile = "$mgr->{pipelineDir}/logs/downloadGenome.log";
 
   $mgr->runCmd("mkdir -p $downloadSubDir");
   $mgr->runCmd("mkdir -p $downloadGapDir");
@@ -330,15 +332,11 @@ sub parseGenbank {
 
   }
 
-  my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
-
   foreach my $file (@gbFiles) {
 
-    my $buildName = &makeBuildName($propertySet->getProp('speciesNickname'),
-				   $propertySet->getProp('dotsRelease'));
     my $subDir = "gbParse_".$file;
 
-    my $failFiles = "$dotsBuildDir/$buildName/plugins/$subDir/gbparserFailures/*.gb";
+    my $failFiles = "$mgr->{pipelineDir}/plugins/$subDir/gbparserFailures/*.gb";
 
     my @fileArr = <$failFiles>;
 
@@ -356,8 +354,6 @@ sub parseRefSeq {
   my $propertySet = $mgr->{propertySet};
 
   my $signal = "parseRefSeq";
-
-  my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
 
   my $refseqRel = $propertySet->getProp('refseqRel');
   
@@ -377,11 +373,7 @@ sub parseRefSeq {
     
   $mgr->runPlugin($signal, "GUS::Common::Plugin::GBParser", $args, "Loading RefSeq files into GUS");
 
-  my $dotsRelease = "release" . $propertySet->getProp('dotsRelease');
-
-  my $buildName = &makeBuildName($propertySet->getProp('speciesNickname'));
-
-  my $failFiles = "$dotsBuildDir/$dotsRelease/$buildName/plugins/$refseqFile/gbparserFailures/*.gb";
+  my $failFiles = "$mgr->{pipelineDir}/plugins/$refseqFile/gbparserFailures/*.gb";
   
   my @fileArr = <$failFiles>;
     
