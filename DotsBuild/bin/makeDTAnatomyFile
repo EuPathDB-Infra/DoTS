@@ -10,16 +10,15 @@ use GUS::Common::GusConfig;
 
 $| = 1;
 
-my ($dbLogin,$dbPassword,$taxonId,$dotsRel,$outFile,$verbose);
+my ($dbLogin,$dbPassword,$taxonId,$outFile,$verbose);
 
 &GetOptions("dbLogin=s" => \$dbLogin,
 	    "dbPassword=s" => \$dbPassword,
 	    "taxonId=i" => \$taxonId,
-	    "dotsRel=s" => \$dotsRel,
 	    "outFile=s" =>\$outFile,
 	    'verbose!' => \$verbose);
 
-&usage() unless $taxonId && $dotsRel && $outFile;
+&usage() unless $taxonId && $outFile;
 
 my $gusconfig = GUS::Common::GusConfig->new();
 $dbLogin = $gusconfig->getDatabaseLogin() unless $dbLogin;
@@ -51,7 +50,7 @@ while (my ($dt, $aid, $anam, $c, $p, $tot) = $sth->fetchrow_array) {
 close OUT;
 
 sub usage {
-  print STDERR "\nUsage: dotsDownloadFiles --dbLogin --dbPassword --taxonId --dotsRel --outFile [--verbose]\n\n";
+  print STDERR "\nUsage: dotsDownloadFiles --dbLogin --dbPassword --taxonId --outFile [--verbose]\n\n";
   exit(1);
 }
 
