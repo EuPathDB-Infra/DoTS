@@ -1,3 +1,5 @@
+package DoTS::DotsBuild::Plugin::FrameFinder;
+
 # Run framefinder on Assemblies, storing the results in the database.
 #
 # Created:  05.06.2001
@@ -5,101 +7,70 @@
 # 
 # ----------------------------------------------------------
 
-package FrameFinder;
-
+@ISA = qw(GUS::PluginMgr::Plugin);
 use strict;
-use Objects::GUSdev::RNAFeature;
-use Objects::GUSdev::Assembly;
-use Objects::GUSdev::Algorithm;
-# use Objects::GUSdev::NAFeatureImp;
-use Objects::GUSdev::TranslatedAAFeature;
-use Objects::GUSdev::TranslatedAAFeatureSegment;
-use Objects::GUSdev::TranslatedAASequence;
-use Objects::GUS_utils::triv_trans;
-use DBI;
-
-# ----------------------------------------------------------
-# Configuration information
-# ----------------------------------------------------------
-
-my $framefinderdir = '/usr/local/src/bio/estate/';
-##NOTE:  this is from Bob...using the version of atg he did...the following line
-##which is commented out appears to be newer....
-my $dianadir = '/usr/local/src/bio/estate/FrameFinder_GUS';
-##my $dianadir = '/usr/local/src/bio/DIANA/ATG_PH';
+use GUS::Model::DoTS::Assembly;
+use GUS::Model::Core::Algorithm;
+use GUS::Model::DoTS::TranslatedAAFeatSeg;
+use GUS::Common::Sequence;
+use CBIL::Bio::SequenceUtils;
 
 # ----------------------------------------------------------
 # GUSApplication
 # ----------------------------------------------------------
 
-sub CalcPvalue {
-  # calculation of the P-value based on Poisson approximation of geometric distribution;
-  my ($source, $target) = @_;
-  my $target_len = length($target);
-  my $Npep = 2*length($source) - 6*$target_len+6; #it's scanning length in 6-frames;
-  if ($Npep <=0)                #it happens due to the insertions/deletions by framefinder
-    {
-      $Npep = 1;
-    }
-  my $l_lambda = log(3/64)+$target_len*log(61/64)+log($Npep);
-  my $lambda = exp($l_lambda);
-  my $confid_level = 1-exp(-$lambda);
-  # print "P-value is $confid_level\n";
-  return $confid_level;
-}
-
-
 sub new {
-  my $Class = shift;
-  return bless {}, $Class
-} 
+  my ($class) = @_;
 
-sub Usage {
-  my $M = shift;
-  return 'Plug-in for reconstruction of ORF by framefinder on assembly sequences and record the results in the TranslatedAAFeature and TranslatedAASequence tables';
-}
+  my $self = {};
+  bless($self, $class);
 
-sub EasyCspOptions {
-  my $M = shift;
+  my $usage = 'Plug-in for reconstruction of ORF by framefinder on assembly sequences and record the results in the TranslatedAAFeature and TranslatedAASequence tables';
 
-  return {
-          restart           => {
-                                o => 'restart=s',
-                                h => 'restarts from last entry in TranslatedAASequence....
+  my $easycsp =
+    [
+     {o => 'restart',
+      t => 'string'
+      h => 'restarts from last entry in TranslatedAASequence....
                              takes list of row_alg_invocation_ids "234, 235"!',
-                               },
-          idSQL => {
-                    o => 'idSQL=s',
-                    h => 'SQL statement:  must return list of primary identifiers (na_sequence_id) from --table_name',
-                   },
-	  wordfile => {
-                       o => 'wordfile=s',
-                       h => 'word probability file for framefinder',
-		       e => [ qw ( hum_GB123.wordprob mouse_GB123.wordprob ) ],
+     },
+     {o => 'idSQL',
+      t => 'string'
+      h => 'SQL statement:  must return list of primary identifiers (na_sequence_id) from --table_name',
+     },
+     {o => 'wordfile',
+      t => 'string'
+      h => 'word probability file for framefinder',
+      e => [ qw ( hum_GB123.wordprob mouse_GB123.wordprob ) ],
+     },
+     {o => 'testnumber',
+      t => 'int',
+      h => 'number of iterations for testing',
+     },
+     {o => 'ffdir',
+      t => 'string'
+      h => 'directory for framefinder_GUS location',
+     },
+     {o => 'dianadir',
+      t => 'string'
+      h => 'directory for diana program location',
+     },
+    ];
 
-                      },
+  $self->initialize({requiredDbVersion => {},
+		     cvsRevision => '$Revision$', # cvs fills this in!
+		     cvsTag => '$Name$', # cvs fills this in!
+		     name => ref($self),
+		     revisionNotes => 'make consistent with GUS 3.0',
+		     easyCspOptions => $easycsp,
+		     usage => $usage
+		 });
 
-          testnumber        => {
-                                o => 'testnumber',
-                                t => 'int',
-                                h => 'number of iterations for testing',
-                               },
-          ffdir             => {
-                                o => 'ffdir=s',
-                                h => 'directory for framefinder_GUS location',
-				d => $framefinderdir,
-                               },
-          dianadir          => {
-                                o => 'dianadir=s',
-                                h => 'directory for diana program location',
-                                d => $dianadir,
-                               },
-         };
+  return $self;
 }
-
 my $debug = 0;
 
-sub Run {
+sub run {
   my $i = 0;
   my $M = shift;
   my $ctx = shift;
@@ -108,6 +79,8 @@ sub Run {
 
   my $dbh = $ctx->{'self_inv'}->getDatabase()->getQueryHandle();                
   my $time1 = scalar localtime;
+  if ($ctx->{cla}->{ffdir}) {$framefinderdir=$ctx->{cla}->{ffdir};}
+  if ($ctx->{cla}->{dianadir}) {$dianadir=$ctx->{cla}->{dianadir};}
   my $Framefinder = $framefinderdir.'/bin/framefinder_GUS'; # location of FrameFinder
   my $Diana = $ctx->{cla}->{dianadir}.'/atg';
   if (!(-e $Diana))
@@ -120,7 +93,11 @@ sub Run {
   ## want to be able to ignore entries already done!!
   # current key is non-zero tranlation score: if non-zero, then processed.
   if ($ctx->{'restart'}) {
-    my $query = "select rf.na_sequence_id from rnafeature rf, translatedaafeature tf  where rf.na_feature_id = tf.na_feature_id and tf.row_alg_invocation_id in ($ctx->{'restart'})";
+    my $query = 
+"select rf.na_sequence_id 
+from dots.rnafeature rf, dots.translatedaafeature tf  
+where rf.na_feature_id = tf.na_feature_id 
+and tf.row_alg_invocation_id in ($ctx->{'restart'})";
 #    my $query = "select distinct r.na_sequence_id from rnasequence r, translatedaafeatute tf, assembly a where r.na_feature_id = tf.na_feature_id and r.na_sequence_id = a.na_sequence_id and a.description != 'DELETED' and tf.translation_score is not null";
     print STDERR "Restarting: Querying for the ids to ignore\n$query\n";
     my $stmt = $dbh->prepare($query);
@@ -135,8 +112,6 @@ sub Run {
   my $verbose; # = $ctx->{cla}->{verbose};
   die "Error: idSQL query string parameter should not be empty\n" if (not defined($ctx->{cla}->{idSQL}));
   die "Error: cannot find wordfile $ctx->{cla}->{wordfile} for framefinder" unless (-e "$framefinderdir/wordProb/".$ctx->{cla}->{wordfile});
-  if ($ctx->{cla}->{ffdir}) {$framefinderdir=$ctx->{cla}->{ffdir};}
-  if ($ctx->{cla}->{dianadir}) {$dianadir=$ctx->{cla}->{dianadir};}
   print STDERR "$ctx->{cla}->{idSQL}\n"; 
   my $stmt = $dbh->prepare($ctx->{cla}->{idSQL});
   $stmt->execute();
@@ -169,17 +144,17 @@ sub Run {
 
 
   # creating single algorithm object;
-  my $alg = Algorithm->new({'name'=>'FrameFinder'});
+  my $alg = GUS::Model::Core::Algorithm->new({'name'=>'FrameFinder'});
   $alg->retrieveFromDB();
   my $alg_id = $alg->get('algorithm_id');
-  $alg = Algorithm->new({'name'=>'TrivialTrans'});
+  $alg =  GUS::Model::Core::Algorithm->new({'name'=>'TrivialTrans'});
   $alg->retrieveFromDB();
   my $triv_alg_id = $alg->get('algorithm_id');
   my $countEntries = 0;
   my $triv_count = 0;
 
   foreach my $naSeqId (@todo) {
-    my $naSeq = Assembly->new({'na_sequence_id' => $naSeqId});
+    my $naSeq = GUS::Model::DoTS::Assembly->new({'na_sequence_id' => $naSeqId});
     if (!$naSeq->retrieveFromDB()) {
       print STDERR "ERROR: unable to retrieve assembly for $naSeqId\n";
       next;
@@ -195,7 +170,7 @@ sub Run {
     #
     my $tmpFile = "$$.fr.tmp";
     open(TFILE, ">$tmpFile");
-    print TFILE &Sequence::toFasta($seq, $naSeq->get('description'), 80), "\n";
+    print TFILE &GUS::Common::Sequence::toFasta($seq, $naSeq->get('description'), 80), "\n";
     close(TFILE);
     print "\nProcessing the sequence ".$naSeqId."\n" if $verbose;
 
@@ -390,16 +365,16 @@ if ($stpos<=0)
       next;
     }
 
-    my $translate = $tr_AASeq->getChild('TranslatedAAFeature'); #should be already there
+    my $translate = $tr_AASeq->getChild('DoTS::TranslatedAAFeature'); #should be already there
     if ($updating)              #for now it is abundant
       {
-        foreach my $seg ($translate->getChildren('TranslatedAAFeatureSegment',1)) {
+        foreach my $seg ($translate->getChildren('DoTS::TranslatedAAFeatureSegment',1)) {
           $seg->markDeleted();  #deleting all old segments
         }
       }
     
     $translate->setIsPredicted(1) unless $translate->getIsPredicted() == 1;
-    $translate->setManuallyReviewed(0) unless $translate->getManuallyReviewed() == 0;
+    $translate->setReviewedStatusId(0) unless $translate->getReviewedStatusId() == 0;
     $translate->setPValue($clev) unless $translate->getPValue()==$clev;
 
 
@@ -438,7 +413,7 @@ if ($stpos<=0)
 
 ###  Setting the segment for trivial translation;
      undef @transsegs;
-     @transsegs[0]= TranslatedAAFeatureSegment->new();
+     @transsegs[0]= GUS::Model::DoTS::TranslatedAAFeatSeg->new();
      @transsegs[0]->setTranslationScore(0);
      @transsegs[0]->setAaStartPos(1);
      @transsegs[0]->setAaEndPos(length($triv_seq));
@@ -519,7 +494,7 @@ if ($stpos<=0)
               {
                 #			print "number of real segments $realsegs\n";
                 chomp(@segments[$i]);
-                @transsegs[$j]= TranslatedAAFeatureSegment->new();
+                @transsegs[$j]= GUS::Model::DoTS::TranslatedAAFeatSeg->new();
 
                 @transsegs[$j]->setTranslationScore($scores[$i+1]-$scores[$i]);
                 @transsegs[$j]->setAaStartPos($currpos+1);
@@ -620,7 +595,7 @@ else {
     ##put in the sanity check here to make certain that the locations are correct
     my @failed = 0;
     my $i = 0;
-    print "Number of segments is ".$translate->getChildren('TranslatedAAFeatureSegment')."\n" if $verbose;
+    print "Number of segments is ".$translate->getChildren('DoTS::TranslatedAAFeatureSegment')."\n" if $verbose;
     foreach my $seg(@transsegs) {
 #           ($translate->getChildren('TranslatedAAFeatureSegment')){
     
@@ -685,6 +660,23 @@ else {
   my $results = "run finished, processed $countEntries.";
   return $results;
 }                               #Run
+
+sub CalcPvalue {
+  # calculation of the P-value based on Poisson approximation of geometric distribution;
+  my ($source, $target) = @_;
+  my $target_len = length($target);
+  my $Npep = 2*length($source) - 6*$target_len+6; #it's scanning length in 6-frames;
+  if ($Npep <=0)                #it happens due to the insertions/deletions by framefinder
+    {
+      $Npep = 1;
+    }
+  my $l_lambda = log(3/64)+$target_len*log(61/64)+log($Npep);
+  my $lambda = exp($l_lambda);
+  my $confid_level = 1-exp(-$lambda);
+  # print "P-value is $confid_level\n";
+  return $confid_level;
+}
+
 
 sub getPosition {
   my($len,$isrev,$pos) = @_;

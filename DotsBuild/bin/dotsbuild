@@ -1165,7 +1165,9 @@ sub assignSequenceDescription {
     my $dotsMGIfile = "$pipelineDir/misc/${prefix}_bestNRDBHits.dat";
     my $sql = "select na_sequence_id,na_sequence_id from Assembly where taxon_id = $taxonId";
 
-    my $args = "--update_rna_descriptions --copy_manual_descriptions --taxon_id $taxonId --table Assembly --query_table Assembly --doNotVersion --dots_mgi_file $dotsMGIfile --restart \"$restart\" --idSQL \"$sql\"";
+    my $nrdbExtDbRlsId = ???;
+
+    my $args = "--update_rna_descriptions --copy_manual_descriptions --taxon_id $taxonId --table GUS::Model::DoTS::Assembly --query_table GUS::Model::DoTS::Assembly --doNotVersion --nrdb_ext_db_rls_id $nrdbExtDbRlsId --dots_mgi_file $dotsMGIfile --restart \"$restart\" --idSQL \"$sql\"";
 
     $mgr->runPlugin("assignSeqDescrip", "DoTS::DotsBuild::Plugin::AssignSequenceDescription", $args, 
 	       "Assigning sequence descriptions from MGI"); 
@@ -1749,6 +1751,8 @@ sub insertAnatomyPercent {
 
 
 sub makeFrameFinder {
+
+  ## MUST PASS THE PLUGIN THE FRAMEFINDER DIRECTORY!!!!!!!
 
     my $taxonId = $propertySet->getProp('taxonId');
 

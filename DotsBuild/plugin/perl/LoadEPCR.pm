@@ -1,3 +1,5 @@
+package DoTS::DotsBuild::Plugin::LoadEPCR;
+
 ###################################
 # Program: LoadEPCR                # 
 # Author: Shannon McWeeney         # 
@@ -76,7 +78,7 @@ sub new {
 
 my $debug = 0;
 
-sub Run {
+sub run {
 	my $M   = shift;
 	my $ctx = shift;
 

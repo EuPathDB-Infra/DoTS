@@ -116,7 +116,7 @@ my $debug = 0;
 $| = 1;
 my $simStmt;
 
-sub Run {
+sub run {
   my $M   = shift;
   $ctx = shift;
 

@@ -60,7 +60,7 @@ my %multAss;
 my %anat;
 my %hier;
 
-sub Run {
+sub run {
   my $M   = shift;
   $ctx = shift;
 
