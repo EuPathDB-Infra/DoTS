@@ -132,7 +132,7 @@ my @properties =
  ["allgenesLogin", "","login for allgenes schema, for creation and filling of table ProteinAssembly"],
  ["allgenesPassword", "","password for allgenes schema, for creation and filling of table ProteinAssembly"],
  ["makeAllgenesTable", "","make table ProteinAssembl, yes or no"],
- ["qualityStartDate/", "","date when the last SetAssSeqQualStartStop.pm was run for this taxon"]
+ ["qualityStartDate", "","date when the last SetAssSeqQualStartStop.pm was run for this taxon"]
  ); 
 
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
@@ -267,8 +267,6 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
 
    &makeMotifIndexWordLink();
 
-#   &deleteProteinGOPredictions(); DB
-
    &deleteOldSimilarities();
 
    &assemblyProteinIntegration();
@@ -372,6 +370,8 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 &loadSGPHMMSignalP();
 
 &makeStatisticsPage();
+
+&cleanUpFiles();
 
 $mgr->goodbye("Pipeline complete!\n");
 
@@ -866,8 +866,8 @@ sub cluster {
     
     my @matrixFileArray;
     foreach my $matrix (@matrices) {
-	push(@matrixFileArray,
-	     "$pipelineDir/matrix/$matrix/blastMatrix.out");
+      push(@matrixFileArray,
+	   "$pipelineDir/matrix/$matrix/blastMatrix.out.gz");
     }
     my $matrixFiles = join(",", @matrixFileArray); 
 
@@ -1044,7 +1044,7 @@ sub copyDotsMatrixFromLiniac {
 
     $mgr->copyFromLiniac($liniacServer, 
 			 "$serverPath/$buildName/matrix/${name}Dots-${name}Dots/master/mainresult", 
-			 "blastMatrix.out", 
+			 "blastMatrix.out.gz", 
 			 "$pipelineDir/matrix/${name}Dots-${name}Dots");
 
     $mgr->endStep($signal);
@@ -3017,6 +3017,20 @@ sub loadSGPHMMSignalP {
 }
 
 
+sub cleanUpFiles {
+
+  my $signal = "cleanUpFiles";
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $cmd = "cleanReleaseDirs --currentRelease $dotsRelease --buildDir $pipelineDir 2>>$logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
 
 
 sub makeBuildName {

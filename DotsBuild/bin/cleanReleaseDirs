@@ -1,0 +1,236 @@
+#!@perl@ 
+
+#gzip and delete files for latest,penultimate, and previous dots releases
+
+use strict;
+use lib "$ENV{GUS_HOME}/lib/perl";
+use Getopt::Long;
+
+my ($verbose,$currentRelease,$buildDir);
+&GetOptions("verbose!"=> \$verbose,
+            "currentRelease=i" => \$currentRelease,
+	    "buildDir=s" => \$buildDir);
+
+die "usage: cleanReleaseDirs --current_release release number --buildDir directory path e.g./ptolemy/cbil/data/cbil/DoTS --verbose\n" unless $currentRelease;
+
+print "$buildDir = directory path\nrelease$currentRelease = current release\n";
+
+&CurrentDir();
+
+$currentRelease--;
+
+&PenultimateDir() if ($currentRelease > 0);
+
+$currentRelease--;
+
+&PreviousDir() if ($currentRelease > 0);
+
+my $date = `date`;
+
+print "$date : Finished cleaning up dotsbuild directories\n";
+
+
+sub CurrentDir {
+  my $dir = "$buildDir/$currentRelease";
+  my $date = `date`;
+  print "$date : cleaning up files in $buildDir/$currentRelease\n";
+
+  my $cmd = "rm -f ${dir}/assembly/*/*/tmp*";
+  my $done = system($cmd); 
+  if ($done) {print "Can't delete assembly/*/*/tmp*\n";}
+  else {print "deleted assembly/*/*/tmp*\n";}
+
+  $cmd = "rm -f ${dir}/assembly/*/*/file*"; 
+  $done = ($cmd); 
+  if ($done) {print "Can't delete assembly/*/*/file*\n";}
+  else {print "deleted assembly/*/*/file*\n";}
+
+  $cmd = "gzip -r ${dir}/assembly";
+  $done = ($cmd); 
+  if ($done) {print "Can't gzip the files in assembly\n";}
+  else {print "compressed assembly files\n";}
+
+  $cmd = "gzip -r ${dir}/blastSite";
+  $done = ($cmd); 
+  if ($done) {print "Can't gzip the files in blastSite\n";}
+  else {print "compressed blastSite files\n";}
+
+  $cmd = "rm -f ${dir}/cluster/cluster.out.big*";
+  $done = ($cmd); 
+  if ($done) {print "Can't delete cluster.out.big*\n";}
+  else {print "deleted cluster/cluster.out.big*\n";}
+
+  $cmd = "rm -f ${dir}/cluster/cluster.out.small*";
+  $done = ($cmd); 
+  if ($done) {print "Can't delete cluster.out.small*\n";}
+  else {print "deleted cluster/cluster.out.small*\n";}
+
+  $cmd = "gzip -r ${dir}/cluster";
+  $done = ($cmd); 
+  if ($done) {print "Can't gzip the files in cluster\n";}
+  else {print "compressed cluster files\n";}
+
+  $cmd = "gzip -r ${dir}/downloadSite";
+  $done = ($cmd); 
+  if ($done) {print "Can't gzip the files in downloadSite\n";}
+  else {print "compressed downloadSite files\n";}
+
+  $cmd = "gzip -r ${dir}/epcr";
+  $done = ($cmd); 
+  if ($done) {print "Can't gzip the files in epcr\n";}
+  else {print "compressed epcr files\n";}
+
+  $cmd = "gzip -r ${dir}/genetrap";
+  $done = ($cmd); 
+  if ($done) {print "Can't gzip the files in genetrap\n";}
+  else {print "compressed genetrap files\n";}
+
+  $cmd = "gzip -r ${dir}/logs";
+  $done = ($cmd); 
+  if ($done) {print "Can't gzip the files in logs\n";}
+  else {print "compressed logs files\n";}
+
+  $cmd = "gzip -r ${dir}/matrix/*/blastMatrix.out";
+  $done = ($cmd); 
+  if ($done) {print "Can't gzip blastMatrix.out in matrix/*\n";}
+  else {print "compressed matrix/*/blastMatrix.out\n";}
+
+  $cmd = "/bin/rm -rf ${dir}/misc";
+  $done = ($cmd); 
+  if ($done) {print "Can't delete ${dir}/misc\n";}
+  else {print "deleted misc files\n";}
+
+  $cmd = "gzip -r ${dir}/plugins";
+  $done = ($cmd); 
+  if ($done) {print "Can't gzip the files in plugins\n";}
+  else {print "compressed plugins files\n";}
+
+  $cmd = "gzip ${dir}/repeatmask/assemSeqs/blocked.err";
+  $done = ($cmd); 
+  if ($done) {print "Can't gzip repeatmask/assemSeqs/blocked.err\n";}
+  else {print "compressed repeatmask/assemSeqs/blocked.err\n";}
+
+  $cmd = "rm -f ${dir}/seqfiles/*.fasta*";
+  $done = ($cmd); 
+  if ($done) {print "Can't delete seqfiles/*.fasta*\n";}
+  else {print "deleted seqfiles/*.fasta* files\n";}
+
+  $cmd = "gzip -r ${dir}/seqfiles";
+  $done = ($cmd); 
+  if ($done) {print "Can't gzip the files in seqfiles\n";}
+  else {print "compressed seqfiles files\n";}
+
+  $cmd = "gzip -r ${dir}/similarity";
+  $done = ($cmd); 
+  if ($done) {print "Can't gzip the files in similarity\n";}
+  else {print "compressed similarity files\n";}
+}
+
+sub PenultimateDir {
+  my $dir = "$buildDir/$currentRelease";
+  my $date = `date`;
+  print "$date : cleaning up files in $buildDir/$currentRelease\n";
+
+  my $cmd = "/bin/rm -rf ${dir}/assembly";
+  my$done = ($cmd); 
+  if ($done) {print "Can't delete ${dir}/assembly files\n";}
+  else {print "deleted assembly files\n";}
+
+  $cmd = "/bin/rm -rf ${dir}/logs";
+  $done = ($cmd); 
+  if ($done) {print "Can't delete logs files\n";}
+  else {print "deleted logs files\n";}
+
+  $cmd = "/bin/rm -rf ${dir}/matrix";
+  $done = ($cmd); 
+  if ($done) {print "Can't delete matrix files\n";}
+  else {print "deleted matrix files\n";}
+
+  $cmd = "/bin/rm -rf ${dir}/misc";
+  $done = ($cmd); 
+  if ($done) {print "Can't delete misc files\n";}
+  else {print "deleted misc files\n";}
+
+  $cmd = "/bin/rm -rf ${dir}/plugins";
+  $done = ($cmd); 
+  if ($done) {print "Can't delete plugins files\n";}
+  else {print "deleted plugins files\n";}
+
+  $cmd = "/bin/rm -rf ${dir}/signals";
+  $done = ($cmd); 
+  if ($done) {print "Can't delete signals files\n";}
+  else {print "deleted signals files\n";}
+}
+
+sub PreviousDir {
+  my $dir = "$buildDir/$currentRelease";
+  my $date = `date`;
+  print "$date : cleaning up files in $buildDir/$currentRelease\n";
+
+  my $cmd = "/bin/rm -rf ${dir}/assembly";
+  my $done = ($cmd); 
+  if ($done) {print "Can't delete assembly files\n";}
+  else {print "deleted assembly files\n";}
+
+  $cmd = "/bin/rm -rf ${dir}/blastSite";
+  $done = ($cmd); 
+  if ($done) {print "Can't delete blastSite files\n";}
+  else {print "deleted blastSite files\n";}
+
+  $cmd = "/bin/rm -rf ${dir}/cluster";
+  $done = ($cmd); 
+  if ($done) {print "Can't delete cluster files\n";}
+  else {print "deleted cluster files\n";}
+
+  $cmd = "/bin/rm -rf ${dir}/epcr";
+  $done = ($cmd); 
+  if ($done) {print "Can't delete epcr files\n";}
+  else {print "deleted epcr files\n";}
+
+  $cmd = "/bin/rm -rf ${dir}/genetrap";
+  $done = ($cmd); 
+  if ($done) {print "Can't delete genetrap files\n";}
+  else {print "deleted genetrap files\n";}
+
+  $cmd = "/bin/rm -rf ${dir}/logs";
+  $done = ($cmd); 
+  if ($done) {print "Can't delete logs files\n";}
+  else {print "deleted logs files\n";}
+
+  $cmd = "/bin/rm -rf ${dir}/matrix";
+  $done = ($cmd); 
+  if ($done) {print "Can't delete matrix files\n";}
+  else {print "deleted matrix files\n";}
+
+  $cmd = "/bin/rm -rf ${dir}/misc";
+  $done = ($cmd); 
+  if ($done) {print "Can't delete misc files\n";}
+  else {print "deleted misc files\n";}
+
+  $cmd = "/bin/rm -rf ${dir}/plugins";
+  $done = ($cmd); 
+  if ($done) {print "Can't delete plugins files\n";}
+  else {print "deleted plugins files\n";}
+
+  $cmd = "/bin/rm -rf ${dir}/repeatmask";
+  $done = ($cmd); 
+  if ($done) {print "Can't delete repeatmask files\n";}
+  else {print "deleted repeatmask files\n";}
+
+  $cmd = "/bin/rm -rf ${dir}/seqfiles";
+  $done = ($cmd); 
+  if ($done) {print "Can't delete seqfiles files\n";}
+  else {print "deleted seqfiles files\n";}
+
+  $cmd = "/bin/rm -rf ${dir}/signals";
+  $done = ($cmd); 
+  if ($done) {print "Can't delete signals files\n";}
+  else {print "deleted signals files\n";}
+
+  $cmd = "/bin/rm -rf ${dir}/similarity";
+  $done = ($cmd); 
+  if ($done) {print "Can't delete similarity files\n";}
+  else {print "deleted similarity files\n";}
+
+  
+}
