@@ -199,7 +199,7 @@ sub copyGenomeToCluster {
 sub prepareGenomeAlignmentOnCluster {
   my ($mgr) = @_;
   my $signal = "prepGenomeAlign";
-
+  my $doDo = 'isNewGenome';
   my $propertySet = $mgr->{propertySet};
   my $serverPath = $propertySet->getProp('serverPath');
   my $buildName = $mgr->{buildName};
@@ -212,13 +212,14 @@ sub prepareGenomeAlignmentOnCluster {
   my $clusterCmdMsg = "$gaPath $chr_lst x.fa x.psl -makeOoc=$srvGDir/11.ooc";
   my $clusterLogMsg = "wait a little while for it to finish ";
 
-  return if $mgr->startStep("Making 11.ooc file for over-represented words on cluster", $signal);
+  return if $mgr->startStep("Making 11.ooc file for over-represented words on cluster", $signal, $doDo);
   $mgr->endStep($signal);
 
   $mgr->exitToCluster($clusterCmdMsg, $clusterLogMsg, 1);
 }
 
 sub startGenomicAlignmentOnCluster {
+
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
 
