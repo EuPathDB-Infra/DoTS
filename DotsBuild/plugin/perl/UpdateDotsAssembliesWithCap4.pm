@@ -107,8 +107,7 @@ my $iterationNumber = 0;
 my @trimmedAssemblySequences;   ##global list of assembly sequences that get removed entirely by trimming
 
 my $assCache;                   ##note that this will be used to manage the assembly cache....nothing more!!
-    
-my $cap4 = $ctx->{cla}->{'cap4Dir'}."/cap4";
+my $cap4;
 my $tmpLib = "tmpLib";
 my $count = 0;
 my $oldTotal = 0;
@@ -121,7 +120,7 @@ sub run {
   $ctx = shift;
   print $ctx->{cla}->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
   print "Testing on $ctx->{cla}->{'testnumber'}\n" if $ctx->{cla}->{'testnumber'};
-
+  cap4 = $ctx->{cla}->{'cap4Dir'}."/cap4";
   if (!(-e "$cap4")) {
     die "$cap4 does not exist";
   }
