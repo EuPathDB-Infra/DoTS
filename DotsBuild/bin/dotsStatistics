@@ -46,9 +46,9 @@ eval {
   %stats = &getStats($dbh);
 };
 
-#die "$@\n" if $@;
+die "$@\n" if $@;
 
-#&dropTempTable($dbh) unless $useExistingTmpTable;
+&dropTempTable($dbh) unless $useExistingTmpTable;
 
 # push them into html template for presentation
 
@@ -93,7 +93,7 @@ and a.taxon_id in (8,14)";
 
   my $rows = $dbh->do($sql);
 
-  die "Couldn't create temp table PrintStatsTmp\n" unless $rows;
+  die "Couldn't create temp table PrintStatsTmp\n SQL: $sql" unless $rows;
 
   $dbh->commit();
   print STDERR "tmp table created..entered $rows rows\n";
@@ -565,7 +565,7 @@ group by pst.taxon_id, t.name, t.go_term_id ";
 
 sub getDate {
   my @date = split(/\s+/,`date`);
-  return "$date[1] $date[2], $date[-1]";
+  return "$date[1] $date[2], $date[5]";
 }
 
 1;
