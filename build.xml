@@ -11,13 +11,6 @@
     </ant>
   </target>  
 
-  <target name="CBIL-Installation">
-    <ant antfile="../CBIL/build.xml" target="CBIL-Installation">
-      <property name="project" value="CBIL"/>
-      <property name="version" value="latest"/>
-    </ant>
-  </target>  
-
   <target name="DJob-Installation">
     <ant antfile="../DJob/build.xml" target="DJob-Installation">
       <property name="project" value="DJob"/>
