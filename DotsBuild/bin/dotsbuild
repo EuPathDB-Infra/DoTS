@@ -93,7 +93,9 @@ my @properties =
  ["NewGeneTags", "", "yes or no"],
  ["dianaDir" ,  "","directory in which to find the diana program"],
  ["userId" ,  "","database user_id from UserInfo table in GUS"],
- ["iPSRestart" , "","list of algorithm_invocation_id for restart of insertProteinSimilaritiesPK, see ffRestart"],
+ ["iPSRestart_finalDots-nrdb" , "","list of algorithm_invocation_id for restart of insertProteinSimilaritiesPK for nrdb, see ffRestart"],
+ ["iPSRestart_finalDots-prodom" , "","list of algorithm_invocation_id for restart of insertProteinSimilaritiesPK for prodom, see ffRestart"],
+ ["iPSRestart_finalDots-cdd" , "","list of algorithm_invocation_id for restart of insertProteinSimilaritiesPK for cdd, see ffRestart"],
  ["assignDescriptionRestart" , "","list of algorithm_invocation_id for restart of AssignSequenceDescription"],
  ["loadMGI" ,  "",  "yes or no"],
  ["loadGEA" ,  "",  "yes or no"],
@@ -133,7 +135,11 @@ my @properties =
  ["allgenesPassword", "","password for allgenes schema, for creation and filling of table ProteinAssembly"],
  ["makeAllgenesTable", "","make table ProteinAssembl, yes or no"],
  ["qualityStartDate", "","date when the last SetAssSeqQualStartStop.pm was run for this taxon"],
- ["cddDate", "","approx date for cdd download and subdir name"]
+ ["cddDate", "","approx date for cdd download"],
+ ["nrdbDate", "","approx date for NRDB file"],
+ ["dbestDate", "","approx date for dbEST files"],
+ ["prodomVersion", "","prodom version used for build"],
+ ["cddFileDates", "","approx date for cdd files"]
  ); 
 
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
@@ -242,7 +248,7 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
 
    &loadRNAClusters();
 
-   #&deleteGenesWithNoRNA();
+   &deleteGenesWithNoRNA();
 
    &getAssembliesPerGene();
 
@@ -280,9 +286,9 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &copySimilaritiesFromLiniac();
 
-&insertProteinSimilarities("finalDots-prodom", "DoTS::MotifAASequence");
-
 &insertProteinSimilarities("finalDots-nrdb", "DoTS::ExternalAASequence");
+
+&insertProteinSimilarities("finalDots-prodom", "DoTS::MotifAASequence");
 
 &substituteCDDPKs();
 
@@ -297,6 +303,26 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 &indexNRDBWords();
 
 &getmRNAPerAssembly();
+
+&makeProteinChunks();
+
+&predictTmAndSignalP();
+
+&parseTMFile();
+
+&parseSGPSignalP();
+
+&parseSGPHMMSignalP();
+
+&deletePredictedAAFeatures("PredictedAAFeature");
+
+&loadTMHMM();
+
+&deletePredictedAAFeatures("SignalPeptideFeature");
+
+&loadSGPSignalP();
+
+&loadSGPHMMSignalP();
 
 &prepareDownloadSiteFiles();      
 
@@ -352,25 +378,11 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &makeAllgenesTable();
 
-&makeProteinChunks();
+&createReportFile();
 
-&predictTmAndSignalP();
+&writeHtaccessFile();
 
-&parseTMFile();
-
-&parseSGPSignalP();
-
-&parseSGPHMMSignalP();
-
-&deletePredictedAAFeatures("PredictedAAFeature");
-
-&loadTMHMM();
-
-&deletePredictedAAFeatures("SignalPeptideFeature");
-
-&loadSGPSignalP();
-
-&loadSGPHMMSignalP();
+&writeReadmeFile();
 
 &makeStatisticsPage();
 
@@ -841,12 +853,11 @@ sub copyBlastMatricesFromLiniac {
                        "blocked.err",
                        "$pipelineDir/repeatmask/assemSeqs");
 
-    #my @names = ("assemSeqs-assemSeqs", "prevDots-assemSeqs", "prevDots-prevDots");
-    my @names = ("prevDots-assemSeqs", "prevDots-prevDots");
+    my @names = ("assemSeqs-assemSeqs", "prevDots-assemSeqs", "prevDots-prevDots");
     foreach my $name (@names) {
 	$mgr->copyFromLiniac($liniacServer,
 			     "$serverPath/$buildName/matrix/$name/master/mainresult",
-			     "blastMatrix.out",
+			     "blastMatrix.out.gz",
 			     "$pipelineDir/matrix/$name");
     }
     
@@ -1076,7 +1087,9 @@ sub loadRNAClusters {
 
 sub deleteGenesWithNoRNA {
 
-  $mgr->runPlugin("deleteGenesWithNoRNA", "DoTS::DotsBuild::Plugin::DeleteGenesWithNoRNA",,"Deleting genes with no rna");
+  my $args = "";
+
+  $mgr->runPlugin("deleteGenesWithNoRNA", "DoTS::DotsBuild::Plugin::DeleteGenesWithNoRNA",$args,"Deleting genes with no rna");
 
 }
 
@@ -1125,7 +1138,7 @@ sub extractProteinSeqs {
 
     my $signal = "${name}Extract";
 
-    return if $mgr->startStep("Extracting $name protein sequences from GUS", $signal, 'downloadGOStuff');
+    return if $mgr->startStep("Extracting $name protein sequences from GUS", $signal);
 
     my $gusConfigFile = $propertySet->getProp('gusConfigFile');
 
@@ -1392,11 +1405,11 @@ sub copyProteinDBsToLiniac {
 
     my $downloadSubDir = "$externalDbDir/cdd";
 
-    my $tmpCddDir = $downloadSubDir/cdd;
+    my $tmpCddDir = "$downloadSubDir/cdd";
 
     die "$tmpCddDir exists but it shouldn't" if -e $tmpCddDir;
 
-    $mgr->runCmd("ln -s $downloadSubDir/$date $tmpCddDir") 
+    $mgr->runCmd("ln -s $downloadSubDir/$date $tmpCddDir"); 
 
     $mgr->copyToLiniac($downloadSubDir, "cdd", $liniacServer, 
 		       "$serverPath/$buildName/seqfiles");
@@ -1438,7 +1451,7 @@ sub copySimilaritiesFromLiniac {
     foreach my $name (@names) {
 	$mgr->copyFromLiniac($liniacServer, 
 			     "$serverPath/$buildName/similarity/$name/master/mainresult", 
-			     "blastSimilarity.out", 
+			     "blastSimilarity.out.gz", 
 			     "$pipelineDir/similarity/$name");
     }
     $mgr->endStep($signal);
@@ -1450,7 +1463,7 @@ sub deleteOldSimilarities {
     
     my $sql = "select similarity_id from dots.similarity s, dots.assembly a where s.query_table_id = 56 and s.query_id = a.na_sequence_id and a.taxon_id = $taxonId  and s.subject_table_id in (83,84,277)";
 
-    my $args = "--idSQL \"$sql\" --doNotVersion";
+    my $args = "--idSQL \"$sql\" ";
 
     $mgr->runPlugin("deleteProteinSims", 
 		    "GUS::Common::Plugin::DeleteSimilarities", $args,
@@ -1460,15 +1473,15 @@ sub deleteOldSimilarities {
 sub insertProteinSimilarities {
     my ($name, $subjectTable) = @_;
 
-    my $file = "$pipelineDir/similarity/$name/blastSimilarity.out";
+    my $file = "$pipelineDir/similarity/$name/blastSimilarity.out.gz";
     $file .= ".correctPK" if ($name eq "finalDots-cdd");
+    my $prop = "iPSRestart_$name";
+    my $restart = $propertySet->getProp($prop);
 
-    my $restart = $propertySet->getProp('iPSRestart');
-
-    my $args = "--files $file --verbose --restart $restart --query_table DoTS::Assembly --subject_table $subjectTable --log_frequency 10 --limit_sub 50 --limit_hsp 10";
+    my $args = "--file $file --restartAlgInvs $restart --queryTable DoTS::Assembly --subjectTable $subjectTable --subjectsLimit 50 --hspsLimit 10";
 
     $mgr->runPlugin("loadSims_$name", 
-		    "GUS::Common::Plugin::LoadBlastSimilaritiesPK", $args,
+		    "GUS::Common::Plugin::LoadBlastSimFast", $args,
 		    "Loading $name similarities");
 }
 
@@ -1491,8 +1504,10 @@ sub substituteCDDPKs {
     return if $mgr->startStep("Substitituting primary keys into CDD similarities file",
 			 $signal);
     
+    my $file = "$pipelineDir/similarity/finalDots-cdd/blastSimilarity.out.gz";
+    $mgr->runCmd("gunzip $file");
     my $infile = "$pipelineDir/similarity/finalDots-cdd/blastSimilarity.out";
-    my $outfile = "$pipelineDir/similarity/finalDots-cdd/blastSimilarity.out.correctPK";
+    my $outfile = "$pipelineDir/similarity/finalDots-cdd/blastSimilarity.out.gz.correctPK";
     my $logfile = "$pipelineDir/logs/$signal.log";
 
     my $sql = "select source_id,aa_sequence_id from dots.motifaasequence where external_database_release_id in ($smartDB,$pfamDB,$loadDB,$cogDB,$cdDB)";
@@ -1780,124 +1795,121 @@ sub getmRNAPerAssembly {
 
 sub prepareDownloadSiteFiles {
 
-    my $signal = "prepareDownloadSiteFiles";
-
-    return if $mgr->startStep("Preparing files for download site", $signal);
-
-    my $dotsRelease = $propertySet->getProp('dotsRelease');
-    my $speciesNickname = $propertySet->getProp('speciesNickname');
-    my $speciesFullname = $propertySet->getProp('speciesFullname');
-    my $tempLogin = $propertySet->getProp('tempLogin');  
-    my $tempPassword = $propertySet->getProp('tempPassword'); 
-    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
-    my $taxonId = $propertySet->getProp('taxonId');
+  my $signal = "prepareDownloadSiteFiles";
   
-
-    my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
-
-    my $fastaFile = "${prefix}.fasta";
-
-    my $predictedProteinsFile = "${prefix}_predictedProteins.fasta";
-
-
-    my $logFile = "$pipelineDir/logs/${fastaFile}Extract.log";
-
-    my $sql = "select 'DT.'||na_sequence_id,'[$speciesNickname]',description,'('||number_of_contained_sequences||' sequences)','length='||length,sequence from dots.Assembly where taxon_id = $taxonId";
-
-    my $cmd = "dumpSequencesFromTable.pl --outputFile $pipelineDir/seqfiles/$fastaFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"$sql\" 2>>  $logFile";
-
-
-    $mgr->runCmd($cmd);
-
-    my $cmd = "gzip $pipelineDir/seqfiles/$fastaFile";
-
-    $mgr->runCmd($cmd);
-
-    $fastaFile = "${fastaFile}.gz";
-
-    my $logFile = "$pipelineDir/logs/${predictedProteinsFile}Extract.log";
-
-    my $sql = "select 'DT.'||a.na_sequence_id,'length of predicted protein sequence ='||ts.length,ts.sequence from dots.translatedaasequence ts,dots.translatedaafeature tf,dots.rnafeature rf,dots.assembly a where a.taxon_id = $taxonId and a.na_sequence_id = rf.na_sequence_id and rf.na_feature_id = tf.na_feature_id and tf.aa_sequence_id = ts.aa_sequence_id";
-
-    my $cmd = "dumpSequencesFromTable.pl --outputFile $pipelineDir/seqfiles/$predictedProteinsFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"$sql\" 2>>  $logFile";
-
-    $mgr->runCmd($cmd);
-
-    my $cmd = "gzip $pipelineDir/seqfiles/$predictedProteinsFile";
-
-    $mgr->runCmd($cmd);
-
-    $predictedProteinsFile = "${predictedProteinsFile}.gz";
-
-    my $accsPerAssemFile = "${prefix}_accessionsPerAssembly.dat.gz";
-    my $assPerGeneFile = "${prefix}_DTperDG.dat.gz";
-    my $nrdbHitsFile = "${prefix}_bestNRDBHits.dat";
-    my $cmd = "gzip $pipelineDir/misc/$nrdbHitsFile";
+  return if $mgr->startStep("Preparing files for download site", $signal);
+  
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  my $speciesFullname = $propertySet->getProp('speciesFullname');
+  my $tempLogin = $propertySet->getProp('tempLogin');  
+  my $tempPassword = $propertySet->getProp('tempPassword'); 
+  my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+  my $taxonId = $propertySet->getProp('taxonId');
+  
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+  
+  my $fastaFile = "${prefix}.fasta";
+  
+  my $predictedProteinsFile = "${prefix}_predictedProteins.fasta";
+  
+  
+  my $logFile = "$pipelineDir/logs/${fastaFile}Extract.log";
+  
+  my $sql = "select 'DT.'||na_sequence_id,'[$speciesNickname]',description,'('||number_of_contained_sequences||' sequences)','length='||length,sequence from dots.Assembly where taxon_id = $taxonId";
+  
+  my $cmd = "dumpSequencesFromTable.pl --outputFile $pipelineDir/seqfiles/$fastaFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"$sql\" 2>>  $logFile";
+  
+  
+  $mgr->runCmd($cmd) unless -e "$pipelineDir/seqfiles/$fastaFile" || "$pipelineDir/seqfiles/${fastaFile}.gz";
+  
+  my $cmd = "gzip $pipelineDir/seqfiles/$fastaFile";
+  
+  $mgr->runCmd($cmd) unless -e "$pipelineDir/seqfiles/${fastaFile}.gz";
+  
+  $fastaFile = "${fastaFile}.gz";
+  
+  my $logFile = "$pipelineDir/logs/${predictedProteinsFile}Extract.log";
+  
+  my $sql = "select 'DT.'||a.na_sequence_id,'length of predicted protein sequence ='||ts.length,ts.sequence from dots.translatedaasequence ts,dots.translatedaafeature tf,dots.rnafeature rf,dots.assembly a where a.taxon_id = $taxonId and a.na_sequence_id = rf.na_sequence_id and rf.na_feature_id = tf.na_feature_id and tf.aa_sequence_id = ts.aa_sequence_id";
+  
+  my $cmd = "dumpSequencesFromTable.pl --outputFile $pipelineDir/seqfiles/$predictedProteinsFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"$sql\" 2>>  $logFile";
+  
+  $mgr->runCmd($cmd) unless -e "$pipelineDir/seqfiles/$predictedProteinsFile" || "$pipelineDir/seqfiles/${predictedProteinsFile}.gz";
+  
+  my $cmd = "gzip $pipelineDir/seqfiles/$predictedProteinsFile";
+  
+  $mgr->runCmd($cmd) unless -e "$pipelineDir/seqfiles/${predictedProteinsFile}.gz";
+  
+  $predictedProteinsFile = "${predictedProteinsFile}.gz";
+  
+  my $accsPerAssemFile = "${prefix}_accessionsPerAssembly.dat.gz";
+  my $assPerGeneFile = "${prefix}_DTperDG.dat.gz";
+  my $nrdbHitsFile = "${prefix}_bestNRDBHits.dat";
+  my $cmd = "gzip $pipelineDir/misc/$nrdbHitsFile" unless -e "$pipelineDir/misc/${nrdbHitsFile}.gz";
+  
+  $mgr->runCmd($cmd);
+  
+  my $nrdbHitsFile = "${nrdbHitsFile}.gz";
+  
+  my $mRNAPerAss ="${prefix}_mRNAaccessionsPerAssembly.dat.gz"; 
+  
+  my @files = ("$pipelineDir/seqfiles/$fastaFile",
+	       "$pipelineDir/misc/$accsPerAssemFile",
+	       "$pipelineDir/misc/$assPerGeneFile",
+	       "$pipelineDir/misc/$nrdbHitsFile",
+	       "$pipelineDir/seqfiles/$predictedProteinsFile",
+	       "$pipelineDir/misc/$mRNAPerAss" );
+  
+  my $logfile = "$pipelineDir/logs/${signal}.log";
+  
+  foreach my $file (@files) {
+    my $outputfile = "$pipelineDir/downloadSite/" . &basename($file);
+    
+    my $cmd = "cp $file $outputfile";
     
     $mgr->runCmd($cmd);
+  }
 
-    my $nrdbHitsFile = "${nrdbHitsFile}.gz";
+  $mgr->endStep($signal);
+  
+}
+
+sub createReportFile { 
+  
+  my $signal = "createReportFile";
+
+  return if $mgr->startStep("Preparing report file", $signal,'makeAllgenesTable');
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  my $tempLogin = $propertySet->getProp('tempLogin');  
+  my $tempPassword = $propertySet->getProp('tempPassword'); 
+  my $taxonId = $propertySet->getProp('taxonId');
+  
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+  
+  my $manRevwDoTSReportFile = "$pipelineDir/downloadSite/${prefix}_manuallyReviewedTranscriptsReport.txt";
     
-
-    my $mRNAPerAss ="${prefix}_mRNAaccessionsPerAssembly.dat.gz"; 
-
-    my @files = ("$pipelineDir/seqfiles/$fastaFile",
-		 "$pipelineDir/misc/$accsPerAssemFile",
-		 "$pipelineDir/misc/$assPerGeneFile",
-		 "$pipelineDir/misc/$nrdbHitsFile",
-                 "$pipelineDir/seqfiles/$predictedProteinsFile",
-		 "$pipelineDir/misc/$mRNAPerAss" );
-
-    #my $filterfile = "$pipelineDir/misc/imcloneOnlyAssemblies.dat";
-
-    my $logfile = "$pipelineDir/logs/${signal}.log";
-
-    #my $filterpattern = "\>?(\S+)";
-
-    #my $inputpattern = "\>?DT\.(\S+)";
-
-    foreach my $file (@files) {
-	my $outputfile = "$pipelineDir/downloadSite/" . &basename($file);
-	
-	#my $cmd = "filterIds $file $filterfile $filterpattern $inputpattern > $outputfile 2>> $logfile";
-
-	my $cmd = "cp $file $outputfile";
-
-	$mgr->runCmd($cmd);
-
-        my $cmd = "gzip $outputfile";
-
-	$mgr->runCmd($cmd);
-    }
-
-    my $manRevwDoTSReportFile = "$pipelineDir/downloadSite/${prefix}_manuallyReviewedTranscriptsReport.txt";
-
-    # create report of manually reviewed dots
-    my $cmd = "gusreport --configModule GUS::ReportMaker::SampleTranscriptReportConfig --dbLogin $tempLogin --dbPassword $tempPassword --tempTableName sfischer.tempResult --requestedColumns 'Description, GeneSymbol, Length, GOid, DoTSGene, SeqsInAssem, MGI, LocusLink, ContainsMRNA, Motifs, Organism, mRNASeq, proteinSeq' --sql 'select distinct pa.na_sequence_id, 9999 from DoTS.rna r, allgenes.proteinassembly pa where r.review_status_id = 1 and r.rna_id = pa.rna_id and pa.taxon_id = $taxonId' > $manRevwDoTSReportFile";
+# create report of manually reviewed dots
+    my $cmd = "gusreport --configModule GUS::ReportMaker::SampleTranscriptReportConfig --dbLogin $tempLogin --dbPassword $tempPassword --tempTableName ${tempLogin}.tempResult --requestedColumns 'Description, GeneSymbol, Length, GOid, DoTSGene, SeqsInAssem, MGI, LocusLink, ContainsMRNA, Motifs, Organism, mRNASeq, proteinSeq' --sql 'select distinct pa.na_sequence_id, 9999 from DoTS.rna r, ${tempLogin}.proteinassembly pa where r.review_status_id = 1 and r.rna_id = pa.rna_id and pa.taxon_id = $taxonId' > $manRevwDoTSReportFile";
     $mgr->runCmd($cmd);
 
     my $cmd = "gzip $manRevwDoTSReportFile";
 
     $mgr->runCmd($cmd);
 
-
-    &writeReadmeFile($prefix, $dotsRelease, $speciesNickname,$speciesFullname,
-		     $fastaFile, $accsPerAssemFile, $nrdbHitsFile, $assPerGeneFile,
-                     $mRNAPerAss,$predictedProteinsFile, $manRevwDoTSReportFile);
-
-    &writeHtaccessFile();
-
     $mgr->endStep($signal);
 
-}
+      }
 
 sub writeHtaccessFile {
     
-    my $htaccess = "$pipelineDir/downloadSite/.htaccess";
-
-    open(F, ">$htaccess") || $mgr->error("Can't open $htaccess for writing");
-
-    print F '
+  my $htaccess = "$pipelineDir/downloadSite/.htaccess";
+  
+  open(F, ">$htaccess") || $mgr->error("Can't open $htaccess for writing");
+  
+  print F '
 AddDescription "The sequence for the consensus transcripts" *fasta*
 AddDescription "The Genbank accessions of ESTs and mRNAs contained in each assembled transcript" *_acc*
 AddDescription "The best hit in NRDB for each consensus transcript" *NRDB*
@@ -1907,34 +1919,66 @@ AddDescription "The predicted protein translation of each assembled transcript" 
 AddDescription "A tab delimited report for all manually reviewed DoTS Transcripts" *manuallyReviewed*
 AddDescription "A mapping of DoTS to LocusLink" *LL*
 ';
-    close(F);
-
+  close(F);
+  
 }
 
 
 sub writeReadmeFile {
-    my ($prefix, $dotsRelease, $speciesNickname, $speciesFullname, $fastaFile, 
-	$accsPerAssemFile, $nrdbHitsFile, $assPerGeneFile, $mRNAPerAss,$proteinsFile,
-       $manRevwDoTSReport) = @_;
 
-    my $readme = "$pipelineDir/downloadSite/${speciesNickname}_README.txt";
+  my $signal = "writeReadmeFile";
+  
+  return if $mgr->startStep("Writing readme file", $signal);
+  
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  my $speciesFullname = $propertySet->getProp('speciesFullname');
+  my $tempLogin = $propertySet->getProp('tempLogin');  
+  my $tempPassword = $propertySet->getProp('tempPassword'); 
+  my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+  my $taxonId = $propertySet->getProp('taxonId');
+  
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
 
-    open(F, ">$readme") || $mgr->error("Can't open $readme for writing");
+  my $fastaFile = "${prefix}.fasta.gz";
+  
+  my $proteinsFile = "${prefix}_predictedProteins.fasta.gz";
 
-    my $date = `date`;
-    chomp $date;
+  my $accsPerAssemFile = "${prefix}_accessionsPerAssembly.dat.gz";
+  my $assPerGeneFile = "${prefix}_DTperDG.dat.gz";
+  my $nrdbHitsFile = "${prefix}_bestNRDBHits.dat.gz";
+  my $mRNAPerAss ="${prefix}_mRNAaccessionsPerAssembly.dat.gz"; 
+   
+  my $manRevwDoTSReport = "$pipelineDir/downloadSite/${prefix}_manuallyReviewedTranscriptsReport.txt";
 
-    print F "
+  my $genbankRel = $propertySet->getProp('genbankRel');
+
+  my $nrdbDate = $propertySet->getProp('nrdbDate');
+
+  my $cddFileDates = $propertySet->getProp('cddFileDates');
+
+  my $dbestDate = $propertySet->getProp('dbestDate');
+
+  my $prodomVersion = $propertySet->getProp('prodomVersion');
+  
+  my $readme = "$pipelineDir/downloadSite/${speciesNickname}_README.txt";
+  
+  open(F, ">$readme") || $mgr->error("Can't open $readme for writing");
+  
+  my $date = `date`;
+  chomp $date;
+  
+  print F "
 Release ${dotsRelease} of the Database of Transcribed Sequences (DoTS) for $speciesFullname 
 was completed on $date.
 
 The data sources include:
-    * GenBank (Release 129 04/15/2002)
-    * NRDB (06/17/2002)
-    * dbEST (05/20/2002)
-    * Pfam
-    * ProDom (Version 2001.1)
-    * CDD (06/18/2001)
+    * GenBank (Release $genbankRel)
+    * NRDB ($nrdbDate)
+    * dbEST ($dbestDate)
+    * Pfam  ($cddFileDates)
+    * ProDom ($prodomVersion)
+    * CDD ($cddFileDates)
     * Gene Ontology (GO) consortium ontologies and assignments
     * German Gene Trap Consortium (GGTC)
     * Gene traps from the BayGenomics consortium
@@ -1965,7 +2009,9 @@ The files available are:
     $manRevwDoTSReport
       A tab delimited report for all manually reviewed DoTS Transcripts
  ";
-    close(F);
+  close(F);
+
+  $mgr->endStep($signal);
 }
 
 sub prepareBlastSiteFiles {
@@ -1991,7 +2037,7 @@ sub prepareBlastSiteFiles {
 	$propertySet->getProp('completedSpeciesNickName');
     my $completedSpeciesBuildName = &makeBuildName($completedSpeciesNickName);
 
-    if ($completedSpeciesNickName ne 'notdone') {
+    if ($completedSpeciesNickName != $speciesNickname) {
 	my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
 	my $otherPipelineDir = "$dotsBuildDir/$completedSpeciesBuildName";
 	my $otherSpeciesNickname = $speciesNickname eq 'mus'? 'hum' : 'mus';
@@ -2447,7 +2493,7 @@ sub downloadMGIInfo {
     
     my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=2 -A \"MRK_Dump2.rpt\"  -P $downloadSubDir  ftp://ftp.informatics.jax.org/pub/reports/";
 
-    $mgr->runCmd($cmd) unless (-e "$downloadSubDir/MRK_List2.sql.rpt");
+    $mgr->runCmd($cmd) unless (-e "$downloadSubDir/MRK_Dump2.rpt");
 
     my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=3 -A \"MGI_DT_via_GB_one_*\"  -P $downloadSubDir  ftp://ftp.informatics.jax.org/pub/reports/dotstigr/";
 
@@ -2623,7 +2669,7 @@ sub parseGEA {
   
   my $species = $propertySet->getProp('speciesNickname');
 
-  my $outputfile = "$downloadSubDir/${species}gea2DoTS.txt";
+  my $outputfile = "$pipelineDir/misc/${species}gea2DoTS.txt";
 
   my $taxonId = $propertySet->getProp('taxonId');
 
@@ -2642,7 +2688,7 @@ sub loadGEA {
 
   my $species = $propertySet->getProp('speciesNickname');
 
-  my $file = "$downloadSubDir/${species}gea2DoTS.txt";
+  my $file = "$pipelineDir/misc/${species}gea2DoTS.txt";
 
   my $geaDbRlsId = $propertySet->getProp('gea_db_rls_id');
 
@@ -2680,7 +2726,9 @@ sub deleteLocusLink {
 
     my $signal = "deleteLocusLinkToDots";
 
-    return if $mgr->startStep("Deleting LocusLink to DoTS entries from DbRefNASequence", $signal,'downloadLocusLink');
+    return if $mgr->startStep("Deleting LocusLink to DoTS entries from DbRefNASequence", $signal);
+
+    my $taxonId = $propertySet->getProp('taxonId');
 
     my $gusConfigFile = $propertySet->getProp('gusConfigFile');
 
@@ -2688,7 +2736,7 @@ sub deleteLocusLink {
 
     my $logFile = "$pipelineDir/logs/${signal}.log";
 
-    my $sql = "select n.db_ref_na_sequence_id from sres.dbref d, dots.dbrefnasequence n where d.external_database_release_id = $llDbRlsId and d.db_ref_id = n.db_ref_id";
+    my $sql = "select n.db_ref_na_sequence_id from sres.dbref d, dots.dbrefnasequence n, dots.assembly a where d.external_database_release_id = $llDbRlsId and d.db_ref_id = n.db_ref_id and n.na_sequence_id = a.na_sequence_id and a.taxon_id = $taxonId";
 
     my $cmd = "deleteEntries.pl --table DoTS::DbRefNASequence --idSQL \"$sql\" --gusConfigFile $gusConfigFile --verbose 2>> $logFile";
 
@@ -2710,13 +2758,13 @@ sub parseLocusLink {
 
   my $date = $propertySet->getProp('buildDate');
 
-  my $downloadSubDir = "$externalDbDir/locusLink/$date";
+  my $downloadSubDir = "$externalDbDir/locuslink/$date";
 
   my $inputfile = "$downloadSubDir/loc2acc";
   
   my $species = $propertySet->getProp('speciesNickname');
 
-  my $outputfile = "$downloadSubDir/${species}LL2DoTS";
+  my $outputfile = "$pipelineDir/misc/${species}LL2DoTS";
 
   my $taxonId = $propertySet->getProp('taxonId');
 
@@ -2726,23 +2774,19 @@ sub parseLocusLink {
 
   $mgr->runCmd($cmd);
 
-  $mgr->runCmd("cp $outputfile $pipelineDir/downloadSite/${species}LL2DoTS");
-
   $mgr->endStep($signal);
 }
 
 
 sub loadLocusLinkToDoTS {
 
-  my $externalDbDir = $propertySet->getProp('externalDbDir');
+  my $signal = "loadLocusLinkToDoTS";
 
-  my $date = $propertySet->getProp('buildDate');
-  
-  my $downloadSubDir = "$externalDbDir/locuslink/$date";
+  return if $mgr->startStep("Inserting LocusLink to DoTS entries from file", $signal);
 
   my $species = $propertySet->getProp('speciesNickname');
 
-  my $file = "$downloadSubDir/${species}LL2DoTS";
+  my $file = "$pipelineDir/misc/${species}LL2DoTS";
 
   my $llDbRlsId = $propertySet->getProp('locuslink_db_rls_id');
 
@@ -2957,7 +3001,7 @@ sub parseSGPHMMSignalP {
 
 sub deletePredictedAAFeatures{
 
-  my $predictionTable = @_;
+  my ($predictionTable) = @_;
 
   my $signal = "delete${predictionTable}";
 
