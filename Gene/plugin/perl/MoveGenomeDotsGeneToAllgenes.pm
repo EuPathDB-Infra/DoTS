@@ -181,10 +181,11 @@ sub getAnalysisId {
     my ($self, $dbh, $taxonId, $genomeId) = @_;
 
     my $sql = "select aligned_gene_analysis_id from Allgenes.AlignedGeneAnalysis "
-	. "where parameters like '%--t $taxonId --dbr %'";
+	. "where parameters like '%--t $taxonId --dbr %' "
+	. "order by aligned_gene_analysis_id desc";
     my $sth = $dbh->prepareAndExecute($sql);
     my @aids = ();
-    while (my $aid = $sth->fetchrow_array) { push @aids, $aid; }
+    if (my $aid = $sth->fetchrow_array) { push @aids, $aid; }
     my $c = scalar(@aids);
     $self->error("expecting one analysis id but found $c") unless $c == 1;
     $self->log("aligned gene analysis id is $aids[0]");
