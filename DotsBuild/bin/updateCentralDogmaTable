@@ -47,7 +47,7 @@ my $insertSql =
 "insert into $tableName
     select /*+ rule */ null, null, null, null, a.na_sequence_id, a.taxon_id,
       tn.name, null, null, a.length, a.description, 
-      a.num_of_contained_sequences, a.contains_mrna
+      a.number_of_contained_sequences, a.contains_mrna
     from dots.assembly a, sres.taxonName tn
     where a.taxon_id = $taxonId
     and tn.taxon_id = $taxonId";
