@@ -495,6 +495,8 @@ sub downloadRefSeq {
     $ftpsite = "ftp://ftp.ncbi.nih.gov/refseq/M_musculus/mRNA_Prot/";
     $ftpfile = "mouse.gbff.gz";
 
+    my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=3 -A \"$ftpfile\" -P $downloadSubDir $ftpsite";
+
     $mgr->runCmd($cmd);
 
     $mgr->endStep($signal);
@@ -579,7 +581,7 @@ sub downloadNRDB {
 
     $mgr->runCmd("mkdir -p $downloadSubDir");
 
-    my $cmd = "wget -t5 -b -m -np -nd -nH -o $logfile --cut-dirs=4 -A \"nr.Z\"  -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/pub/blast/db/FASTA";
+    my $cmd = "wget -t5 -b -m -np -nd -nH -o $logfile --cut-dirs=4 -A \"nr.Z\"  -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/blast/db/FASTA/";
 	
     $mgr->runCmd($cmd);
 
