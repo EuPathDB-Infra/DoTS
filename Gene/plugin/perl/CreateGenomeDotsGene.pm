@@ -247,13 +247,13 @@ sub getInitialGeneAndTranscriptIds {
     my $sth = $dbh->prepareAndExecute($sql);
     my ($min_gid, $max_gid) = $sth->fetchrow_array;
     my $gid = 1;
-    $gid = $max_gid if ($min_gid && $min_gid < 10e6);
+    $gid = $max_gid + 1 if ($min_gid && $min_gid < 10e6);
 
     $sql = "select min($gdt_id_col), max($gdt_id_col) from $gdt_tab";
     $sth = $dbh->prepareAndExecute($sql);
     my ($min_tid, $max_tid) = $sth->fetchrow_array;
     my $tid = 1;
-    $tid = $max_tid if ($min_tid && $min_tid < 100e6);
+    $tid = $max_tid + 1 if ($min_tid && $min_tid < 100e6);
 
     return ($gid, $tid);
 }
@@ -374,7 +374,7 @@ sub saveGene {
 
     my ($gdg_tab, $gdg_cols, $gdg_types, $gdt_tab, $gdt_cols, $gdt_types) = @$tmpMeta;
 
-    my $dbh = $self->getQueryHandle();
+    my $dbh = $self->geteryHandle();
     my $taxonId = $self->getArg('taxon_id');
     my $genomeId = $self->getArg('genome_db_rls_id');
     my $tmpLogin = $self->getArg('temp_login');
