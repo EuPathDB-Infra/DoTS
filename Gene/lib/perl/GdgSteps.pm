@@ -19,15 +19,17 @@ sub createDotsGenePipelineDir {
 
   return if (-e "$dotsGeneBuildDir/$buildName/seqfiles");
 
-  $mgr->runCmd("mkdir -p $dotsGeneBuildDir/$buildName/seqfiles");
   my $sp = $propertySet->getProp('speciesNickname');
   $mgr->runCmd("mkdir -p $dotsGeneBuildDir/$buildName/releasefiles/$sp/per_chr_gff");
+  $mgr->runCmd("mkdir -p $dotsGeneBuildDir/$buildName/seqfiles");
 
   $mgr->runCmd("chmod -R g+w $dotsGeneBuildDir/$buildName");
 }
 
 sub createGenomeDir {
   my ($mgr) = @_;
+  my $signal = "createGenomeDir";
+  return if $mgr->startStep("Creating genome dir", $signal);
 
   my $propertySet = $mgr->{propertySet};
   my $buildName = $mgr->{buildName};
@@ -46,6 +48,7 @@ sub createGenomeDir {
 		   $nodePath, $gaTaskSize, $gaOptions, $gaPath, $extGDir, $srvGDir);
 
   $mgr->runCmd("chmod -R g+w $dotsGeneBuildDir/$buildName/");
+  $mgr->endStep($signal);
 }
 
 sub downloadGenome {
@@ -53,7 +56,7 @@ sub downloadGenome {
   my $propertySet = $mgr->{propertySet};
 
   my $signal = "downloadGenome";
-  my $doDo = 'isNewGenome';
+  my $doDo = $propertySet->getProp('isNewGenome');
 
   return if $mgr->startStep("Downloading genome", $signal, $doDo);
 

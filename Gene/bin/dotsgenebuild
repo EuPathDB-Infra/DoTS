@@ -4,8 +4,6 @@ use strict;
 use lib "$ENV{GUS_HOME}/lib/perl";
 use GUS::Pipeline::Manager;
 use GUS::Pipeline::MakeTaskDirs;
-use GUS::Pipeline::SshCluster;
-use GUS::Pipeline::NfsCluster;
 use CBIL::Util::PropertySet;
 use CBIL::Util::GenomeDir;
 use CBIL::Bio::BLAT::PSLDir;
@@ -24,10 +22,9 @@ my $propertiesFile = $ARGV[0];
 my @properties = 
 (
  # properties required by Pipeline API
- ["clusterServer",         "none",  "full name of cluster server"],
- ["clusterUser",         "none",  "cluster user, needed if local server user name is different"],
+ ["clusterServer",         "",  "full name of liniac server"],
+ ["clusterUser",         "",  "cluster user, needed if local server user name is different"],
  ["stopBefore",   "none",  "the step to stop before.  uses the signal name"],
- ["testNextPlugin", "false", "'true' to run in no-commit mode the first plugin not yet done and then exit"],
 
  # properties used by genomic alignments and genome-based DoTS Gene construction
  ["dotsGeneBuildDir",         "",  "local dots gene build dir"],
@@ -42,7 +39,7 @@ my @properties =
  ["tempPassword" , "","password for temp table space"],
  ["dbi_str", "DBI string for connection to database"],
  ["externalDbDir", "", "directory for download data from external databases"],
- ["serverExternalDbDir", "", "directory on cluster server for external data downloads"],
+ ["serverExternalDbDir", "", "directory on liniac server for external data downloads"],
  ["genome_db_id", "","the external_database_id for the genome for this species"],
  ["genome_db_rls_id", "","the external_database_release_id for the gneome for this species"],
  ["genome_db_rls_date", "","the date of the release of this version of genome"],
@@ -55,6 +52,7 @@ my @properties =
  ["genome.taskSize",  "",  "number of seqs to process per genome-align subtask"],
  ["genomeVersion",      "",  "Golden Path genome assembly version, eg hg16, mm4"],
  ["isNewGenome",   "",  "yes or no"],
+ ['testNextPlugin', "", "true or flase"]
  ); 
 
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
@@ -64,7 +62,6 @@ my $buildName = &makeBuildName($propertySet->getProp('speciesNickname'),$propert
 my $pipelineDir = "$dotsGeneBuildDir/$buildName";
 
 ###################  The Pipeline  ##########################
-
 my $cluster;
 if ($propertySet->getProp('clusterServer') ne "none") {
   $cluster = GUS::Pipeline::SshCluster->new($propertySet->getProp('clusterServer')
@@ -76,6 +73,7 @@ if ($propertySet->getProp('clusterServer') ne "none") {
 my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, 
 				      $propertiesFile, $cluster, 
 				      $propertySet->getProp('testNextPlugin'));
+
 $mgr->{buildName} = $buildName;
 $mgr->{pipelineDir} = $pipelineDir;
 $mgr->{propertiesFile} = $propertiesFile;
