@@ -528,7 +528,7 @@ sub downloadTaxon {
 
     #$mgr->runCmd("gunzip $downloadSubDir/taxdump.tar.gz");
 	
-    $mgr->runCmd("tar --extract --file $downloadSubDir/taxdump.tar");
+    $mgr->runCmd("tar --extract --file --directory $downloadSubDir $downloadSubDir/taxdump.tar");
 
     #$mgr->runCmd("gunzip $downloadSubDir/gi_taxid_nucl.dmp.gz");
 
