@@ -41,7 +41,7 @@ my $blastSeq = sub {
 
     my $trapId = undef;
 
-    if ($s->{'defline'} =~ /- (\d+)/) {
+    if ($s->{'defline'} =~ /(\d+)/) {
 	$trapId = $1;
     } else {
 	die "Unable to parse " . $s->{'defline'};
