@@ -390,8 +390,6 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &createManuallyReviewedDoTSFile();
 
-&writeHtaccessFile();
-
 &writeReadmeFile();
 
 &makeStatisticsPage();
@@ -1808,7 +1806,10 @@ sub prepareDownloadSiteFiles {
   my $signal = "prepareDownloadSiteFiles";
   
   return if $mgr->startStep("Preparing files for download site", $signal);
-  
+
+  my @files;
+  my $htaccessString;
+
   my $dotsRelease = $propertySet->getProp('dotsRelease');
   my $speciesNickname = $propertySet->getProp('speciesNickname');
   my $speciesFullname = $propertySet->getProp('speciesFullname');
@@ -1816,73 +1817,58 @@ sub prepareDownloadSiteFiles {
   my $tempPassword = $propertySet->getProp('tempPassword'); 
   my $gusConfigFile = $propertySet->getProp('gusConfigFile');
   my $taxonId = $propertySet->getProp('taxonId');
-  
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
-  
+
+  # fasta file of sequences
   my $fastaFile = "${prefix}.fasta";
-  
-  my $predictedProteinsFile = "${prefix}_predictedProteins.fasta";
-  
-  
   my $logFile = "$pipelineDir/logs/${fastaFile}Extract.log";
-  
   my $sql = "select 'DT.'||na_sequence_id,'[$speciesNickname]',description,'('||number_of_contained_sequences||' sequences)','length='||length,sequence from dots.Assembly where taxon_id = $taxonId";
-  
   my $cmd = "dumpSequencesFromTable.pl --outputFile $pipelineDir/seqfiles/$fastaFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"$sql\" 2>>  $logFile";
-  
-  
   $mgr->runCmd($cmd) unless -e "$pipelineDir/seqfiles/$fastaFile" || "$pipelineDir/seqfiles/${fastaFile}.gz";
-  
   my $cmd = "gzip $pipelineDir/seqfiles/$fastaFile";
-  
   $mgr->runCmd($cmd) unless -e "$pipelineDir/seqfiles/${fastaFile}.gz";
-  
-  $fastaFile = "${fastaFile}.gz";
-  
+  push(@files, "${fastaFile}.gz");
+  $htaccessString .= "AddDescription \"The sequence for the consensus transcripts\" *fasta*\n";
+
+  # predicted proteins
+  my $predictedProteinsFile = "${prefix}_predictedProteins.fasta";
   my $logFile = "$pipelineDir/logs/${predictedProteinsFile}Extract.log";
-  
   my $sql = "select 'DT.'||a.na_sequence_id,'length of predicted protein sequence ='||ts.length,ts.sequence from dots.translatedaasequence ts,dots.translatedaafeature tf,dots.rnafeature rf,dots.assembly a where a.taxon_id = $taxonId and a.na_sequence_id = rf.na_sequence_id and rf.na_feature_id = tf.na_feature_id and tf.aa_sequence_id = ts.aa_sequence_id";
-  
   my $cmd = "dumpSequencesFromTable.pl --outputFile $pipelineDir/seqfiles/$predictedProteinsFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"$sql\" 2>>  $logFile";
-  
   $mgr->runCmd($cmd) unless -e "$pipelineDir/seqfiles/$predictedProteinsFile" || "$pipelineDir/seqfiles/${predictedProteinsFile}.gz";
-  
   my $cmd = "gzip $pipelineDir/seqfiles/$predictedProteinsFile";
-  
   $mgr->runCmd($cmd) unless -e "$pipelineDir/seqfiles/${predictedProteinsFile}.gz";
-  
-  $predictedProteinsFile = "${predictedProteinsFile}.gz";
-  
-  my $accsPerAssemFile = "${prefix}_accessionsPerAssembly.dat.gz";
-  my $assPerGeneFile = "${prefix}_DTperDG.dat.gz";
+  push(@files, "${predictedProteinsFile}.gz");
+  $htaccessString .= "AddDescription \"The predicted protein translation of each assembled transcript\" *Proteins*\n";
+
+  # NRDB Hits 
   my $nrdbHitsFile = "${prefix}_bestNRDBHits.dat";
   my $cmd = "gzip $pipelineDir/misc/$nrdbHitsFile" unless -e "$pipelineDir/misc/${nrdbHitsFile}.gz";
-  
   $mgr->runCmd($cmd);
-  
-  my $nrdbHitsFile = "${nrdbHitsFile}.gz";
-  
-  my $mRNAPerAss ="${prefix}_mRNAaccessionsPerAssembly.dat.gz"; 
-  
-  my @files = ("$pipelineDir/seqfiles/$fastaFile",
-	       "$pipelineDir/misc/$accsPerAssemFile",
-	       "$pipelineDir/misc/$assPerGeneFile",
-	       "$pipelineDir/misc/$nrdbHitsFile",
-	       "$pipelineDir/seqfiles/$predictedProteinsFile",
-	       "$pipelineDir/misc/$mRNAPerAss" );
-  
-  my $logfile = "$pipelineDir/logs/${signal}.log";
-  
+  push(@files, "${nrdbHitsFile}.gz");
+  $htaccessString .= "AddDescription \"The best hit in NRDB for each consensus transcript\" *NRDB*\n";
+
+  # Accs Per Assembly
+  push(@files, "${prefix}_accessionsPerAssembly.dat.gz");
+  $htaccessString .= "AddDescription \"The Genbank accessions of ESTs and mRNAs contained in each assembled transcript\" *_acc*\n";
+
+  # DTs per DG
+  push(@files, "${prefix}_DTperDG.dat.gz");
+  $htaccessString .= "AddDescription \"Assembled transcripts belonging to each gene\" *DTperDG*\n";
+
+  # mRNAs per DT
+  push(@files, "${prefix}_mRNAaccessionsPerAssembly.dat.gz");
+  $htaccessString .= "AddDescription \"The Genbank accessions of mRNAs contained in each assembled transcript\" *mRNA*\n";
+
   foreach my $file (@files) {
     my $outputfile = "$pipelineDir/downloadSite/" . &basename($file);
-    
     my $cmd = "cp $file $outputfile";
-    
     $mgr->runCmd($cmd);
   }
 
+  &writeHtaccessFile($htaccessString);
+
   $mgr->endStep($signal);
-  
 }
 
 sub createManuallyReviewedDoTSFile { 
@@ -1910,26 +1896,17 @@ sub createManuallyReviewedDoTSFile {
 
     $mgr->runCmd($cmd);
 
+    &writeHtaccessFile("AddDescription \"A tab delimited report for all manually reviewed DoTS Transcripts\" *manuallyReviewed*\n");
+
     $mgr->endStep($signal);
 
 }	
 
 sub writeHtaccessFile {
-    
+  my ($htaccessString) = @_;
   my $htaccess = "$pipelineDir/downloadSite/.htaccess";
   
-  open(F, ">$htaccess") || $mgr->error("Can't open $htaccess for writing");
-  
-  print F '
-AddDescription "The sequence for the consensus transcripts" *fasta*
-AddDescription "The Genbank accessions of ESTs and mRNAs contained in each assembled transcript" *_acc*
-AddDescription "The best hit in NRDB for each consensus transcript" *NRDB*
-AddDescription "Assembled transcripts belonging to each gene" *DTperDG*
-AddDescription "The Genbank accessions of mRNAs contained in each assembled transcript" *mRNA*
-AddDescription "The predicted protein translation of each assembled transcript" *Proteins*
-AddDescription "A tab delimited report for all manually reviewed DoTS Transcripts" *manuallyReviewed*
-AddDescription "A mapping of DoTS to LocusLink" *LL*
-';
+  open(F, ">>$htaccess") || $mgr->error("Can't open $htaccess for writing");
   close(F);
   
 }
@@ -2806,6 +2783,8 @@ sub parseLocusLink {
   $cmd = "gzip $pipelineDir/downloadSite/${species}DoTS_rel${dotsRelease}_LL2DoTS";
 
   $mgr->runCmd($cmd);
+
+  &writeHtaccessFile("AddDescription \"A mapping of DoTS to LocusLink\" *LL*\n");
 
   $mgr->endStep($signal);
 }
