@@ -60,6 +60,7 @@ my $ms_id =  0;
 
 sub run {
     my $self   = shift;
+    my $ctx = shift;
     
     $self->log ($self->getCla{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n");
     $self->log ("Testing on $self->getCla{'testnumber'}\n") if $self->getCla{'testnumber'};
@@ -68,10 +69,10 @@ sub run {
     
     open(F,"$self->getCla{'clusterfile'}") || die "clusterfile $self->getCla{'clusterfile'} not found\n";
     
-    my $algoInvo = $M->{self_inv};
+    my $algoInvo = $ctx->{self_inv};
 
     ##don't delete evidence
-    $self->{self_inv}->setGlobalDeleteEvidenceOnDelete(0);
+    $ctx->{self_inv}->setGlobalDeleteEvidenceOnDelete(0);
     
     ##get entries already processed
     my %done;
