@@ -1000,11 +1000,17 @@ sub copyProteinDBsToLiniac {
 
   my $release = "release" . $propertySet->getProp('dotsRelease');
   my $speciesNickname = $propertySet->getProp('speciesNickname');
+  my $proteinDir = $propertySet->getProp('proteinDir');
   my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
   my $seqfilesDir = "$dotsBuildDir/$release/$speciesNickname/seqfiles";
   my $f = "nrdb.fsa";
-  $mgr->copyToLiniac($seqfilesDir, $f, $liniacServer,
-		     "$serverPath/$mgr->{buildName}/seqfiles");
+  if ($speciesNickname eq $proteinDir) {
+    $mgr->copyToLiniac($seqfilesDir, $f, $liniacServer,
+		       "$serverPath/$mgr->{buildName}/seqfiles");
+  } else {
+    my $linkCmd = "ln $dotsBuildDir/$release/$proteinDir/seqfiles/$f $dotsBuildDir/$release/$speciesNickname/seqfiles/$f";
+    $mgr->runCmdOnLiniac($liniacServer, $linkCmd);
+  }
 
   my $externalDbDir = $propertySet->getProp('externalDbDir');
 
@@ -1024,8 +1030,13 @@ sub copyProteinDBsToLiniac {
   $mgr->runCmd("rm -f $tmpCddDir");
 
   $f = "prodom.fsa";
-  $mgr->copyToLiniac($seqfilesDir, $f, $liniacServer,
-		     "$serverPath/$mgr->{buildName}/seqfiles");
+  if ($speciesNickname eq $proteinDir) {
+    $mgr->copyToLiniac($seqfilesDir, $f, $liniacServer,
+		       "$serverPath/$mgr->{buildName}/seqfiles");
+  } else {
+    my $linkCmd = "ln $dotsBuildDir/$release/$proteinDir/seqfiles/$f $dotsBuildDir/$release/$speciesNickname/seqfiles/$f";
+    $mgr->runCmdOnLiniac($liniacServer, $linkCmd);
+  }
 
   $mgr->endStep($signal);
 }
