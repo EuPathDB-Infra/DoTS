@@ -66,7 +66,7 @@ sub run {
   foreach my $na_sequence_id (@ids){
     print STDERR "Deleting Assembly $na_sequence_id\n";
     $ct++;
-    last if $ctx->{cla}->{testnumber} && $ct > $ctx->{cla}->{testnumber};
+    last if $self->getArgs()->{'testnumber'} && $ct > $self->getArgs()->{testnumber};
     my $ass = GUS::Model::DoTS::Assembly->new({'na_sequence_id' => $na_sequence_id});
     if($ass->retrieveFromDB()){
       &markAssemblyAndChildrenDeleted($ass);
