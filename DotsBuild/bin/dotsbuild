@@ -2210,6 +2210,8 @@ sub versionGeneTrapAssembly {
     my $cmd = "versionEntries.pl --table DoTS.GeneTrapAssembly --idSQL \"$sql\" --tablePK 'gene_trap_assembly_id' --userId $userId --gusConfigFile $gusConfigFile --verbose 2>> $logFile";
     
     $mgr->runCmd($cmd);
+
+    $mgr->endStep($signal);
 }
 
 sub deleteGeneTrapAssembly {
@@ -2230,6 +2232,8 @@ sub deleteGeneTrapAssembly {
     my $cmd = "deleteEntries.pl --table DoTS::GeneTrapAssembly --idSQL \"$sql\" --verbose 2>> $logFile";
     
     $mgr->runCmd($cmd);
+
+    $mgr->endStep($signal);
 } 
 
 sub extractGeneTrapTags {
