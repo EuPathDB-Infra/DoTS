@@ -174,7 +174,7 @@ sub run {
   my $table_pk = $ctx->{self_inv}->getTablePKFromTableId($ctx->{self_inv}->getTableIdFromTableName($ctx->{cla}->{table}));
   eval("require $ctx->{cla}->{table}");
 
-  my $protQuery = "select s.similarity_id,ea.aa_sequence_id,edr.external_db_id,ea.source_id,ea.name,ea.description,s.number_identical,s.total_match_length,s.pvalue_mant,s.pvalue_exp,ea.length,s.min_subject_start,s.max_subject_end,s.number_of_matches
+  my $protQuery = "select s.similarity_id,ea.aa_sequence_id,edr.external_database_release_id,ea.source_id,ea.name,ea.description,s.number_identical,s.total_match_length,s.pvalue_mant,s.pvalue_exp,ea.length,s.min_subject_start,s.max_subject_end,s.number_of_matches
       from DoTS.Similarity s, DoTS.ExternalAASequence ea,
            SRes.ExternalDatabaseRelease edr
       where query_table_id = $query_table_id 
@@ -205,7 +205,7 @@ sub run {
 
   $simStmt = $dbh->prepare($simQuery);
 
-  my $mRNAQuery = "select edr.external_db_id,e.source_id,e.name,e.description 
+  my $mRNAQuery = "select edr.external_database_release_id,e.source_id,e.name,e.description 
   from Dots.AssemblySequence aseq, Dots.ExternalNASequence e,
        SRes.ExternalDatabaseRelease edr
   where aseq.assembly_na_sequence_id = ? 
@@ -252,11 +252,11 @@ sub run {
     if($ctx->{cla}->{use_mrna} && $ctx->{cla}->{table} eq "Assembly" && $obj->getContainsMrna()){
       print STDERR "Contains mRNA...getting name of longest one..\n" if $debug;
       $mRNAStmt->execute($id);
-      while (my($ext_db_id,$accession,$gusName,$gusDesc) = $mRNAStmt->fetchrow_array()) {
+      while (my($ext_db_rel_id,$accession,$gusName,$gusDesc) = $mRNAStmt->fetchrow_array()) {
         print STDERR "debug: mrnaQuery:($ext_db_id,$accession,$gusName,$gusDesc)\n" if $debug || $ctx->{cla}->{verbose};
         $gusDesc =~ s/^\s*(\S.*\S)\s*$/$1/;
         if($gusDesc){
-          &updateAssemblyFromRNA($obj,$ext_db_id,$accession,$gusName,$gusDesc);
+          &updateAssemblyFromRNA($obj,$ext_db_rel_id,$accession,$gusName,$gusDesc);
           $mRNAStmt->finish();
           $haveName = 1;
           print MGI "DT.$id: $ext_db_id|$accession - contained mRNA\n" if $ctx->{cla}->{dots_mgi_file};
@@ -269,12 +269,12 @@ sub run {
 
     $protStmt->execute($qid);
     print STDERR "debug: Retrieving protein Similarities\n" if $debug || $ctx->{cla}->{verbose};
-    while (my($sim_id,$aaSeqid,$ext_db_id,$accession,$pname,$pdescription,$ident,$ml,$mant,$exp,$aa_length,$sub_start,$sub_end,$num_matches) = $protStmt->fetchrow_array()) {
+    while (my($sim_id,$aaSeqid,$ext_db_rel_id,$accession,$pname,$pdescription,$ident,$ml,$mant,$exp,$aa_length,$sub_start,$sub_end,$num_matches) = $protStmt->fetchrow_array()) {
 
-      print STDERR "debug:   protSim($aaSeqid,$ext_db_id,$accession,$pname,$pdescription,$ident,$ml)\n" if $debug || $ctx->{cla}->{verbose};
+      print STDERR "debug:   protSim($aaSeqid,$ext_db_rel_id,$accession,$pname,$pdescription,$ident,$ml)\n" if $debug || $ctx->{cla}->{verbose};
       next if $pdescription =~ /warning/i; ##alu sequence...
       if (&updateNameFromSP($obj,$qid,$aaSeqid,$pname,$pdescription,$ident,$ml,$sim_id,$aa_length,$sub_start,$sub_end,$num_matches)) {
-        print MGI "DT.$id: $ext_db_id|$accession, pVal=",&getPValue($mant,$exp),", ML=$ml, %=", &roundOff(($ident/$ml)*100),"\n" if $ctx->{cla}->{dots_mgi_file};
+        print MGI "DT.$id: $ext_db_rel_id|$accession, pVal=",&getPValue($mant,$exp),", ML=$ml, %=", &roundOff(($ident/$ml)*100),"\n" if $ctx->{cla}->{dots_mgi_file};
         $protStmt->finish();
         $haveName = 1;
         last;
