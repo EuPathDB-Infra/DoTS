@@ -59,17 +59,34 @@ sub run {
     }
     unless ($self->getArgs()->{'refseq_db_rel_id'}) { 
       die "you must provide an ext_db_rel_id for RefSeq mRNA";
-    } 
+    }
 
-    $self->setIs_Reference($dbh); #set proteininstance.is_reference = 1 for assemblies without mRNA
+    $self->resetIsReferenceToFalse($dbh);
+
+    $self->setIsReferenceToTrue($dbh); #set proteininstance.is_reference = 1 for assemblies without mRNA
 
     my $assemblies = $self->getAssemblies($dbh); #get assemblies with mRNAs
 
     $self->updateProteinInstance($dbh,$assemblies);#set proteininstance.is_reference = 1 for assemblies with mRNA:RefSeq (longest protein)>swissprot(longest protein)>the longest protein>FF translation if mRNA doesn't have a translation in the db
-} 
-    
+}
 
-sub setIs_Reference {
+sub resetIsReferenceToFalse {
+  my ($self,$dbh) = @_;
+  my $taxon = $self->getArgs()->{'taxon_id'};
+
+  my $updateSQL = "update dots.proteininstance set is_reference = 0 where protein_instance_id in (select /*+ RULE */ pi.protein_instance_id from dots.proteininstance pi, dots.protein p, dots.rnainstance ri,dots.rnafeature rf, dots.assembly a where a.taxon_id = $taxon and a.na_sequence_id = rf.na_sequence_id and rf.na_feature_id = ri.na_feature_id and ri.rna_id = p.rna_id and p.protein_id = pi.protein_id)";
+
+  $self->log ("Updating is_reference to 0 for assemblies with taxon_id = $taxon\n");
+
+  my $num = $dbh->do($updateSQL) || die "Insert failed.\nSQL: $updateSQL\n";
+
+  $self->log ("Committing $num inserts\n") if $self->getArgs()->{'commit'} ;
+
+  $dbh->commit() if $self->getArgs()->{'commit'};
+}
+
+
+sub setIsReferenceToTrue {
   my ($self,$dbh) = @_;
   my $taxon = $self->getArgs()->{'taxon_id'};
 
@@ -77,9 +94,9 @@ sub setIs_Reference {
 
   $self->log ("Updating is_reference for assemblies with no mRNA\n");
 
-  $dbh->do($updateSQL) || die "Insert failed.\nSQL: $updateSQL\n";
+  my $num = $dbh->do($updateSQL) || die "Insert failed.\nSQL: $updateSQL\n";
 
-  $self->log ("Committing insert\n") if $self->getArgs()->{'commit'} ;
+  $self->log ("Committing $num inserts\n") if $self->getArgs()->{'commit'} ;
 
   $dbh->commit() if $self->getArgs()->{'commit'};
 
