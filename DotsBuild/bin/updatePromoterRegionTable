@@ -6,16 +6,16 @@ use GUS::ObjRelP::DbiDatabase;
 use GUS::Common::GusConfig;
 use CBIL::Bio::SequenceUtils;
 
-my ($verbose,$musExtRelDbId,$humExtRelDbId,$gusConfigFile,$allgenesSchema);
+my ($verbose,$taxonId, $gusConfigFile,$allgenesSchema);
 &GetOptions("verbose!"=> \$verbose,
             "allgenesSchema=s"=> \$allgenesSchema,
-	    "musExtRelDbId=s" => \$musExtRelDbId,
-	    "humExtRelDbId=s" => \$humExtRelDbId,
+	    "taxonId=s" => \$taxonId,
+	    "genomeExtRelDbId=s" => \$genomeExtRelDbId,
             "gusConfigFile=s" => \$gusConfigFile);
 
 
-die "usage: makePromoterRegionTable --taxon --allgenesSchema --verbose --gusConfigFile [\$GUS_CONFIG_FILE]\n"
-unless ($taxon && $allgenesSchema);
+die "usage: makePromoterRegionTable --taxonId --genomeExtRelDbId --allgenesSchema --verbose --gusConfigFile [\$GUS_CONFIG_FILE]\n"
+unless ($taxon && $allgenesSchema && $genomeExtRelDbId);
 
 print STDERR "Establishing dbi login\n" if $verbose;
 
@@ -32,11 +32,11 @@ my $dbh = $db->getQueryHandle();
 my $tableName = "${allgenesSchema}.PromoterRegion";
 
 my $deleteSql =
-"delete from $tableName where taxon_id = $taxon";
+"delete from $tableName where taxon_id = $taxonId";
 print STDERR "Deleting \n";
 print STDERR "deleteSql: $deleteSql\n" if $verbose;
 
-$dbh->do($deleteSql) || die "Delete failed.\nSQL: $insertSql";
+$dbh->do($deleteSql) || die "Delete failed.\nSQL: $deleteSql";
 print STDERR "Committing delete\n";
 $dbh->commit();
 
@@ -44,16 +44,16 @@ $dbh->commit();
 # forward strand
 my $insertSql = 
 "insert into $tableName 
-    select distinct query_na_sequence_id,  ba.query_taxon_id, vs.chromosome, ba.target_start, ba.target_end, '(+)' as strand,
+    select distinct query_na_sequence_id, $taxonId, vs.chromosome, ba.target_start, ba.target_end, '(+)' as strand,
        lower(dbms_lob.substr(vs.sequence, 1500, ba.target_start - 1200)) as promoter_seq
     from DoTS.BlatAlignment ba, DoTS.VirtualSequence vs
     where ba.target_na_sequence_id = vs.na_sequence_id
     and ba.query_table_id = 56
     and ba.is_reversed = 1
     and ba.is_best_alignment = 1
-    and ba.query_taxon_id in (8,14)
+    and ba.query_taxon_id = $taxonId
     and ba.target_table_id = 245
-    and ba.target_external_db_release_id in ($musExtRelDbId, $humExtRelDbId)
+    and ba.target_external_db_release_id = $genomeExtRelDbId
     ";
 
 print STDERR "Inserting forward strand sequences\n";
@@ -63,16 +63,16 @@ $dbh->do($insertSql) || die "Insert failed.\nSQL: $insertSql";
 
 # reverse strand
 my $selectSql = 
-"select distinct na_sequence_id, ba.query_taxon_id, vs.chromosome, ba.target_start, ba.target_end, '(-)' as strand,
+"select distinct na_sequence_id, vs.chromosome, ba.target_start, ba.target_end, '(-)' as strand,
        lower(dbms_lob.substr(vs.sequence, 1500, ba.target_end - 300)) as promoter_seq
     from DoTS.BlatAlignment ba, DoTS.VirtualSequence vs
     where ba.target_na_sequence_id = vs.na_sequence_id
     and ba.query_table_id = 56
     and ba.is_reversed = 1
     and ba.is_best_alignment = 1
-    and ba.query_taxon_id in (8,14)
+    and ba.query_taxon_id = $taxonId
     and ba.target_table_id = 245
-    and ba.target_external_db_release_id in ($musExtRelDbId, $humExtRelDbId)
+    and ba.target_external_db_release_id = $genomeExtRelDbId
     ";
 
 print STDERR "Reversing and inserting reverse strand sequences\n";
@@ -82,9 +82,9 @@ my $stmt = $dbh->prepareAndExecute($selectSql);
 
 print STDERR "Processing rows: reversing and inserting\n";
 while (my @row = $stmt->fetchrow_array()) {
-  my ($na_seq_id, $taxon, $chr, $start, $end, $strand, $seq) = @row;
+  my ($na_seq_id, $chr, $start, $end, $strand, $seq) = @row;
   $seq = &CBIL::Bio::SequenceUtils::reverseComplementSequence($seq);
-  $insertSql = "insert into $tableName values ($na_seq_id, $taxon, '$chr', $start, $end, '$strand', '$seq')";
+  $insertSql = "insert into $tableName values ($na_seq_id, $taxonId, '$chr', $start, $end, '$strand', '$seq')";
   print STDERR "insertSql: $insertSql\n" if $verbose;
   $dbh->do($insertSql) || die "Insert failed.\nSQL: $insertSql";
 }
