@@ -136,7 +136,7 @@ sub run {
 
   chomp $ctx->{cla}->{directory};
 
-  if ((!$ctx->{cla->}->{'clusterfile'} && !$ctx->{cla}->{debug_assem_file}) || !$ctx->{cla}->{'taxon_id'} || !$ctx->{cla}->{cap4_machine}) {
+  if ((!$ctx->{cla}->{'clusterfile'} && !$ctx->{cla}->{debug_assem_file}) || !$ctx->{cla}->{'taxon_id'} || !$ctx->{cla}->{cap4_machine}) {
     die "You must include --clusterfile --taxon_id and --cap4_machine on the command line\n";
   }
 
