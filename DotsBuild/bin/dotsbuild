@@ -1392,12 +1392,16 @@ sub copyProteinDBsToLiniac {
 
     my $downloadSubDir = "$externalDbDir/cdd";
 
-    $mgr->runCmd("ln -s $downloadSubDir/$date $downloadSubDir/cdd") unless (-e $downloadSubDir/cdd); 
+    my $tmpCddDir = $downloadSubDir/cdd;
+
+    die "$tmpCddDir exists but it shouldn't" if -e $tmpCddDir;
+
+    $mgr->runCmd("ln -s $downloadSubDir/$date $tmpCddDir") 
 
     $mgr->copyToLiniac($downloadSubDir, "cdd", $liniacServer, 
 		       "$serverPath/$buildName/seqfiles");
 
-    $mgr->runCmd("rm -f $downloadSubDir/$date"); 
+    $mgr->runCmd("rm -f $tmpCddDir"); 
 
     $f = "prodom.fsa";
     $mgr->copyToLiniac($seqfilesDir, $f, $liniacServer,
@@ -1901,6 +1905,7 @@ AddDescription "Assembled transcripts belonging to each gene" *DTperDG*
 AddDescription "The Genbank accessions of mRNAs contained in each assembled transcript" *mRNA*
 AddDescription "The predicted protein translation of each assembled transcript" *Proteins*
 AddDescription "A tab delimited report for all manually reviewed DoTS Transcripts" *manuallyReviewed*
+AddDescription "A mapping of DoTS to LocusLink" *LL*
 ';
     close(F);
 
