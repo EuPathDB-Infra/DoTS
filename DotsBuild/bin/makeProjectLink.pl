@@ -43,7 +43,7 @@ my $idHash = &getHash($dbh,$taxon);
 
 &idsDone($dbh,$idHash,$project_id) if ($restart);
 
-&insertProjectLink($dbh,$idHash,$project_id);
+&insertProjectLink($db,$idHash,$project_id);
 
 
 
