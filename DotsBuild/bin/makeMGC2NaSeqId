@@ -42,10 +42,7 @@ my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
 
 my $dbh = $db->getQueryHandle();
 
-my $sql = "select na_sequence_id
-     from dots.ExternalNASequence 
-     where source_id = ? 
-     and e.taxon_id = $taxon_id";
+my $sql = "select na_sequence_id from dots.ExternalNASequence where source_id = ? and taxon_id = $taxon_id";
 
 print STDERR "Query: $sql\n" if $verbose;
 
@@ -64,7 +61,7 @@ foreach my $mgc (keys %mgc2naseqid) {
 
 $db->logout();
 
-sub parseGEAFile {
+sub parseMGCFile {
     my ($file) = @_;
 
     open(F, $file) || die "Can't open input file $file";
@@ -74,13 +71,13 @@ sub parseGEAFile {
       chomp;
       my $mgc;
       my @line = split(/\t/,$_);
-      if ($line[1] =~ /(MGC:\d+/) {
+      if ($line[1] =~ /(MGC:\d+)/) {
 	$mgc = $1;
       }
       else {
 	next;
       }
-      my $acc = $$line[5];
+      my $acc = $line[5];
       $acc =~ s/\.\d+//;
       $mgc2naseqid{$mgc}=$acc;
     }
