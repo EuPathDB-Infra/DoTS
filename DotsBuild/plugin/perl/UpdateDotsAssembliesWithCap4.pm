@@ -104,8 +104,8 @@ my @trimmedAssemblySequences;   ##global list of assembly sequences that get rem
 
 my $assCache;                   ##note that this will be used to manage the assembly cache....nothing more!!
     
-my $cap4Dir = '/usr/local/src/bio/CAP4/CurrentRelease/bin.x86-linux-2.2';
-
+#my $cap4Dir = '/usr/local/src/bio/CAP4/CurrentRelease/bin.x86-linux-2.2';
+my $cap4Dir = '/files/cbil/software/cap4/current/bin';
 #my $tmpLib = "tmpLib.$$";
 my $tmpLib = "tmpLib";
 my $count = 0;
