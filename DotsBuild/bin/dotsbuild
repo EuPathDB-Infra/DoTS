@@ -237,9 +237,13 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
 
    &deleteIndexWords();
 
-   &deleteNRDBIndexWords(); 
+   &deleteNRDBIndexWords();
+
+   &deleteMotifIndexWords
 
    &makeNRDBIndexWordLink();
+
+   &makeMotifIndexWordLink();
 
 #   &deleteProteinGOPredictions(); DB
 
@@ -272,6 +276,8 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 &indexSimilarityWords();
 
 &indexNRDBWords();
+
+&getmRNAPerAssembly();
 
 &prepareDownloadSiteFiles();      
 
@@ -1481,6 +1487,26 @@ sub deleteNRDBIndexWords {
   $mgr->endStep($signal);
 }
 
+sub deleteMotifIndexWords {
+
+  my $signal = "deleteMotifIndexWords";
+
+  return if $mgr->startStep("Deleting motif index word links from GUS",
+			    $signal, 'downloadGOStuff');
+
+  my $buildDate = $propertySet->getProp('buildDate');
+
+  my $logFile = "$pipelineDir/logs/$signal.log";
+
+  my $sql = "select index_word_link_id from dots.indexwordlink l,dots.motifaasequence m where m.aa_sequence_id = l.target_id and l.target_table_id = 277 and m.modification_date > '$buildDate'";
+
+  my $cmd = "deleteEntries.pl --table DoTS::IndexWordLink --idSQL \"$sql\" --verbose 2>> $logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
+
 sub makeNRDBIndexWordLink {
 
   my $nrdbReleaseId = $propertySet->getProp('nrdb_db_rls_id');
@@ -1492,6 +1518,24 @@ sub makeNRDBIndexWordLink {
   $mgr->runPlugin("makeNRDBIndexWordLink", 
 		  "GUS::Common::Plugin::MakeIndexWordLink", $args, 
 		  "Making nrdb index word links", 'downloadNRDB');
+}
+
+sub makeMotifIndexWordLink {
+
+  my $prodomReleaseId = $propertySet->getProp('prodom_db_rls_id');
+  my $smartReleaseId = $propertySet->getProp('smart_db_rls_id');
+  my $loadReleaseId = $propertySet->getProp('load_db_rls_id');
+  my $pfamReleaseId = $propertySet->getProp('pfam_db_rls_id');
+  my $cogReleaseId = $propertySet->getProp('cog_db_rls_id');
+  my $cdReleaseId = $propertySet->getProp('cd_db_rls_id');
+
+  my $sql = "select aa_sequence_id, description from dots.MotifAASequence where external_database_release_id in ($prodomReleaseId,$smartReleaseId,$loadReleaseId,$pfamReleaseId,$cogReleaseId,$cdReleaseId) and aa_sequence_id not in (select target_id from  dots.IndexWordLink where target_table_id=277)";
+
+  my $args = "--attribute description --table DoTS::MotifAASequence --idSQL \"$sql\"";
+
+  $mgr->runPlugin("makeMotifIndexWordLink", 
+		  "GUS::Common::Plugin::MakeIndexWordLink", $args, 
+		  "Making motif index word links", 'downloadGOStuff');
 }
  
 sub indexSimilarityWords { 
@@ -1598,6 +1642,33 @@ sub getAssembliesPerGene {
 
 }
 
+sub getmRNAPerAssembly {
+
+  my $signal = "getmRNAPerAssembly";
+
+  return if $mgr->startStep("Getting mRNA per Assembly", $signal);
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+  my $output  = "$pipelineDir/misc/${prefix}_mRNAaccessionsPerAssembly.dat";
+
+  my $cmd = "getmRNAperAssembly --taxon_id $taxonId --gusConfigFile $gusConfigFile  > $output";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+}
+
+
 sub prepareDownloadSiteFiles {
 
     my $signal = "prepareDownloadSiteFiles";
@@ -1627,15 +1698,25 @@ sub prepareDownloadSiteFiles {
 
     $mgr->runCmd($cmd);
 
+    my $logFile = "$pipelineDir/logs/${predictedProteinsFile}Extract.log";
+
+    my $sql = "select 'DT.'||a.na_sequence_id,'length of predicted protein sequence ='||ts.length,ts.sequence from dots.translatedaasequence ts,dots.translatedaafeature tf,dots.rnafeature rf,dots.assembly a where a.taxon_id = $taxonId and a.na_sequence_id = rf.na_sequence_id and rf.na_feature_id = tf.na_feature_id and tf.aa_sequence_id = ts.aa_sequence_id";
+
+    my $cmd = "dumpSequencesFromTable.pl --outputFile $pipelineDir/seqfiles/$predictedProteinsFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"$sql\" 2>>  $logFile";
+
+    $mgr->runCmd($cmd);
+
     my $accsPerAssemFile = "${prefix}_accessionsPerAssembly.dat";
     my $assPerGeneFile = "${prefix}_DTperDG.dat";
     my $nrdbHitsFile = "${prefix}_bestNRDBHits.dat";
+    my $mRNAPerAss ="${prefix}_mRNAaccessionsPerAssembly.dat"; 
 
     my @files = ("$pipelineDir/seqfiles/$fastaFile",
 		 "$pipelineDir/misc/$accsPerAssemFile",
 		 "$pipelineDir/misc/$assPerGeneFile",
 		 "$pipelineDir/misc/$nrdbHitsFile",
-                 "$pipelineDir/seqfiles/$predictedProteinsFile");
+                 "$pipelineDir/seqfiles/$predictedProteinsFile",
+		 "$pipelineDir/misc/$mRNAPerAss" );
 
     #my $filterfile = "$pipelineDir/misc/imcloneOnlyAssemblies.dat";
 
@@ -1660,7 +1741,8 @@ sub prepareDownloadSiteFiles {
     }
 
     &writeReadmeFile($prefix, $dotsRelease, $speciesNickname,$speciesFullname,
-		     $fastaFile, $accsPerAssemFile, $nrdbHitsFile, $assPerGeneFile);
+		     $fastaFile, $accsPerAssemFile, $nrdbHitsFile, $assPerGeneFile,
+                     $mRNAPerAss,$predictedProteinsFile);
 
     &writeHtaccessFile();
 
@@ -1678,15 +1760,18 @@ sub writeHtaccessFile {
 AddDescription "The sequence for the consensus transcripts" *fasta*
 AddDescription "The Genbank accessions of ESTs and mRNAs contained in each assembled transcript" *acc*
 AddDescription "The best hit in NRDB for each consensus transcript" *NRDB*
-AddDescription "assembled transcripts belonging to each gene" *DTperDG*
+AddDescription "Assembled transcripts belonging to each gene" *DTperDG*
+AddDescription "The Genbank accessions of mRNAs contained in each assembled transcript" *mRNA*
+AddDescription "The predicted protein translation of each assembled transcript" *Proteins*
 ';
     close(F);
 
 }
 
+
 sub writeReadmeFile {
     my ($prefix, $dotsRelease, $speciesNickname, $speciesFullname, $fastaFile, 
-	$accsPerAssemFile, $nrdbHitsFile, $assPerGeneFile, $proteinsFile) = @_;
+	$accsPerAssemFile, $nrdbHitsFile, $assPerGeneFile, $mRNAPerAss,$proteinsFile) = @_;
 
     my $readme = "$pipelineDir/downloadSite/${speciesNickname}_README.txt";
 
@@ -1724,12 +1809,15 @@ The files available are:
        The best hit in NRDB for each consensus sequence.
 
     $assPerGeneFile
-       The assembled transcripts belonging to each gene
+       The assembled transcripts belonging to each gene.
 
     $proteinsFile
        The sequence of predicted translations for each consensus sequence.
 
-";
+    $mRNAPerAss
+       The Genbank accessions of mRNAs which were assembled, together with ESTs, 
+       to form the consensus sequence of each putative transcript.
+ ";
     close(F);
 }
 
