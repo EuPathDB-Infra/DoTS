@@ -2227,7 +2227,7 @@ sub deleteGeneTrapAssembly {
 
     my $sql = "select gene_trap_assembly_id from dots.genetrapassembly g, dots.assembly a where a.na_sequence_id=g.assembly_na_sequence_id and a.taxon_id=$taxonId";
 
-    my $cmd = "deleteEntries.pl --table DoTS.GeneTrapAssembly --idSQL \"$sql\" --gusConfigFile $gusConfigFile --verbose 2>> $logFile";
+    my $cmd = "deleteEntries.pl --table DoTS::GeneTrapAssembly --idSQL \"$sql\" --verbose 2>> $logFile";
     
     $mgr->runCmd($cmd);
 } 
