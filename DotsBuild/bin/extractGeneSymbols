@@ -1,0 +1,80 @@
+#!@perl@
+
+use strict;
+use lib "$ENV{GUS_HOME}/lib/perl";
+use Getopt::Long;
+use GUS::ObjRelP::DbiDatabase;
+use GUS::Common::GusConfig;
+
+my ($verbose, $taxon_id, $gusConfigFile, $outputFile, 
+    $db_release_id);
+&GetOptions("verbose!"=> \$verbose,
+            "taxon_id=s" => \$taxon_id,
+            "db_rls_id=s" => \$db_release_id,
+            "gusConfigFile=s" => \$gusConfigFile,
+            "outputFile=s" => \$outputFile);
+
+die "usage: extractMarkers --taxon_id --outputfile --db_rls_id --verbose --gusConfigFile [\$GUS_CONFIG_FILE]\n 
+
+(db_rls_id is 4892 for hum and 4893 for mus: genecards/mgi)
+
+" unless $taxon_id && $outputFile && $db_release_id;
+
+print STDERR "Establishing dbi login\n" if $verbose;
+
+my $gusconfig = GUS::Common::GusConfig->new($gusConfigFile);
+
+my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
+					$gusconfig->getReadOnlyDatabaseLogin(),
+					$gusconfig->getReadOnlyDatabasePassword(),
+					$verbose,0,1,
+					$gusconfig->getCoreSchemaName());
+
+my $dbh = $db->getQueryHandle();
+
+my $sql = "
+ select distinct g.gene_id, gene_symbol as symbol 
+  from dots.gene g,allgenes.proteinassembly pa,  dots.rna r
+  where gene_symbol is not null
+  and r.gene_id = g.gene_id 
+  and r.rna_id = pa.rna_id 
+  and pa.taxon_id = $taxon_id
+union
+ select distinct gs.gene_id, gs.synonym_name as symbol 
+  from allgenes.proteinassembly pa, dots.rna r, dots.genesynonym gs
+  where r.gene_id = gs.gene_id 
+  and r.rna_id = pa.rna_id 
+  and pa.taxon_id = $taxon_id
+union 
+  select distinct r.gene_id, dbr.primary_identifier as symbol
+   from dots.rna r, allgenes.proteinassembly pa,
+        dots.DBRefNASequence dbrn, sres.DBRef dbr
+   where pa.rna_id = r.rna_id 
+  and pa.na_sequence_id = dbrn.na_sequence_id
+  and dbrn.db_ref_id = dbr.db_ref_id
+  and dbr.primary_identifier is not null
+  and dbr.external_database_release_id in ($db_release_id)           
+";
+
+my $sth = $dbh->prepare ($sql);
+
+$sth->execute ();
+
+open (OUTPUT, "> $outputFile");
+
+while (my @ary = $sth->fetchrow_array ())
+
+{
+
+    print OUTPUT (join ("\t", @ary), "\n");
+
+}
+
+$sth->finish ();
+
+
+
+$dbh->disconnect ();
+
+exit (0);
+
