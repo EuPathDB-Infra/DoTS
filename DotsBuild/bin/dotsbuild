@@ -42,6 +42,7 @@ my @properties =
  ["blastsimilarity.taskSize", "",  "number of seqs to process per blastsimilarity subtask"],
  ["blastsimilarity.Vparam", "", "paramter V for blastsimilarity"],
  ["buildDate" ,   "", "approximate start date of build"],
+ ["cap4Dir", "","directory containing executable cap4"],
  ["cd_db_rls_id", "","a new id, CD of CDD, for the external_database_release table"],
  ["cddDate", "","approx date for cdd download"],
  ["cddFileDates", "","approx date for cdd files"],
