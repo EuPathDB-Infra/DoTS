@@ -514,8 +514,7 @@ sub createNewPredictedAAFeature {
 					    'prediction_algorithm_id'=> $alg_id{$alg_name},
 					    'description'            => $description,
 					    'name'                   => $feature_name,
-					    'score'                  => $score,
-					    'motif_id'               => $motif_id
+					    'score'                  => $score
 					   });
 
   #
