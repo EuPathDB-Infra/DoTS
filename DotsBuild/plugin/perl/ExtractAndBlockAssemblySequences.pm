@@ -7,6 +7,7 @@ use GUS::Model::DoTS::AssemblySequence;
 use CBIL::Bio::SequenceUtils;
 
 sub new {
+
   my $class = shift;
 
   my $self = {};
@@ -45,7 +46,7 @@ sub new {
   $self->initialize({requiredDbVersion => {},
 		  cvsRevision => '$Revision$', # cvs fills this in!
 		  cvsTag => '$Name$', # cvs fills this in!
-		  name => ref($m),
+		  name => ref($self),
 		  revisionNotes => 'make consistent with GUS 3.0',
 		  easyCspOptions => $easycsp,
 		  usage => $usage
@@ -65,50 +66,52 @@ my $RepMaskCmd;
 
 sub run {
     my $self   = shift;
+
+    my $cla =$self->getCla; 
     
-    die "You must enter repeat masker options on the command line to specify minimally the organism to be blocked\n" unless $self->getCla{rm_options} || $self->getCla{extractonly};
-    die "You must enter either the --taxon_id or --idSQL on the command line\n" unless $self->getCla{taxon_id} || $self->getCla{idSQL};
-    die "You must enter an outputfile name on the command line\n" unless $self->getCla{'outputfile'};
+    die "You must enter repeat masker options on the command line to specify minimally the organism to be blocked\n" unless $cla->{rm_options} || $cla->{extractonly};
+    die "You must enter either the --taxon_id or --idSQL on the command line\n" unless $cla->{taxon_id} || $cla->{idSQL};
+    die "You must enter an outputfile name on the command line\n" unless $cla->{'outputfile'};
     
-    $self->log ($self->getCla{'commit'} ? "***COMMIT ON***\n" : "COMMIT TURNED OFF\n");
-    $self->log ("Testing on $self->getCla{'testnumber'}\n") if $self->getCla{'testnumber'};
+    $self->log ($cla->{'commit'} ? "***COMMIT ON***\n" : "COMMIT TURNED OFF\n");
+    $self->log ("Testing on $cla->{'testnumber'}\n") if $cla->{'testnumber'};
     
     my $dbh = $self->getQueryHandle();
     
-    if ($self->getCla{extractonly}) {
+    if ($cla->{extractonly}) {
 	$self->log("Extracting sequences without blocking\n");
     } else {
-	$RepMaskCmd = "RepeatMasker $self->getCla{rm_options}";
+	$RepMaskCmd = "RepeatMasker $cla->{rm_options}";
 	$self->log ("RepeatMasker command:\n  $RepMaskCmd\n");
     }
     
     ##implement restart here....
     my %finished;
     ##restart 
-    if ( -e "$self->getCla{'outputfile'}") {
-	open(F,"$self->getCla{'outputfile'}");
+    if ( -e "$cla->{'outputfile'}") {
+	open(F,"$cla->{'outputfile'}");
 	while (<F>) {
 	    if (/^\>(\d+)/) {
 		$finished{$1} = 1;
 	    }
 	}
 	close F;
-	open(OUT,">>$self->getCla{'outputfile'}");
-	$self->log ("outputFile $self->getCla{'outputfile'} exists...Restarting: already have ".scalar(keys%finished)." sequences\n");
+	open(OUT,">>$cla->{'outputfile'}");
+	$self->log ("outputFile $cla->{'outputfile'} exists...Restarting: already have ".scalar(keys%finished)." sequences\n");
     } else {
-	open(OUT,">$self->getCla{'outputfile'}");
+	open(OUT,">$cla->{'outputfile'}");
     }
     
     my $getSeqs;
-    if ($self->getCla{idSQL}) {
-	$getSeqs = $self->getCla{idSQL};
+    if ($cla->{idSQL}) {
+	$getSeqs = $cla->{idSQL};
     } else {
+    my $taxon = $cla->{'taxon_id'};
 	$getSeqs = "select a.assembly_sequence_id 
   from dots.AssemblySequence a, dots.ExternalNASequence e
   where a.have_processed = 0 
   and a.na_sequence_id = e.na_sequence_id
-  and e.taxon_id = $self->getCla{'taxon_id'} 
-  and a.quality_end - a.quality_start >= 50";
+  and e.taxon_id = $taxon and a.quality_end - a.quality_start >= 50";
     }
     
     $self->log ("$getSeqs\n") if $debug;
@@ -122,12 +125,12 @@ sub run {
     ##run it into an array so does not block!!
     while (my($id) = $stmt->fetchrow_array()) {
 	next if exists $finished{$id};
-	last if ($self->getCla{'testnumber'} && $count >= $self->getCla{'testnumber'}); ##breaks 
+	last if ($cla->{'testnumber'} && $count >= $cla->{'testnumber'}); ##breaks 
 	$self->log ("Retrieving $count\n") if $count % 10000 == 0;
 	push(@todo,$id);
 	$count++;
     }
-    $self->log ("Extracting",($self->getCla{extractonly} ? " " : " and blocking "),"$count sequences from taxon_id $self->getCla{'taxon_id'}\n");
+    $self->log ("Extracting",($cla->{extractonly} ? " " : " and blocking "),"$count sequences from taxon_id $cla->{'taxon_id'}\n");
     
     $count = 0;
     my $countProc = 0;
@@ -163,7 +166,7 @@ sub run {
     ###  put an informative summary in the results variable
     ############################################################
     my $results = "Extracted and blocked $countProcessed AssemblySequences, marked $countBad as repeat and reset $reset to qality_start/end";
-    $results = "Extracted $countProc AssemblySequences" if $self->getCla{extractonly};
+    $results = "Extracted $countProc AssemblySequences" if $cla->{extractonly};
     $self->log ("\n$results\n");
     return $results;
 }
@@ -171,9 +174,11 @@ sub run {
 sub processSet {
 
     my $self   = shift;
+
     my($miniLib) = @_;
-    
-    if ($self->getCla{extractonly}) {
+
+    my $cla = $self->getCla;
+    if ($cla->{extractonly}) {
 	print OUT $miniLib;
 	return;
     }
@@ -204,6 +209,7 @@ sub processSet {
 }
 
 sub processBlockedSequence{
+
 
     my $self   = shift; 
     my($ass_seq_id,$seq) = @_;

@@ -1,5 +1,7 @@
 package DoTS::DotsBuild::Plugin::MakeAssemblySequences;
 
+@ISA = qw(GUS::PluginMgr::Plugin);
+
 use strict;
 
 use GUS::Model::DoTS::ExternalNASequence;
@@ -20,7 +22,6 @@ sub new {
       t => 'int',
       h => 'number of iterations for testing',
      },
-                        
      {o => 'date',
       t => 'string',
       h => 'earliest date for sequences to include: default = all',
@@ -62,17 +63,17 @@ my $library;
 $| = 1;
 
 sub run {
-    my $self   = shift;
+    my $self = shift;
     
-    $self->log ($self->getCla{'commit'} ? "COMMIT ON\n" : "COMMIT TURNED OFF\n");
-    $self->log ("Testing on $self->getCla{'testnumber'}\n") if $self->getCla{'testnumber'};
+    $self->log ($self->getCla->{'commit'} ? "COMMIT ON\n" : "COMMIT TURNED OFF\n");
+    $self->log ("Testing on". $self->getCla->{'testnumber'}."\n") if $self->getCla->{'testnumber'};
     
     ##set the taxon_id...
-    die "You must enter either the --taxon_id and optionally --idSQL on the command line\n" unless $self->getCla{taxon_id};
+    die "You must enter either the --taxon_id and optionally --idSQL on the command line\n" unless $self->getCla->{taxon_id};
     ##set up the library:
-    if($self-getCla{taxon_id} == 8){
+    if($self->getCla->{taxon_id} == 8){
 	$library = '/usr/local/db/others/repeat/vector_humMitoRibo.lib';
-    }elsif($self-getCla{taxon_id} == 14){
+    }elsif($self->getCla->{taxon_id} == 14){
 	$library = '/usr/local/db/others/repeat/vector_musMitoRibo.lib';
     }else{
 	$library = '/usr/local/db/others/repeat/vector';
@@ -82,11 +83,12 @@ sub run {
     
     $self->{'self_inv'}->setMaximumNumberOfObjects(100000);
     
-    $dbh = $self->getQueryHandle();
+    my $dbh = $self->getQueryHandle();
     
-    if ($self-getCla{export}) {
-	if (-e $self-getCla{export}) {
-	    open(F,"$self-getCla{export}");
+    if ($self->getCla->{export}) {
+      my $export = $self->getCla->{export}; 
+	if (-e $self->getCla->{export}) {
+	    open(F,"$export");
 	    while (<F>) {
 		if (/^\>(\S+)/) {
 		    $finished{$1} = 1;
@@ -95,22 +97,22 @@ sub run {
 	    close F;
 	    $self->log ("Already processed ",scalar(keys%finished)," ids\n");
 	}
-	open(EX,">>$self-getCla{export}");
+	open(EX,">>$export");
     }
     
-    if ($self-getCla{idSQL}) {
-	$self->processQuery($self-getCla{idSQL});
+    if ($self->getCla->{idSQL}) {
+	$self->processQuery($self->getCla->{idSQL});
     } else {
 	
-	$self->log ("Generating new AssemblySequences for taxon(s) $self-getCla{taxon_id}\n");
+	$self->log ("Generating new AssemblySequences for taxon(s)". $self->getCla->{taxon_id}."\n");
 	
 	##first get the ESTs and mRNAs..
-	my $sql = "select e.na_sequence_id from dots.ExternalNASequence e where e.taxon_id in ($self-getCla{taxon_id}) ".
+	my $sql = "select e.na_sequence_id from dots.ExternalNASequence e where e.taxon_id in(".$self->getCla->{taxon_id}.")".
 	    "and e.sequence_type_id in (7,8) " .
 		"and e.na_sequence_id not in (select a.na_sequence_id from dots.AssemblySequence a) ";
 	
-	if ($self->getCla{'date'}) {
-	    $sql .= "and modification_date >= '$self->getCla{'date'}'";
+	if ($self->getCla->{'date'}) {
+	    $sql .= "and modification_date >= '".$self->getCla->{'date'}."'";
 	} 
 	
 	$self->processQuery($sql);
@@ -119,8 +121,8 @@ sub run {
 	##need to check this for things that are not human or mouse...may need to use less sophisticated query!
 	my $mRNASql = "select o.na_sequence_id from dots.externalnasequence o where o.na_sequence_id in (
                        select s.na_sequence_id from dots.externalnasequence s, dots.transcript t, dots.nalocation l
-                       where s.taxon_id = $self-getCla{taxon_id} 
-                       and s.sequence_type_id = 2 
+                       where s.taxon_id =".$self->getCla->{taxon_id}. 
+                       "and s.sequence_type_id = 2 
                        and t.na_sequence_id = s.na_sequence_id
                        and t.name = 'CDS'
                        and l.na_feature_id = t.na_feature_id
@@ -132,12 +134,12 @@ sub run {
 	#    my $mRNASql = "select e.na_sequence_id from dots.ExternalNASequence e
 	# where e.sequence_type_id = 2
 	# and e.external_database_release_id in ()
-	# and e.taxon_id in ( $self->getCla{'taxon_id'} )
+	# and e.taxon_id in(". $self->getCla->{'taxon_id'}.")
 	# and e.length > 500
 	# and e.na_sequence_id not in (select a.na_sequence_id from dots.AssemblySequence a)";
 	
-	if ($self->getCla{'date'}) {
-	    $mRNASql .= "and modification_date >= '$self->getCla{'date'}'";
+	if ($self->getCla->{'date'}) {
+	    $mRNASql .= "and modification_date >= '$self->getCla->{'date'}'";
 	} 
 	$self->processQuery($mRNASql);
 	
@@ -173,7 +175,7 @@ sub processQuery {
 	#    next unless $id > 1000000;
 	next if exists $finished{$id};
 	$count++;
-	last if ($self->getCla{'testnumber'} && $count >= $self->getCla{'testnumber'}); ##testing..
+	last if ($self->getCla->{'testnumber'} && $count >= $self->getCla->{'testnumber'}); ##testing..
 	$self->log ("fetching $count ids to process\n") if $count % 10000 == 0;
 	push(@ids,$id);
     }
@@ -264,7 +266,7 @@ sub makeAndInsertAssSeq {
     }
     $self->log ($ass->toString(0,1)) if $debug;
     $ass->submit();
-    print EX $ass->toFasta(1) if ($self->getCla{commit} && $self->getCla{export} && $ass->getHaveProcessed() == 0);
+    print EX $ass->toFasta(1) if ($self->getCla->{commit} && $self->getCla->{export} && $ass->getHaveProcessed() == 0);
     $countProcessed++;
 }
 
