@@ -1,6 +1,6 @@
  <tr>
                   <td align="left"><a
- href="@SERVLET_URL@?page=query&amp;rowsPerPage=50&amp;run=submit&amp;pm0=60431&amp;pm1=%3D+4&amp;pm2=%3E+7&amp;query=goFunction">
+ href="@SERVLET_URL@?page=query&amp;rowsPerPage=50&amp;run=submit&amp;pm0=60431&amp;pm1=%3D+4&amp;pm2=and+pgf.manually_reviewed+%3C+2&amp;query=goFunction">
 XXfuncnameXX</a></td>
                   <td align="center">XXhumCountXX</td>
                   <td><img src="@IMAGE_DIR_URL@/blue1.gif" height="12" width="XXhumBarWidthXX"><img src="@IMAGE_DIR_URL@/lblue1.gif"  height="12" width="XXhumBarRemainderXX">
@@ -9,3 +9,4 @@ XXfuncnameXX</a></td>
                   <td><img src="@IMAGE_DIR_URL@/blue1.gif" height="12" width="XXmusBarWidthXX"><img src="@IMAGE_DIR_URL@/lblue1.gif" height="12" width="XXmusBarRemainderXX">
 &nbsp;XXmusPercentXX%</td>
                 </tr>
+

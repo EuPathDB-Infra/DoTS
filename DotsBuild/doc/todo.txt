@@ -1,6 +1,8 @@
           ================ DOTS BUILD TODO ===============
 NEW ISSUES 
 
+Add properties for version numbers for cdd, mgi
+
 Discover what makes All on liniac-we made All but rpsblast replaced it.
 Add procedures to dotsbuild to add COG and cd to db-done
 
