@@ -1,0 +1,9 @@
+
+Here are the proposed schema changes:
+
+AlignedGene --> Gene, GeneFeature, etc.
+AlignedGeneAssembly --> Gene, RNA
+ReciprocalBestHits --> Similarity (add a reciprocal flag)
+Analysis tables --> Algorithm, etc.
+GenomicGap --> temp
+
