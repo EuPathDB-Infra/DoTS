@@ -186,7 +186,7 @@ sub getAnalysisId {
     my @aids = ();
     while (my $aid = $sth->fetchrow_array) { push @aids, $aid; }
     my $c = scalar(@aids);
-    $self->logExit("expecting one analysis id but found $c") unless $c == 1;
+    $self->error("expecting one analysis id but found $c") unless $c == 1;
     $self->log("aligned gene analysis id is $aids[0]");
 
     return $aids[0];
