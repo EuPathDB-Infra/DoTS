@@ -141,14 +141,13 @@ sub run {
   undef %ignore;                ##free this memory...
 
   ##prepare the library query statment to reuse in following loop
-  my $libQuery = " select seq.accession,al.dbest_library_id,al.anatomy_id
+  my $libQuery = " select e.accession,al.dbest_library_id,al.anatomy_id
         from DoTS.AssemblySequence ass,
-        DoTS.AnatomyLibrary al, LENSSequence seq, DoTS.Clone c, DoTS.Library l
+        DoTS.AnatomyLibrary al, DoTS.EST e, DoTS.Library l
         where ass.assembly_na_sequence_id = ?
-        and seq.na_sequence_id = ass.na_sequence_id
-        and c.clone_id = seq.clone_id
-        and l.library_id = c.library_id
-        and al.dbest_library_id = dbest_id";
+        and e.na_sequence_id = ass.na_sequence_id
+        and l.library_id = e.library_id
+        and al.dbest_library_id = l.dbest_id";
 
   $stmt = $dbh->prepare($libQuery);
 
