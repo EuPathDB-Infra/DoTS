@@ -105,7 +105,7 @@ sub deleteGene {
 
   my $algoInvo = $self->getAlgInvocation;
 
-  $algoInvo->setGlobalDeleteEvidenceOnDelete(1);
+  $algoInvo->setGlobalDeleteEvidenceOnDelete(0);
 
   my $ctDel = 0;
 
