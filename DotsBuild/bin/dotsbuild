@@ -270,6 +270,8 @@ $mgr->waitForLiniac("genomic alignments of assemSeqs", "waitGenomeAlignAss");
 
 &splitCluster("initial", $mgr);
 
+&deleteAlignmentInfo($mgr);
+
 &assemble("", $propertySet->getProp('reassemble'), "initial", $mgr);
 
 &reassemble("initial", $mgr);
@@ -282,7 +284,17 @@ $mgr->waitForLiniac("genomic alignments of assemSeqs", "waitGenomeAlignAss");
 
 &copySeqFileToLiniac("unalignedAssemSeqs", $mgr);
 
-&matrix("aligned", $mgr);
+&copySeqFileToLiniac("alignedDots", $mgr);
+
+&startDotsMatrixOnLiniac("aligned", $mgr);
+
+&copyDotsMatrixFromLiniac("alignedDots-alignedDots",$mgr);
+
+&copyDotsMatrixFromLiniac("alignedDots-unalignedAssemSeqs",$mgr);
+
+&copyDotsMatrixFromLiniac("unalignedAssemSeqs-unalignedAssemSeqs",$mgr);
+
+#&matrix("aligned", $mgr);
 
 &cluster($mgr, "aligned", "alignedDots-alignedDots", "alignedDots-unalignedAssemSeqs", "unalignedAssemSeqs-unalignedAssemSeqs");
 

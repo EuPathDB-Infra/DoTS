@@ -1002,15 +1002,15 @@ sub copyDotsMatrixFromLiniac {
   my $serverPath = $propertySet->getProp('serverPath');
   my $liniacServer = $propertySet->getProp('liniacServer');
 
-  my $signal = "${name}DotsMatrixFromLiniac";
+  my $signal = "${name}MatrixFromLiniac";
 
-  return if $mgr->startStep("Copying ${name}Dots matrix from $liniacServer",
+  return if $mgr->startStep("Copying ${name} matrix from $liniacServer",
 			    $signal);
 
   $mgr->copyFromLiniac($liniacServer,
-		       "$serverPath/$mgr->{buildName}/matrix/${name}Dots-${name}Dots/master/mainresult",
+		       "$serverPath/$mgr->{buildName}/matrix/$name/master/mainresult",
 		       "blastMatrix.out.gz",
-		       "$mgr->{pipelineDir}/matrix/${name}Dots-${name}Dots");
+		       "$mgr->{pipelineDir}/matrix/$name");
 
   $mgr->endStep($signal);
 }
