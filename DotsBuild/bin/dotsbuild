@@ -394,8 +394,6 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &createManuallyReviewedDoTSFile();
 
-&writeReadmeFile();
-
 &makeStatisticsPage();
 
 &cleanUpFiles();
@@ -1813,15 +1811,17 @@ sub prepareDownloadSiteFiles {
 
   my @files;
   my $htaccessString;
+  my $descrip;
 
   my $dotsRelease = $propertySet->getProp('dotsRelease');
   my $speciesNickname = $propertySet->getProp('speciesNickname');
   my $speciesFullname = $propertySet->getProp('speciesFullname');
-  my $tempLogin = $propertySet->getProp('tempLogin');  
-  my $tempPassword = $propertySet->getProp('tempPassword'); 
   my $gusConfigFile = $propertySet->getProp('gusConfigFile');
   my $taxonId = $propertySet->getProp('taxonId');
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+  # readme file header
+  writeReadmeFileHeader();
 
   # fasta file of sequences
   my $fastaFile = "${prefix}.fasta";
@@ -1831,8 +1831,10 @@ sub prepareDownloadSiteFiles {
   $mgr->runCmd($cmd) unless -e "$pipelineDir/seqfiles/$fastaFile" || "$pipelineDir/seqfiles/${fastaFile}.gz";
   my $cmd = "gzip $pipelineDir/seqfiles/$fastaFile";
   $mgr->runCmd($cmd) unless -e "$pipelineDir/seqfiles/${fastaFile}.gz";
-  push(@files, "${fastaFile}.gz");
-  $htaccessString .= "AddDescription \"The sequence for the consensus transcripts\" *fasta*\n";
+  push(@files, "$pipelineDir/seqfiles/${fastaFile}.gz");
+  $descrip = "The sequence for the consensus transcripts";
+  $htaccessString .= "AddDescription \"$descrip\" *fasta*\n";
+  addFileToReadme("${fastaFile}.gz", $descrip);
 
   # predicted proteins
   my $predictedProteinsFile = "${prefix}_predictedProteins.fasta";
@@ -1842,123 +1844,78 @@ sub prepareDownloadSiteFiles {
   $mgr->runCmd($cmd) unless -e "$pipelineDir/seqfiles/$predictedProteinsFile" || "$pipelineDir/seqfiles/${predictedProteinsFile}.gz";
   my $cmd = "gzip $pipelineDir/seqfiles/$predictedProteinsFile";
   $mgr->runCmd($cmd) unless -e "$pipelineDir/seqfiles/${predictedProteinsFile}.gz";
-  push(@files, "${predictedProteinsFile}.gz");
-  $htaccessString .= "AddDescription \"The predicted protein translation of each assembled transcript\" *Proteins*\n";
+  push(@files, "$pipelineDir/seqfiles/${predictedProteinsFile}.gz");
+  $descrip = "The predicted protein translation of each assembled transcript";
+  $htaccessString .= "AddDescription \"$descrip\" *Proteins*\n";
+  addFileToReadme("${predictedProteinsFile}.gz", $descrip);
 
   # NRDB Hits 
   my $nrdbHitsFile = "${prefix}_bestNRDBHits.dat";
   my $cmd = "gzip $pipelineDir/misc/$nrdbHitsFile" unless -e "$pipelineDir/misc/${nrdbHitsFile}.gz";
   $mgr->runCmd($cmd);
-  push(@files, "${nrdbHitsFile}.gz");
-  $htaccessString .= "AddDescription \"The best hit in NRDB for each consensus transcript\" *NRDB*\n";
+  push(@files, "$pipelineDir/misc/${nrdbHitsFile}.gz");
+  $descrip = "The best hit in NRDB for each consensus transcript";
+  $htaccessString .= "AddDescription \"$descrip\" *NRDB*\n";
+  addFileToReadme("${nrdbHitsFile}.gz", $descrip);
 
   # Accs Per Assembly
-  push(@files, "${prefix}_accessionsPerAssembly.dat.gz");
-  $htaccessString .= "AddDescription \"The Genbank accessions of ESTs and mRNAs contained in each assembled transcript\" *_acc*\n";
+  push(@files, "$pipelineDir/misc/${prefix}_accessionsPerAssembly.dat.gz");
+  $descrip = "The Genbank accessions of ESTs and mRNAs contained in each assembled transcript";
+  $htaccessString .= "AddDescription \"$descrip\" *_acc*\n";
+  addFileToReadme("${prefix}_accessionsPerAssembly.dat.gz", $descrip);
 
   # DTs per DG
-  push(@files, "${prefix}_DTperDG.dat.gz");
-  $htaccessString .= "AddDescription \"Assembled transcripts belonging to each gene\" *DTperDG*\n";
+  push(@files, "$pipelineDir/misc/${prefix}_DTperDG.dat.gz");
+  $descrip = "Assembled transcripts belonging to each gene";
+  $htaccessString .= "AddDescription \"$descrip\" *DTperDG*\n";
+  addFileToReadme("${prefix}_DTperDG.dat.gz", $descrip);
 
   # mRNAs per DT
-  push(@files, "${prefix}_mRNAaccessionsPerAssembly.dat.gz");
-  $htaccessString .= "AddDescription \"The Genbank accessions of mRNAs contained in each assembled transcript\" *mRNA*\n";
+  push(@files, "$pipelineDir/misc/${prefix}_mRNAaccessionsPerAssembly.dat.gz");
+  $descrip = "The Genbank accessions of mRNAs contained in each assembled transcript";
+  $htaccessString .= "AddDescription \"descrip\" *mRNA*\n";
+  addFileToReadme("${prefix}_mRNAaccessionsPerAssembly.dat.gz", $descrip);
 
+  # Brain Anatomy terms
+  my $brainFile = "${prefix}_brainTerms.dat";
+  my $logFile = "$pipelineDir/logs/brainTerms.log";
+  my $cmd = "makeAnatomyCountFile --taxonId 8 --root brain --rootLevel level_4 --estCount 2 --percent 10 --outputfile $pipelineDir/misc/$brainFile 2>> $logFile";
+  $mgr->runCmd($cmd);
+  push(@files, "$pipelineDir/misc/$brainFile");
+  $descrip = "Brain anatomy terms for which there are DoTS Transcripts.  (Tab delimited: term, term ID, count of DTs)";
+  $htaccessString .= "AddDescription \"descrip\" *brainTerms*\n";
+  addFileToReadme($brainFile, $descrip);
+
+  # move files to download directory
   foreach my $file (@files) {
     my $outputfile = "$pipelineDir/downloadSite/" . &basename($file);
     my $cmd = "cp $file $outputfile";
     $mgr->runCmd($cmd);
   }
 
-  &writeHtaccessFile($htaccessString);
+  &updateHtaccessFile($htaccessString);
+ 
+  $mgr->runCmd("chmod g+w $pipelineDir/downloadSite");
 
   $mgr->endStep($signal);
 }
 
-sub createManuallyReviewedDoTSFile { 
-  
-  my $signal = "createManuallyReviewedDoTSFile";
-
-  return if $mgr->startStep("Preparing manually reviewed DoTs file", $signal);
-
-  my $dotsRelease = $propertySet->getProp('dotsRelease');
-  my $speciesNickname = $propertySet->getProp('speciesNickname');
-  my $tempLogin = $propertySet->getProp('tempLogin');  
-  my $tempPassword = $propertySet->getProp('tempPassword'); 
-  my $taxonId = $propertySet->getProp('taxonId');
-  my $allgenesLogin  = $propertySet->getProp('allgenesLogin');
-  
-  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
-  
-  my $manRevwDoTSReportFile = "$pipelineDir/downloadSite/${prefix}_manuallyReviewedTranscriptsReport.txt";
-    
-# create report of manually reviewed dots
-    my $cmd = "gusreport --configModule GUS::ReportMaker::SampleTranscriptReportConfig --dbLogin $tempLogin --dbPassword $tempPassword --tempTableName ${tempLogin}.tempResult --requestedColumns 'Description, GeneSymbol, Length, GOid, DoTSGene, SeqsInAssem, MGI, LocusLink, ContainsMRNA, Motifs, Organism, mRNASeq, proteinSeq' --sql 'select distinct pa.na_sequence_id, 9999 from DoTS.rna r, ${allgenesLogin}.proteinassembly pa where r.review_status_id = 1 and r.rna_id = pa.rna_id and pa.taxon_id = $taxonId' > $manRevwDoTSReportFile";
-    $mgr->runCmd($cmd);
-
-    my $cmd = "gzip $manRevwDoTSReportFile";
-
-    $mgr->runCmd($cmd);
-
-    &writeHtaccessFile("AddDescription \"A tab delimited report for all manually reviewed DoTS Transcripts\" *manuallyReviewed*\n");
-
-    $mgr->endStep($signal);
-
-}	
-
-sub writeHtaccessFile {
-  my ($htaccessString) = @_;
-  my $htaccess = "$pipelineDir/downloadSite/.htaccess";
-  
-  open(F, ">>$htaccess") || $mgr->error("Can't open $htaccess for writing");
-  close(F);
-  
-}
-
-
-sub writeReadmeFile {
-
-  my $signal = "writeReadmeFile";
-  
-  return if $mgr->startStep("Writing readme file", $signal);
-  
+sub writeReadmeFileHeader {
   my $dotsRelease = $propertySet->getProp('dotsRelease');
   my $speciesNickname = $propertySet->getProp('speciesNickname');
   my $speciesFullname = $propertySet->getProp('speciesFullname');
-  my $tempLogin = $propertySet->getProp('tempLogin');  
-  my $tempPassword = $propertySet->getProp('tempPassword'); 
-  my $gusConfigFile = $propertySet->getProp('gusConfigFile');
-  my $taxonId = $propertySet->getProp('taxonId');
-  
+ 
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
 
-  my $fastaFile = "${prefix}.fasta.gz";
-  
-  my $proteinsFile = "${prefix}_predictedProteins.fasta.gz";
-
-  my $accsPerAssemFile = "${prefix}_accessionsPerAssembly.dat.gz";
-  my $assPerGeneFile = "${prefix}_DTperDG.dat.gz";
-  my $nrdbHitsFile = "${prefix}_bestNRDBHits.dat.gz";
-  my $mRNAPerAss ="${prefix}_mRNAaccessionsPerAssembly.dat.gz";
-
-  my $LL2DoTS = "${prefix}_LL2DoTS.gz";
-   
-  my $manRevwDoTSReport = "$pipelineDir/downloadSite/${prefix}_manuallyReviewedTranscriptsReport.txt";
-
   my $genbankRel = $propertySet->getProp('genbankRel');
-
   my $nrdbDate = $propertySet->getProp('nrdbDate');
-
   my $cddFileDates = $propertySet->getProp('cddFileDates');
-
   my $dbestDate = $propertySet->getProp('dbestDate');
-
   my $prodomVersion = $propertySet->getProp('prodomVersion');
-  
+
   my $readme = "$pipelineDir/downloadSite/${speciesNickname}_README.txt";
-  
   open(F, ">$readme") || $mgr->error("Can't open $readme for writing");
-  
+
   my $date = `date`;
   chomp $date;
   
@@ -1979,39 +1936,65 @@ The data sources include:
 
 The files available are:
 
-    $fastaFile         
-       The consensus sequence of each putative transcript.
-
-    $accsPerAssemFile   
-       The Genbank accessions of ESTs and mRNAs which were assembled to
-       form the consensus sequence of each putative transcript.
-
-    $nrdbHitsFile      
-       The best hit in NRDB for each consensus sequence.
-
-    $assPerGeneFile
-       The assembled transcripts belonging to each gene.
-
-    $proteinsFile
-       The sequence of predicted translations for each consensus sequence.
-
-    $mRNAPerAss
-       The Genbank accessions of mRNAs which were assembled, together with ESTs, 
-       to form the consensus sequence of each putative transcript.
-
-    $manRevwDoTSReport
-      A tab delimited report for all manually reviewed DoTS Transcripts.
-
-    $LL2DoTS
-      A map from DoTS transcripts to LocusLink identifier.
- ";
+";
   close(F);
+}
+
+sub addFileToReadme {
+  my ($filename, $descrip) = @_;
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  my $readme = "$pipelineDir/downloadSite/${speciesNickname}_README.txt";
+  open(F, ">$readme") || $mgr->error("Can't open $readme for writing");
+
+  print F "
+$filename:
+$descrip
+";
+}
+
+
+sub createManuallyReviewedDoTSFile { 
+  
+  my $signal = "createManuallyReviewedDoTSFile";
+
+  return if $mgr->startStep("Preparing manually reviewed DoTs file", $signal);
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  my $tempLogin = $propertySet->getProp('tempLogin');  
+  my $tempPassword = $propertySet->getProp('tempPassword'); 
+  my $taxonId = $propertySet->getProp('taxonId');
+  my $allgenesLogin  = $propertySet->getProp('allgenesLogin');
+  
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+  
+  my $manRevwDoTSReportFile = "$pipelineDir/downloadSite/${prefix}_manuallyReviewedTranscriptsReport.txt";
+    
+  # create report of manually reviewed dots
+  my $cmd = "gusreport --configModule GUS::ReportMaker::SampleTranscriptReportConfig --dbLogin $tempLogin --dbPassword $tempPassword --tempTableName ${tempLogin}.tempResult --requestedColumns 'Description, GeneSymbol, Length, GOid, DoTSGene, SeqsInAssem, MGI, LocusLink, ContainsMRNA, Motifs, Organism, mRNASeq, proteinSeq' --sql 'select distinct pa.na_sequence_id, 9999 from DoTS.rna r, ${allgenesLogin}.proteinassembly pa where r.review_status_id = 1 and r.rna_id = pa.rna_id and pa.taxon_id = $taxonId' > $manRevwDoTSReportFile";
+  $mgr->runCmd($cmd);
+
+  my $cmd = "gzip $manRevwDoTSReportFile";
+
+  $mgr->runCmd($cmd);
+
+  my $desrip = "A tab delimited report for all manually reviewed DoTS Transcript";
+  &updateHtaccessFile("AddDescription \"$descrip\" *manuallyReviewed*\n");
+  &addFileToReadme("$manRevwDoTSReportFile.gz", $desrip);
 
   $mgr->endStep($signal);
+}	
+
+sub updateHtaccessFile {
+  my ($htaccessString) = @_;
+  my $htaccess = "$pipelineDir/downloadSite/.htaccess";
+  
+  open(F, ">>$htaccess") || $mgr->error("Can't open $htaccess for writing");
+  close(F);
 }
 
 sub prepareBlastSiteFiles {
-    
     my $signal = "prepareBlastSiteFiles";
 
     return if $mgr->startStep("Preparing files for blast site", $signal);
