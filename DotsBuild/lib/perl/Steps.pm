@@ -3012,6 +3012,23 @@ sub loadGeneIdInfo {
   $mgr->runPlugin("loadGeneIdInfo", "DoTS::DotsBuild::Plugin::LoadGeneIdInfo", $args, "loading GeneId information");
 }
 
+sub downloadMGC {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+  my $signal = "downloadMGC";
+  return if $mgr->startStep("Downloading MGC", $signal);
+  my $pipelineDir = $mgr->{pipelineDir};
+  my $logfile = "$pipelineDir/logs/downloadMGC.log";
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+  my $date = $propertySet->getProp('buildDate');
+  my $downloadSubDir = "$externalDbDir/mgc/$date";
+  $mgr->runCmd("mkdir -p $downloadSubDir");
+  my $cmd = "wget -t5 -o mgc.log -m -np -nH --cut-dirs=1 -P  $downloadSubDir \"http://mgc.nci.nih.gov/Reagents/StaticCloneList?PAGE=0&STATUS=Confirmed&ORG=Mm\"";
+  $mgr->runCmd($cmd);
+  $mgr->runCmd("mv \"$downloadSubDir/StaticCloneList?PAGE=0&STATUS=Confirmed&ORG=Mm\" $downloadSubDir/StaticCloneList");
+  $mgr->endStep($signal);
+}
+
 sub deleteMGC {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
@@ -3207,7 +3224,7 @@ sub downloadMGIInfo {
 
   $mgr->runCmd("mkdir -p $downloadSubDir");
     
-  my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=2 -A \"MRK_Dump2.rpt,MRK_Sequence.rpt,MGI_EntrezGene.rpt\"  -P $downloadSubDir  ftp://ftp.informatics.jax.org/pub/reports/";
+  my $cmd = "wget -t5 -o $logfile  -m -np -nd -nH --cut-dirs=2 -A \"MRK_Dump2.rpt,MRK_Sequence.rpt,MGI_EntrezGene.rpt\"  -P $downloadSubDir  ftp://ftp.informatics.jax.org/pub/reports/";
 
   $mgr->runCmd($cmd);
 
@@ -3278,7 +3295,7 @@ sub loadMgiToNaSeq {
   my $mgiDbId = $propertySet->getProp('mgi_db_id');
 
 
-  my $args = "--mappingfiles $file $delete --pattern1 '(MGI:\\d+)\\t' --pattern2 '\\t(\\d+)' --db_id $mgiDbId --db_rel_id $mgiDbRlsId";
+  my $args = "--mappingfiles $file --pattern1 '(MGI:\\d+)\\t' --pattern2 '\\t(\\d+)' --db_id $mgiDbId --db_rel_id $mgiDbRlsId";
   $mgr->runPlugin("loadMgiToNaSeq", "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence", $args, "loading MGI to NaSeq mapping", 'loadMGI');
 }
 
@@ -3326,7 +3343,7 @@ sub loadMGIInfo {
 
   my $db_rel_id = $propertySet->getProp('mgi_db_rls_id');
   
-  my $args = "--infoFile $inputfile --geneFile $geneFile --external_db_release_id $db_rel_id";
+  my $args = "--infoFile $infoFile --geneFile $geneFile --external_db_release_id $db_rel_id";
   
   $mgr->runPlugin("loadMGIInfo", "DoTS::DotsBuild::Plugin::LoadMGIInfo", $args, "Loading MGI Info",'loadMGI' );
   
@@ -3450,7 +3467,7 @@ sub parseGEA {
   
   foreach my $file (@geaFiles) {
 
-    my ($geaFile, $id, $regex) = split(/:/, $file);
+    my ($geaFile, $db_id, $db_rel_id, $regex) = split(/:/, $file);
 
     my $inputfile = "$downloadSubDir/$geaFile";
   
@@ -3480,19 +3497,17 @@ sub loadGEA {
 
   my $downloadSubDir = "$externalDbDir/gea";
 
-  my $geaDbId = $propertySet->getProp('gea_db_id');
-
   my $species = $propertySet->getProp('speciesNickname');
 
   my @geaFiles = split(/,/, $propertySet->getProp('geaFiles'));
 
   foreach my $file (@geaFiles) {
 
-    my ($geaFile, $relId) = split(/:/, $file);
+    my ($geaFile, $db_id , $relId, $regex) = split(/:/, $file);
 
     my $file = "$pipelineDir/misc/${geaFile}2DoTS.txt";
 
-    my $args = "--mappingfiles $file --pattern1 '(\\S+)\\t' --pattern2 '\\tDT\.(\\d+)' --db_id $geaDbId --db_rel_id $relId";
+    my $args = "--mappingfiles $file --pattern1 '(\\S+)\\t' --pattern2 '\\tDT\.(\\d+)' --db_id $db_id --db_rel_id $relId";
 
     $mgr->runPlugin("loadGEA${geaFile}Mapping", "GUS::Common::Plugin::InsertDbRefAndDbRefNaSequenceGeneral", $args, "loading GEA to DoTS mapping");
   }
@@ -3529,6 +3544,23 @@ sub makeProjectLink {
 
   $mgr->runCmd($cmd);
 
+  $mgr->endStep($signal);
+}
+
+sub refreshMaterializedViews {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+  my $signal = "refreshMaterializedViews";
+  my $logFile = "$mgr->{pipelineDir}/logs/${signal}.log";
+  return if $mgr->startStep("Refresh MaterializedViews", $signal);
+  my $materializedViews = $propertySet->getProp('materializedViews');
+  my @views = split (/\,/,$materializedViews);
+  foreach $schemaView (@views) {
+    my ($schema,$view) = split (/\:/,$schemaView);
+    my args = "--materializedView $view --schema $schema --verbose";
+    my $cmd = "refreshMaterializedView $args 2>> $logFile";
+    $mgr->runCmd($cmd);
+  }
   $mgr->endStep($signal);
 }
 
