@@ -93,7 +93,8 @@ my @properties =
  ["geneTrapDB", "", "external_db_id,name abbreviation pairs for gene trap sequences e.g. 3692,stl,5393,ggtc"],
  ["loadLocusLink", "", "yes or no"],
  ["projectLinkRestart", "", "yes or no"],
- ["allgenesVersion", "", "version number for allgenes, e.g. 5.0"]
+ ["allgenesVersion", "", "version number for allgenes, e.g. 5.0"],
+ ["downloadDir", "", "directory for downloaded data from external databases"]
  ); 
 
 my $propertySet  = Common::PropertySet->new($propertiesFile, \@properties);
@@ -415,9 +416,13 @@ sub downloadGenbank {
 
     $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
 
+    my $downloadDir = $propertySet->getProp('downloadDir');
+
+    my $downloadSubDir = "$downloadDir/genbank";
+
     my $logfile = "$pipelineDir/logs/downloadGenbank.log";
 
-    my $cmd = "wget -t5 -o $logfile -b -m -np -nH --cut-dirs=1 -R \"gbest*,gbgss*,gbhtg*,gbsyn*\" -A \"*.seq.gz,README.genbank\"  -P /usr/local/db/local/genbank ftp://ftp.ncbi.nih.gov/genbank/";
+    my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=1 -R \"gbest*,gbgss*,gbhtg*\" -A \"*.seq.gz,README.genbank\"  -P $downloadSubDir ftp://ftp.ncbi.nih.gov/genbank/";
 
     $mgr->runCmd($cmd);
 
@@ -432,6 +437,10 @@ sub downloadRefSeq {
     $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
 
     my $logfile = "$pipelineDir/logs/downloadRefSeq.log";
+
+    my $downloadDir = $propertySet->getProp('downloadDir');
+
+    my $downloadSubDir = "$downloadDir/refseq";
 
     my $ftpsite;
 
@@ -449,12 +458,9 @@ sub downloadRefSeq {
 	$ftpfile = "mouse.gbff.gz";
     }
 
-
-    my $cmd = "wget -t5 -o $logfile -b -m -np -nH --cut-dirs=3 -A \"$ftpfile\" -P /usr/local/db/local/refseq $ftpsite";
+    my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=3 -A \"$ftpfile\" -P $downloadSubDir $ftpsite";
 
     $mgr->runCmd($cmd);
-
-    $mgr->runCmd("gunzip /usr/local/db/local/refseq/*.gz");
 
     $mgr->endStep($signal);
 }
@@ -469,7 +475,11 @@ sub downloaddbEST {
 
     my $logfile = "$pipelineDir/logs/downloaddbEST.log";
 
-    my $cmd = "wget -t5 -o $logfile -b -m -np -nH --cut-dirs=3 -P /usr/local/db/local/dbEST/data ftp://ftp.ncbi.nih.gov/repository/dbEST/bcp/";
+    my $downloadDir = $propertySet->getProp('downloadDir');
+
+    my $downloadSubDir = "$downloadDir/dbEST";
+
+    my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=3 -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/repository/dbEST/bcp/";
 
     $mgr->runCmd($cmd);
 
@@ -488,7 +498,11 @@ sub downloadTaxon {
 
     my $logfile = "$pipelineDir/logs/downloadTaxon.log";
 
-    my $cmd = "wget -t5 -o $logfile -b -m -np -nH --cut-dirs=2 -A \"gi_taxid_nucl.dmp.gz,gi_taxid_prot.dmp.gz,taxdump.tar.gz\" -P /usr/local/db/local/taxonomy ftp://ftp.ncbi.nih.gov/pub/taxonomy/"; 
+    my $downloadDir = $propertySet->getProp('downloadDir');
+
+    my $downloadSubDir = "$downloadDir/taxonomy";
+
+    my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=2 -A \"gi_taxid_nucl.dmp.gz,gi_taxid_prot.dmp.gz,taxdump.tar.gz\" -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/pub/taxonomy/"; 
 
     $mgr->runCmd($cmd);
 
@@ -513,7 +527,7 @@ sub downloadNRDB {
     $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
     my $logfile = "$pipelineDir/logs/downloadNRDB.log";
 
-    my $cmd = "wget -t5 -b -m -np -nH -o $logfile --cut-dirs=3 -A \"nr.Z\"  -P /usr/local/db/local/nrdb ftp://ftp.ncbi.nih.gov/pub/blast/db/";
+    my $cmd = "wget -t5 -b -m -np -nd -nH -o $logfile --cut-dirs=3 -A \"nr.Z\"  -P /usr/local/db/local/nrdb ftp://ftp.ncbi.nih.gov/pub/blast/db/";
 	
     $mgr->runCmd($cmd);
 
@@ -880,7 +894,7 @@ sub downloadCDD {
     $mgr->runCmd("mkdir -p $dbDir");
     $mgr->runCmd("/bin/rm -fr $dbDir/*");
 
-    my $cmd = "wget -t5 -b -m -np -nH -o $logfile --cut-dirs=3 -A \"cdd.tar.gz\"  -P /$dbDir ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/";
+    my $cmd = "wget -t5 -b -m -np -nd -nH -o $logfile --cut-dirs=3 -A \"cdd.tar.gz\"  -P /$dbDir ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/";
 	
     $mgr->runCmd($cmd);
 
@@ -969,7 +983,7 @@ sub downloadProdom {
     $mgr->runCmd("mkdir -p $dbDir");
     $mgr->runCmd("/bin/rm -f $dbDir/*");
 
-    my $cmd = "wget -t5 -b -m -np -nH -o $logfile  --cut-dirs=3 -A \"$file\"  -P $dbDir ftp://ftp.toulouse.inra.fr/pub/prodom/$prodomRelease/";
+    my $cmd = "wget -t5 -b -m -np -nd -nH -o $logfile  --cut-dirs=3 -A \"$file\"  -P $dbDir ftp://ftp.toulouse.inra.fr/pub/prodom/$prodomRelease/";
     
     $mgr->runCmd($cmd);
     $mgr->runCmd("gunzip $dbDir/$file");
@@ -1898,7 +1912,7 @@ sub downloadMGIInfo {
 
     my $logfile = "$pipelineDir/logs/downloadMGIInfo.log";
 
-    my $cmd = "wget -t5 -o $logfile -b -m -np -nH --cut-dirs=3 -A \"MRK_List2.sql.rpt\"  -P /usr/local/db/local/mgi ftp://www.informatics.jax.org/pub/informatics/reports/";
+    my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=3 -A \"MRK_List2.sql.rpt\"  -P /usr/local/db/local/mgi ftp://www.informatics.jax.org/pub/informatics/reports/";
 
     $mgr->runCmd($cmd);
 
