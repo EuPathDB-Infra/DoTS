@@ -20,7 +20,6 @@ NOW
   - human EPCR markers are not in the database. 
   - rename all-predictions
   - make file for Mr. BrainInfo
-  - fix the htaccess stuff so that WHEN the code adds a file to the download site, at that point we append the file to an htaccess string.  it should be a global variable.
   - add the sub to make Angel's materialized view
 
 
@@ -288,5 +287,6 @@ d 1  0.25 - call the statistics statistics script
 d 2  1.00 - clean up after assembly is done (eg assemblies w/ len=0, if we 
             have them)
   2. clean up and rename makeAllgenesTables
+  - fix the htaccess stuff so that WHEN the code adds a file to the download site, at that point we append the file to an htaccess string.  it should be a global variable.
 
 
