@@ -114,7 +114,8 @@ my @properties =
  ["phrapDir", "","phrap directory"],
  ["dbi_str", "", "string used to identify server and login for LoadNRDB temp table"],
  ["prodomFile", "","specific prodom file for download"],
- ["sourceDB", "", "pair list of ExternalDatabase.name:ncbi abreviations for nrdb, e.g. GENBANK (NRDB):gb,EMBL DATA LIBRARY (NRDB):emb"]
+ ["sourceDB", "", "pair list of ExternalDatabase.name:ncbi abreviations for nrdb, e.g. GENBANK (NRDB):gb,EMBL DATA LIBRARY (NRDB):emb"],
+ ["proteinDir", "","directory containing protein sequence files"]
  ); 
 
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
@@ -989,11 +990,13 @@ sub insertNRDB {
   
   my $temp_password = $propertySet->getProp('nrdbTempPassword'); 
   
-  my $restart = $propertySet->getProp('nrdbRestart') ? ('--restart' .  $propertySet->getProp('nrdbRestart')) : '';
+  my $restart = $propertySet->getProp('nrdbRestart') > 1 ? "--restart" . $propertySet->getProp('nrdbRestart') : "";
   
   my $nrdbReleaseId = $propertySet->getProp('nrdb_db_rls_id');
   
-  my $args = "--temp_login $temp_login --sourceDB $sourceDB --temp_password $temp_password --dbi_str $dbi_str --restart $restart --gitax $gitax --nrdb $nrdb --extDbRelId $nrdbReleaseId --maketemp --plugin --delete";
+  #my $args = "--temp_login \"$temp_login\" --sourceDB $sourceDB --temp_password \"$temp_password\" --dbi_str \"$dbi_str\" $restart --gitax $gitax --nrdb $nrdb --extDbRelId $nrdbReleaseId --maketemp --plugin --delete";
+
+  my $args = "--temp_login \"$temp_login\" --sourceDB $sourceDB --temp_password \"$temp_password\" --dbi_str \"$dbi_str\" $restart --gitax $gitax --nrdb $nrdb --extDbRelId $nrdbReleaseId --delete";
   
   $mgr->runPlugin("loadNRDB", "GUS::Common::Plugin::LoadNRDB", $args, "Loading NRDB", 'downloadNRDB');
 }	
@@ -1014,7 +1017,7 @@ sub extractProteinSeqs {
 
     my $signal = "${name}Extract";
 
-    return if $mgr->startStep("Extracting $name protein sequences from GUS", $signal);
+    return if $mgr->startStep("Extracting $name protein sequences from GUS", $signal, 'downloadGOStuff');
 
     my $gusConfigFile = $propertySet->getProp('gusConfigFile');
 
@@ -1232,16 +1235,28 @@ sub copyProteinDBsToLiniac {
     my $signal = "proteinDBs2Liniac";
     return if $mgr->startStep("Copying NRDB, CDD and Prodom to $serverPath/$buildName/seqfiles on $liniacServer", $signal);
 
-    my $seqfilesDir = "$pipelineDir/seqfiles";
+    my $release = "release" . $propertySet->getProp('dotsRelease');
+    my $protDir = $propertySet->getProp('proteinDir');
+    my $seqfilesDir = "$dotsBuildDir/$release/$protDir/seqfiles";
     my $f = "nrdb.fsa";
     $mgr->copyToLiniac($seqfilesDir, $f, $liniacServer, 
 		       "$serverPath/$buildName/seqfiles");
 
-    $mgr->copyToLiniac("/usr/local/db/local", "cdd", $liniacServer, 
+    my $externalDbDir = $propertySet->getProp('externalDbDir');
+
+    my $date = $propertySet->getProp('buildDate');
+
+    my $downloadSubDir = "$externalDbDir/cdd";
+
+    $mgr->runCmd("mv $downloadSubDir/$date $downloadSubDir/cdd"); 
+
+    $mgr->copyToLiniac($downloadSubDir, "cdd", $liniacServer, 
 		       "$serverPath/$buildName/seqfiles");
 
+    $mgr->runCmd("mv $downloadSubDir/cdd $downloadSubDir/$date"); 
+
     $f = "prodom.fsa";
-    $mgr->copyToLiniac($seqfilesDir, $f, $liniacServer, 
+    $mgr->copyToLiniac($seqfilesDir, $f, $liniacServer,
 		       "$serverPath/$buildName/seqfiles");
 
     $mgr->endStep($signal);
@@ -1252,7 +1267,7 @@ sub startSimilaritiesOnLiniac {
 
     my $serverPath = $propertySet->getProp('serverPath');
 
-    my $signal = "findSimilarites";
+    my $signal = "findSimilarities";
     return if $mgr->startStep("Starting NRDB, CDD and Prodom similarites on liniac", $signal);
     
     $mgr->endStep($signal);
