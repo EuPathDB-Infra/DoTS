@@ -16,8 +16,6 @@ FOR RELEASE 7
 
  **** Before Post-Download Pipeline ****
 
-   - correct genbank external_database_release_id (get rid of the new one)
-
    - replace repeat/vector file on both ptolemy and liniac:ftp://ftp.ncbi.nih.gov/blast/db/FASTA/vector.Z
 
    - add sub to run plugin/script that updates all the quality attributes for existing AssemblySequences-time this to see if this should be done at every build or there should be a set of rules to detect when a sequence has changed
@@ -33,6 +31,8 @@ FOR RELEASE 7
    - need procedure for updating externaldatabaserelease where version is continuous (add this to GBParser, NRDB, etc. plugins)
 
    - Look into including controlling index dropping, creating, checking in the pipeline. 
+
+   - Assemble the masking file-e-mail Brian about repeat sequences-ftp://ftp.ncbi.nih.gov/blast/db/FASTA/mito.nt.Z and vector.Z and alu.n.Z and others in this same directory
 
    - Discover what makes All on liniac-we made All but rpsblast replaced it.
 
