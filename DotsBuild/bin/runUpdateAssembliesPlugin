@@ -10,6 +10,8 @@
 
 
 use strict;
+
+use lib "$ENV{GUS_HOME}/lib/perl";
 use Getopt::Long;
 
 my ($debug,$pluginCmd,$cap4_machine,$taxon_id,$reassemble,$clusterFile);
@@ -22,11 +24,11 @@ my ($debug,$pluginCmd,$cap4_machine,$taxon_id,$reassemble,$clusterFile);
 
 die "usage: runUpdateAssembliesPlugin.pl --debug --pluginCmd [entire command  for running plugin] --clusterFile\n" unless (-e $clusterFile && $pluginCmd);
 
-##should add some code too exit if already runing on this cluster file
+##should add some code to exit if already running on this cluster file
 my @checkDups = `ps -auxww | grep $clusterFile | grep -v grep`;
 die "Already have a process running for $clusterFile\n" if (@checkDups) > 1;
 
-if($pluginCmd !~ /WithCap4\s*$/){
+if($pluginCmd !~ /WithCap4\s*/){
   die "--pluginCmd must end with UpdateDotsAssembliesWithCap4\n";
 }
 
