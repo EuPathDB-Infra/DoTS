@@ -2,10 +2,10 @@
 
 use strict;
 
-use GUS::Pipeline::Manager;
-use GUS::Pipeline::MakeTaskDirs;
-use CBIL::Util::PropertySet;
-use CBIL::Util::Utils;
+use Pipeline::Manager;
+use Pipeline::MakeTaskDirs;
+use Common::PropertySet;
+use Common::Utils;
 use File::Basename;
 
 $| = 1;
@@ -66,7 +66,7 @@ my @properties =
  ["geneCluster.logbaseArray",   "",  ""],
  ["downloadGenbank",   "",  "yes or no"],
  ["downloadNRDB",   "",  "yes or no"],
- ["downloadMGIInfo",   "",  "yes or no"],
+ ["loadGeneCards",   "",  "yes or no"],
  ["downloadGOStuff",   "",  "yes or no"],
  ["prodomRelease",   "",  "eg 2001.3"],
  ["prodom_db_id",   "",  "a new id for the external_db_id table"],
@@ -84,14 +84,19 @@ my @properties =
  ["userId" ,  "","database user_id from UserInfo table in GUS"],
  ["iPSRestart" , "","list of algorithm_invocation_id for restart of insertProteinSimilaritiesPK, see ffRestart"],
  ["assignDescriptionRestart" , "","list of algorithm_invocation_id for restart of AssignSequenceDescription"],
- ["loadMGIAndGeneCards" ,  "",  "yes or no"],
+ ["loadMGI" ,  "",  "yes or no"],
  ["insertTaxonRestart" , "","last ncbi_tax_id in the log for restarting LoadTaxon.pm"],
  ["nrdbRestart" , "","last set number in log for restarting LoadNrdb.pm"],
  ["nrdbTempLogin" , "","login for temp table space, e.g. pinney@gusdev"],
- ["nrdbTempPassword" , "","password for temp table space"]
+ ["nrdbTempPassword" , "","password for temp table space"],
+ ["loadGeneTrapAssembly", "", "yes or no"],
+ ["geneTrapDB", "", "external_db_id,name abbreviation pairs for gene trap sequences e.g. 3692,stl,5393,ggtc"],
+ ["loadLocusLink", "", "yes or no"],
+ ["projectLinkRestart", "", "yes or no"],
+ ["allgenesVersion", "", "version number for allgenes, e.g. 5.0"]
  ); 
 
-my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
+my $propertySet  = Common::PropertySet->new($propertiesFile, \@properties);
 
 my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
 my $buildName = $propertySet->getProp('buildName');
@@ -100,7 +105,7 @@ my $pipelineDir = "$dotsBuildDir/$buildName";
 
 ###################  The Pipeline  ##########################
 
-my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFile);
+my $mgr = Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFile);
 
 &createDotsPipelineDir($propertySet);
 
@@ -299,9 +304,15 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 ###&cleanGORules();
 
-##&versionGeneTrapAssembly();
+&versionGeneTrapAssembly();
 
-##&deleteGeneTrapAssembly();
+&deleteGeneTrapAssembly();
+
+&extractGeneTrapTags();
+
+&blastGeneTrapTags();
+
+&loadGeneTrapAssembly();
 
 &makeStatisticsPage();
 
@@ -312,6 +323,8 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 &loadMGIInfo();
 
 &loadGeneCardsToDoTS();
+
+&makeProjectLink();
 
 $mgr->goodbye("Pipeline complete!\n");
 
@@ -340,6 +353,7 @@ sub createDotsPipelineDir {
     &runCmd("mkdir -p $dotsBuildDir/$buildName/seqfiles");
     &runCmd("mkdir -p $dotsBuildDir/$buildName/epcr");
     &runCmd("mkdir -p $dotsBuildDir/$buildName/misc");
+     &runCmd("mkdir -p $dotsBuildDir/$buildName/genetrap");
     &runCmd("mkdir -p $dotsBuildDir/$buildName/blastSite");
     &runCmd("mkdir -p $dotsBuildDir/$buildName/downloadSite");
     &runCmd("mkdir -p $dotsBuildDir/$buildName/cluster/initial");
@@ -1727,7 +1741,7 @@ sub versionGeneTrapAssembly {
 
     my $signal = "versionGeneTrapAssembly";
 
-    return if $mgr->startStep("Versioning entries from GeneTrapAssembly", $signal);
+    return if $mgr->startStep("Versioning entries from GeneTrapAssembly", $signal,'loadGeneTrapAssembly');
     
     my $taxonId = $propertySet->getProp('taxonId');
 
@@ -1746,7 +1760,7 @@ sub deleteGeneTrapAssembly {
 
     my $signal = "deleteGeneTrapAssembly";
 
-    return if $mgr->startStep("Deleting entries from GeneTrapAssembly", $signal);
+    return if $mgr->startStep("Deleting entries from GeneTrapAssembly", $signal,'loadGeneTrapAssembly');
     
     my $taxonId = $propertySet->getProp('taxonId');
 
@@ -1759,6 +1773,85 @@ sub deleteGeneTrapAssembly {
     $mgr->runCmd($cmd);
 } 
 
+sub extractGeneTrapTags {
+
+    my $signal = "extractGeneTags";
+
+    return if $mgr->startStep("Extracting gene trap tags from GUS", $signal, 'loadGeneTrapAssembly');
+
+    my $dbPassword = $propertySet->getProp('dbPassword');
+    my $taxonId = $propertySet->getProp('taxonId');
+    my %external_databases = $propertySet->getProp('geneTagDB');
+
+    foreach my $db_id (keys %external_databases) {
+	my $database_name = $external_databases{$db_id};
+	my $seqFile = "$pipelineDir/genetrap/${database_name}.fsa";
+	my $logFile = "$pipelineDir/logs/geneTrapTag{database_name}.log";
+	my $cmd = "dumpSequencesFromTable.pl --outputFile $seqFile --verbose --password $dbPassword --idSQL \"select na_sequence_id,sequence from ExternalNASequence where taxon_id = 14 and external_db_id = $db_id\" 2>>  $logFile";
+
+	$mgr->runCmd($cmd);
+    }
+
+    $mgr->endStep($signal);
+}
+
+sub blastGeneTrapTags {
+
+    my $geneTagSource = @_;
+
+    my $signal = "blastGeneTrapTags";
+
+    return if $mgr->startStep("Blasting gene trap tags vs final mouse DoTS", $signal, 'loadGeneTrapAssembly');
+    
+    my %external_databases = $propertySet->getProp('geneTagDB');
+
+    my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+    my $speciesNickname = $propertySet->getProp('speciesNickname');
+
+    my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+    my $fastafile = "${prefix}.fasta";
+
+    my $dotsFile = "$pipelineDir/misc/blastableDots/$fastafile";
+
+    my $blastBinDir = $propertySet->getProp('wuBlastBinPath');
+    
+    my $blastn = "$blastBinDir/blastn";
+
+    foreach my $db_id (keys %external_databases) {
+	
+	my $database_name = $external_databases{$db_id};
+
+	my $tagFile = "$pipelineDir/genetrap/${database_name}.fsa";
+
+	my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+	my $outputDir = "$pipelineDir/genetrap/$database_name";
+
+	my $mkdir = "mkdir $outputDir";
+	
+	$mgr->runCmd($mkdir);
+
+	my $cmd = "blastAll.pl --blastn $blastn --seqfile $tagFile --musdots $dotsFile --targetdir $outputDir";
+	
+	$mgr->runCmd($cmd);
+    }
+
+    $mgr->endStep($signal);
+}
+
+sub loadGeneTrapAssembly {
+
+    my %external_databases = $propertySet->getProp('geneTagDB');
+
+    foreach my $db_id (keys %external_databases) {
+	my $database_name = $external_databases{$db_id};
+	$blastDir = "$pipelineDir/genetrap/$database_name";
+	my $args = "--extDbId $db_id --blastDir $blastDir";
+	$mgr->runPlugin("load${database_name}GeneTrapBlast", "CalculateGeneTrapLinks", $args, "loading blast results for $database_name gene trap tags");
+    } 
+}
 
 sub assemblyProteinIntegration {
 
@@ -1799,7 +1892,7 @@ sub downloadMGIInfo {
 
     my $signal = "downloadMGIInfo";
 
-    return if $mgr->startStep("Downloading MGI Info", $signal,'downloadMGIInfo');
+    return if $mgr->startStep("Downloading MGI Info", $signal,'loadMGI');
 
     $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
 
@@ -1812,27 +1905,58 @@ sub downloadMGIInfo {
     $mgr->endStep($signal);
 } 
 
+sub deleteMGIToDots {
+    
+    my $signal = "deleteMGIToDots";
+
+    return if $mgr->startStep("Deleting MGI to DoTS entries from DbRefNASequence", $signal,'loadMGI');
+    
+    my $logFile = "$pipelineDir/logs/${signal}.log";
+
+    my $sql = "select db_ref_id from dbref where external_db_id = 4893";
+
+    my $cmd = "deleteEntries.pl --table DbRefNASequence --idSQL \"$sql\" --verbose 2>> $logFile";
+    
+    $mgr->runCmd($cmd);
+
+}
 
 sub loadMGIToDoTS {
 
-    my $args = "--mappingfiles '$pipelineDir/misc/DT_MGI_via_GB_graph_one_one_table,$pipelineDir/misc/MGI_DT_via_GB_graph_one_many_table' --db_id 4893";
+    my $args = "--mappingfiles '$pipelineDir/misc/DoTS_2_MGI' --pattern '\d+' --db_id 4893";
 
-    $mgr->runPlugin("loadMGIMapping", "InsertDbRefAndDbRefNASequence", $args, "loading MGI to DoTS mapping",'loadMGIAndGeneCards');
+    $mgr->runPlugin("loadMGIMapping", "InsertDbRefAndDbRefNASequence", $args, "loading MGI to DoTS mapping",'loadMGI');
 }
 
 sub loadMGIInfo {
 
     my $args = "--inputfile /usr/local/db/local/mgi/MRK_List2.sql.rpt";
 
-    $mgr->runPlugin("loadNRDB", "LoadNRDB", $args, "Loading NRDB", 'downloadNRDB');
+    $mgr->runPlugin("loadMGIInfo", "LoadMGIInfo", $args, "Loading MGI Info",'loadMGI' );
     
+}
+
+sub deleteGeneCardsToDots {
+    
+    my $signal = "deleteGeneCardsToDots";
+
+    return if $mgr->startStep("Deleting GeneCards to DoTS entries from DbRefNASequence", $signal,'loadGeneCards');
+    
+    my $logFile = "$pipelineDir/logs/${signal}.log";
+
+    my $sql = "select db_ref_id from dbref where external_db_id = 4892";
+
+    my $cmd = "deleteEntries.pl --table DbRefNASequence --idSQL \"$sql\" --verbose 2>> $logFile";
+    
+    $mgr->runCmd($cmd);
+
 }
     
 sub loadGeneCardsToDoTS {
 
-    my $args = "--mappingfiles '$pipelineDir/misc/???? --db_id 4892";
+    my $args = "--mappingfiles '$pipelineDir/misc/DoTS_2_GeneCards' --pattern '\S+' --db_id 4892";
 
-    $mgr->runPlugin("loadGeneCardsMapping", "InsertDbRefAndDbRefNASequence", $args, "loading GeneCards to DoTS mapping",'loadMGIAndGeneCards');
+    $mgr->runPlugin("loadGeneCardsMapping", "InsertDbRefAndDbRefNASequence", $args, "loading GeneCards to DoTS mapping",'loadGeneCards');
 }
 
 #sub to dump framefinder translations for download site
@@ -1842,13 +1966,57 @@ sub loadGeneCardsToDoTS {
 #alter for mus, etc
 #}
 
+sub deleteGeneCardsToDots {
+    
+    my $signal = "deleteLocusLinkToDots";
+
+    return if $mgr->startStep("Deleting LocusLink to DoTS entries from DbRefNASequence", $signal,'loadLocusLink');
+    
+    my $logFile = "$pipelineDir/logs/${signal}.log";
+
+    my $sql = "select db_ref_id from dbref where external_db_id = 6095";
+
+    my $cmd = "deleteEntries.pl --table DbRefNASequence --idSQL \"$sql\" --verbose 2>> $logFile";
+    
+    $mgr->runCmd($cmd);
+
+}
+
 sub loadGEAToDoTS {
 
-    my $args = "--mappingfiles  --db_id ";
+    my $args = "--mappingfiles '$pipelineDir/misc/DoTS_2_LL' --pattern '\d+'  --db_id 6095";
 
     $mgr->runPlugin("loadGEAMapping", "InsertDbRefAndDbRefNASequence", $args, "loading GEA to DoTS mapping",'loadMGIAndGeneCards');
 }
 
+sub makeProjectLink {
+
+    my $signal = "makeProjectLink";
+
+    return if $mgr->startStep("Deleting LocusLink to DoTS entries from DbRefNASequence", $signal);
+
+    my $taxonId = $propertySet->getProp('taxonId');
+
+    my $allgenesVer = $propertySet->getProp('allgenesVersion');
+
+    my $dbPassword = $propertySet->getProp('dbPassword');
+
+    my $args;
+
+    if ($propertySet->getProp('projectLinkRestart') eq "yes") {
+
+	$args = "--commit --verbose --restart --allgenes_num $allgenesVer --password $dbPassword --taxon $taxonId";
+    }
+    else {
+
+	$args = "--commit --verbose --allgenes_num $allgenesVer --password $dbPassword --taxon $taxonId";
+    }
+
+    my $cmd = "makeProjectLink.pl $args";
+
+    
+    $mgr->runCmd($cmd);
+}
 
 sub usage {
     print STDERR "usage:  dotsbuild propertiesfile\n";
