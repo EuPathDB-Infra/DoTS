@@ -7,19 +7,26 @@
 ## Brian Brunk 07/14/2000
 
 use strict;
-use DBI;
 use Getopt::Long;
-use Objects::GUS::ObjRelP::DbiDatabase;
+use GUS::ObjRelP::DbiDatabase;
 
-my ($querySQL,$subjectSQL,$verbose,$nrdbFile);
-&GetOptions("querySQL=s" => \$querySQL, 
-						"subjectSQL=s" => \$subjectSQL, 
-						"verbose!"=> \$verbose,
+my ($querySQL,$subjectSQL,$verbose,$nrdbFile, $gusConfigFile);
+&GetOptions("querySQL=s" => \$querySQL,
+	    "subjectSQL=s" => \$subjectSQL, 
+	    "gusConfigFile=s" => \$gusConfigFile, 
+	    "verbose!"=> \$verbose,
             "nrdbFile=s" => \$nrdbFile);
 
 die "you MUST provide --querySQL and/or --subjectSQL and optionally --nrdbFile --verbose on command line each of which must return the idFromWhichtoChange, PrimaryKeyId\n" unless ($querySQL || $subjectSQL); 
 
-my $db = new GUS::ObjRelP::DbiDatabase( undef, 'GUSrw', 'pskwa82', $verbose, 0, 1, 'GUSdev' );
+my $gusconfig = GUS::Common::GusConfig->new($gusConfigFile);
+
+my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
+					$gusconfig->getReadOnlyDatabaseLogin(),
+					$gusconfig->getReadOnlyDatabasePassword,
+					$verbose,0,1,
+					$gusconfig->getCoreSchemaName());
+
 my $dbh = $db->getQueryHandle();
 
 $verbose = 1;

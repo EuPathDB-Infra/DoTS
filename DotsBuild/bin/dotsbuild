@@ -1,10 +1,8 @@
 #!/usr/bin/perl
 use strict;
 
-use Pipeline::Manager;
-use Pipeline::MakeTaskDirs;
-use Common::PropertySet;
-use Common::Utils;
+use GUS::Pipeline::Manager;
+use CBIL::Util::PropertySet;
 use File::Basename;
 
 $| = 1;
@@ -68,10 +66,12 @@ my @properties =
  ["loadGeneCards",   "",  "yes or no"],
  ["downloadGOStuff",   "",  "yes or no"],
  ["prodomRelease",   "",  "eg 2001.3"],
- ["prodom_db_id",   "",  "a new id for the external_db_id table"],
- ["load_db_id",   "",  "a new id for the external_db_id table"],
- ["pfam_db_id",   "",  "a new id for the external_db_id table"],
- ["smart_db_id",   "",  "a new id for the external_db_id table"],
+ ["prodom_db_rls_id",   "",  "a new id for the external_database_release table"],
+ ["load_db_rls_id",   "",  "a new id for the external_database_release table"],
+ ["pfam_db_rls_id",   "",  "a new id for the external_database_release table"],
+ ["smart_db_rls_id",   "",  "a new id for the external_database_release table"],
+ ["nrdb_db_rls_id" , "","the external_database_release_id for nrdb"],
+ ["imclone_db_rls_id" , "","the external_database_release_id for imclone"],
  ["makeNewGORules",   "",  "yes or no. Regenerate the GO rules from scratch"],
  ["GOversion",   "",  "version of GO, eg, 2.155"],
  ["GOrootId",   "",  "only until GUS 3.0, eg, 59235"],
@@ -79,7 +79,9 @@ my @properties =
  ["dbUser",   "", "database user, eg gusrw"],
  ["buildDate" ,   "", "approximate start date of build"],
  ["wordfile" ,   "", "file of word probabilities for framefinder"],
- ["ffRestart" ,  "","list of algorithm_invocation_id for restart of FrameFinder plugin, eg '1,2,3'"],
+ ["frameFinderRestart" ,  "","list of algorithm_invocation_id for restart of FrameFinder plugin, eg '1,2,3'"],
+ ["frameFinderDir" ,  "","directory in which to find the framefinder program"],
+ ["dianaDir" ,  "","directory in which to find the diana program"],
  ["userId" ,  "","database user_id from UserInfo table in GUS"],
  ["iPSRestart" , "","list of algorithm_invocation_id for restart of insertProteinSimilaritiesPK, see ffRestart"],
  ["assignDescriptionRestart" , "","list of algorithm_invocation_id for restart of AssignSequenceDescription"],
@@ -89,14 +91,14 @@ my @properties =
  ["nrdbTempLogin" , "","login for temp table space, e.g. pinney@gusdev"],
  ["nrdbTempPassword" , "","password for temp table space"],
  ["loadGeneTrapAssembly", "", "yes or no"],
- ["geneTrapDB", "", "external_db_id,name abbreviation pairs for gene trap sequences e.g. 3692,stl,5393,ggtc"],
+ ["geneTrapDbRls", "", "name:external_database_release_id abbreviation pairs for gene trap sequences e.g. stl:3692,ggtc:5393"],
  ["loadLocusLink", "", "yes or no"],
  ["projectLinkRestart", "", "yes or no"],
  ["allgenesVersion", "", "version number for allgenes, e.g. 5.0"],
  ["downloadDir", "", "directory for downloaded data from external databases"]
  ); 
 
-my $propertySet  = Common::PropertySet->new($propertiesFile, \@properties);
+my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
 
 my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
 my $buildName = $propertySet->getProp('buildName');
@@ -105,7 +107,7 @@ my $pipelineDir = "$dotsBuildDir/$buildName";
 
 ###################  The Pipeline  ##########################
 
-my $mgr = Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFile);
+my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFile);
 
 &createDotsPipelineDir($propertySet);
 
@@ -381,17 +383,20 @@ sub createDotsPipelineDir {
 		   $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
 
     &makeSimilarityDir("finalDots", "nrdb", $buildName, $dotsBuildDir, 
-		       $serverPath, $nodePath, $bsTaskSize, $wuBlastBinPathLiniac,
+		       $serverPath, $nodePath, $bsTaskSize, 
+		       $wuBlastBinPathLiniac,
 		       "nrdb.fsa", '(\d+)', 'blastx', 
 		       '-wordmask=seg+xnu', 'W=3', 'T=1000','B=$bsBparam','V=$bsVparam','E=$bsEparam');
 
     &makeSimilarityDir("finalDots", "prodom", $buildName, $dotsBuildDir, 
-		       $serverPath, $nodePath, $bsTaskSize, $wuBlastBinPathLiniac,
+		       $serverPath, $nodePath, $bsTaskSize, 
+		       $wuBlastBinPathLiniac,
 		       "prodom.fsa", '(\S+)', 'blastx', 
 		       '-wordmask=seg+xnu', 'W=3', 'T=1000','B=$bsBparam','V=$bsVparam','E=$bsEparam');
 
     &makeSimilarityDir("finalDots", "cdd", $buildName, $dotsBuildDir, 
-		       $serverPath, $nodePath, $bsTaskSize, $ncbiBlastBinPathLiniac,
+		       $serverPath, $nodePath, $bsTaskSize, 
+		       $ncbiBlastBinPathLiniac,
 		       "cdd/All",  '\w+\|\w+\|(\S+)', 'rpsblast', 
 		       '-a 2', '-e .1', '-p F');
 
@@ -575,7 +580,8 @@ sub makeAssemSeqs {
 
     my $args = "--taxon_id=$taxonId";
 
-    $mgr->runPlugin("makeAssemSeqs", "DoTS::DotsBuild::Plugin::MakeAssemblySequences", $args,
+    $mgr->runPlugin("makeAssemSeqs", 
+		    "DoTS::DotsBuild::Plugin::MakeAssemblySequences", $args,
 		    "Making assembly table sequences");
 }
 
@@ -586,7 +592,8 @@ sub extractAssemSeqs {
     my $outputFile = "$pipelineDir/seqfiles/assemSeqs.fsa"; 
     my $args = "--taxon_id=$taxonId --outputfile $outputFile --extractonly";
 
-    $mgr->runPlugin("extractAssemSeqs", "DoTS::DotsBuild::Plugin::ExtractAndBlockAssemblySequences", 
+    $mgr->runPlugin("extractAssemSeqs", 
+		   "DoTS::DotsBuild::Plugin::ExtractAndBlockAssemblySequences",
 		    $args, "Extracting assembly table sequences");
 
     # a HACK until we fix the plugin (note: its not protected by a signal)
@@ -611,7 +618,9 @@ sub extractDots {
     my $seqFile = "$pipelineDir/seqfiles/$name.fsa";
     my $logFile = "$pipelineDir/logs/${name}Extract.log";
 
-    my $cmd = "dumpSequencesFromTable.pl --outputFile $seqFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"select $DTprefix na_sequence_id,'[$species]',description,'('||number_of_contained_sequences||' sequences)','length='||length,sequence from Assembly where taxon_id = $taxonId\" 2>>  $logFile";
+    my $sql = "select $DTprefix na_sequence_id,'[$species]',description,'('||number_of_contained_sequences||' sequences)','length='||length,sequence from dots.Assembly where taxon_id = $taxonId";
+
+    my $cmd = "dumpSequencesFromTable.pl --outputFile $seqFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"$sql\" 2>>  $logFile";
 
     $mgr->runCmd($cmd);
 
@@ -851,6 +860,8 @@ sub insertNRDB {
 
     my $restart = $propertySet->getProp('nrdbRestart');
 
+    my $nrdbReleaseId = $propertySet->getProp('nrdb_db_rls_id');
+
     my $args = "--verbose --temp_login $temp_login --temp_password $temp_password --restart --gitax $gitax --nrdb $nrdb --maketemp --plugin --delete";
 
     $mgr->runPlugin("GUS::Common::Plugin::loadNRDB", "LoadNRDB", $args, "Loading NRDB", 'downloadNRDB');
@@ -860,7 +871,9 @@ sub insertNRDB {
 
 sub extractNRDB {
 
-    my $sql = "select aa_sequence_id,'source_id='||source_id,'secondary_identifier='||secondary_identifier,description,'length='||length,sequence from ExternalAASequence where external_db_id = 4194";
+    my $nrdbReleaseId = $propertySet->getProp('nrdb_db_rls_id');
+
+    my $sql = "select aa_sequence_id,'source_id='||source_id,'secondary_identifier='||secondary_identifier,description,'length='||length,sequence from dots.ExternalAASequence where external_database_release_id = $nrdbReleaseId";
     
     extractProteinSeqs("nrdb", $sql);
 }
@@ -938,41 +951,45 @@ sub unpackCDD {
 
 sub insertCDD {
 
-    my $loadDB = $propertySet->getProp('load_db_id');
+    my $loadDB = $propertySet->getProp('load_db_rls_id');
     
     # >gnl|CDD|3794 LOAD_ACT, ACT, small ligand binding domain
     my $regex_src_id = "^\\>\\w+\\|\\w+\\|\\w+\\s(LOAD[\\_\\w]+)\\,\\s";
     my $regex_name = "^\\S+\\sLOAD[\\_\\w]+\\,\\s([\\w\\_\\s]+)\\,\\s";
     my $regex_desc = "^\\S+\\sLOAD[\\_\\w]+\\,\\s(.*)";
     
-    my $loadArgs = "--verbose --table_name 'MotifAASequence' --sequencefile '/usr/local/db/local/cdd/LOAD' --external_db_id $loadDB --regex_source_id \"$regex_src_id\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
+    my $loadArgs = "--verbose --table_name 'DoTS::MotifAASequence' --sequencefile '/usr/local/db/local/cdd/LOAD' --external_database_release_id $loadDB --regex_source_id \"$regex_src_id\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
 
-    $mgr->runPlugin("insertLoad", "GUS::Common::Plugin::InsertNewExternalSequences", $loadArgs,
+    $mgr->runPlugin("insertLoad", 
+		    "GUS::Common::Plugin::InsertNewExternalSequences", 
+		    $loadArgs,
 		   "Inserting Load", 'downloadGOStuff');
 
-    my $pfamDB = $propertySet->getProp('pfam_db_id');
+    my $pfamDB = $propertySet->getProp('pfam_db_rls_id');
 
     #>gnl|Pfam|pfam00291 PALP, Pyridoxal-phosphate dependent enzyme
     $regex_src_id = "^\\>\\w+\\|\\w+\\|\\w+\\s(pfam\\w+)";
     $regex_name = "^\\S+\\spfam\\w+\\,\\s([\\w\\_\\s]+)\\,\\s";
     $regex_desc = "^\\S+\\spfam\\w+\\,\\s(.*)";
     
-    my $pfamArgs = "--verbose --table_name 'MotifAASequence' --sequencefile '/usr/local/db/local/cdd/PFAM' --external_db_id $pfamDB --regex_source_id \"$regex_src_id\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
+    my $pfamArgs = "--verbose --table_name 'DoTS::MotifAASequence' --sequencefile '/usr/local/db/local/cdd/PFAM' --external_database_release_id $pfamDB --regex_source_id \"$regex_src_id\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
     
     $mgr->runPlugin("insertPfam", "GUS::Common::Plugin::InsertNewExternalSequences", $pfamArgs,
 		   "Inserting Pfam", 'downloadGOStuff');
     
-    my $smartDB = $propertySet->getProp('smart_db_id');
+    my $smartDB = $propertySet->getProp('smart_db_rls_id');
     
     #>gnl|Smart|smart00238 BIR, Baculoviral inhibition of apoptosis protein repeat; Domain found in inhibitor of apoptosis proteins (IAPs) and other proteins. Acts as a direct inhibitor of caspase enzymes
     $regex_src_id = "^\\>\\w+\\|\\w+\\|\\w+\\s(smart\\w+)";
     $regex_name = "^\\S+\\ssmart\\w+\\,\\s([\\w\\_\\s]+)\\,\\s";
     $regex_desc = "^\\S+\\ssmart\\w+\\,\\s(.*)";
     
-    my $smartArgs = "--verbose --table_name 'MotifAASequence' --sequencefile '/usr/local/db/local/cdd/SMART' --external_db_id $smartDB  --regex_source_id \"$regex_src_id\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
+    my $smartArgs = "--verbose --table_name 'DoTS::MotifAASequence' --sequencefile '/usr/local/db/local/cdd/SMART' --external_database_release_id $smartDB  --regex_source_id \"$regex_src_id\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
     
-    $mgr->runPlugin("insertSmart", "GUS::Common::Plugin::InsertNewExternalSequences", $smartArgs,
-	       "Inserting Smart", 'downloadGOStuff');
+    $mgr->runPlugin("insertSmart", 
+		    "GUS::Common::Plugin::InsertNewExternalSequences", 
+		    $smartArgs,
+		    "Inserting Smart", 'downloadGOStuff');
 
 }
 
@@ -1015,7 +1032,7 @@ sub insertProdom {
     my $prodomFile = "$downloadDir/prodom/$prodomRelease.forblast";
     my $logFile = "$pipelineDir/logs/insertProdom.log";
 
-    my $prodomDB = $propertySet->getProp('prodom_db_id');
+    my $prodomDB = $propertySet->getProp('prodom_db_rls_id');
 
     # PD000001 p2001.3 (5328) KIT(16) KPC1(13) CDC2(13) // KINASE TRANSFERASE ATP-BINDING SERINE/THREONINE-PROTEIN RECEPTOR TYROSINE-PROTEIN 2.7.1.-PHOSPHORYLATION PRECURSOR
 
@@ -1024,18 +1041,18 @@ sub insertProdom {
     my $regex_name = "(\\(.+)\\s\\/\\/";
     my $regex_desc = "\\/\\/\\s(.+)";
 
-    my $args = "--verbose --table_name MotifAASequence --sequencefile $prodomFile --external_db_id $prodomDB --regex_source_id \"$regex_src_id\"  --regex_contained_seqs \"$regex_contained_seqs\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
+    my $args = "--verbose --table_name DoTS::MotifAASequence --sequencefile $prodomFile --external_database_release_id $prodomDB --regex_source_id \"$regex_src_id\"  --regex_contained_seqs \"$regex_contained_seqs\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
 
-    $mgr->runPlugin("insertProdom", "GUS::Common::Plugin::InsertNewExternalSequences", $args,
-		   "Inserting Prodom", 'downloadGOStuff');
-
+    $mgr->runPlugin("insertProdom", 
+		    "GUS::Common::Plugin::InsertNewExternalSequences", $args,
+		    "Inserting Prodom", 'downloadGOStuff');
 }
 
 sub extractProdom {
 
-    my $prodomDB = $propertySet->getProp('prodom_db_id');
+    my $prodomDB = $propertySet->getProp('prodom_db_rls_id');
 
-    my $sql = "select aa_sequence_id,'source_id='||source_id,'secondary_identifier='||secondary_identifier,description,'length='||length,sequence from MotifAASequence where external_db_id = $prodomDB";
+    my $sql = "select aa_sequence_id,'source_id='||source_id,'secondary_identifier='||secondary_identifier,description,'length='||length,sequence from dots.MotifAASequence where external_database_release_id = $prodomDB";
     
     &extractProteinSeqs("prodom", $sql);
 }
@@ -1109,8 +1126,9 @@ sub deleteOldSimilarities {
 
     my $args = "--idSQL \"$sql\" --doNotVersion";
 
-    $mgr->runPlugin("deleteProteinSims", "GUS::Common::Plugin::DeleteSimilarities", $args, 
-	       "Deleting old protein similarities");
+    $mgr->runPlugin("deleteProteinSims", 
+		    "GUS::Common::Plugin::DeleteSimilarities", $args,
+		    "Deleting old protein similarities");
 }
 
 sub insertProteinSimilarities {
@@ -1123,17 +1141,20 @@ sub insertProteinSimilarities {
 
     my $args = "--files $file --verbose --restart $restart --query_table Assembly --subject_table $subjectTable --log_frequency 10 --limit_sub 50 --limit_hsp 10";
 
-    $mgr->runPlugin("loadSims_$name", "GUS::Common::Plugin::LoadBlastSimilaritiesPK", $args,
-	       "Loading $name similarities");
+    $mgr->runPlugin("loadSims_$name", 
+		    "GUS::Common::Plugin::LoadBlastSimilaritiesPK", $args,
+		    "Loading $name similarities");
 }
 
 sub substituteCDDPKs {
     
-    my $smartDB = $propertySet->getProp('smart_db_id');
+    my $smartDB = $propertySet->getProp('smart_db_rls_id');
 
-    my $pfamDB = $propertySet->getProp('pfam_db_id');
+    my $pfamDB = $propertySet->getProp('pfam_db_rls_id');
 
-    my $loadDB = $propertySet->getProp('load_db_id');
+    my $loadDB = $propertySet->getProp('load_db_rls_id');
+
+    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
 
     my $signal = "substituteCDDPKs";
 
@@ -1144,7 +1165,9 @@ sub substituteCDDPKs {
     my $outfile = "$pipelineDir/similarity/cdd/blastSimilarity.out.correctPK";
     my $logfile = "$pipelineDir/logs/$signal.log";
 
-    $mgr->runCmd("cat $infile | substitutePrimKeysInSimilarity --subjectSQL \"select source_id,aa_sequence_id from motifaasequence where external_db_id in ($smartDB,$pfamDB,$loadDB)\" --verbose > $outfile 2>> $logfile");
+    my $sql = "select source_id,aa_sequence_id from dots.motifaasequence where external_database_release_id in ($smartDB,$pfamDB,$loadDB)";
+
+    $mgr->runCmd("cat $infile | substitutePrimKeysInSimilarity --subjectSQL \"$sql\" --verbose --gusConfigFile $gusConfigFile > $outfile 2>> $logfile");
 
     $mgr->endStep($signal);
 }
@@ -1155,22 +1178,23 @@ sub assignSequenceDescription {
 
     my $dotsRelease = $propertySet->getProp('dotsRelease');
     my $speciesNickname = $propertySet->getProp('speciesNickname');
+    my $nrdbReleaseId = $propertySet->getProp('nrdb_db_rls_id');
 
     my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}"; 
 
     my $assignDescriptionRestart = $propertySet->getProp('assignDescriptionRestart');
 
-    my $restart = ($assignDescriptionRestart) ? "select na_sequence_id from assembly where row_alg_invocation_id in ($assignDescriptionRestart)" : "";
+    my $restart = ($assignDescriptionRestart) ? "select na_sequence_id from dots.assembly where row_alg_invocation_id in ($assignDescriptionRestart)" : "";
 
     my $dotsMGIfile = "$pipelineDir/misc/${prefix}_bestNRDBHits.dat";
-    my $sql = "select na_sequence_id,na_sequence_id from Assembly where taxon_id = $taxonId";
+    my $sql = "select na_sequence_id,na_sequence_id from dots.Assembly where taxon_id = $taxonId";
 
-    my $nrdbExtDbRlsId = ???;
+    my $args = "--update_rna_descriptions --copy_manual_descriptions --taxon_id $taxonId --table DoTS::Assembly --query_table DoTS::Assembly --doNotVersion --nrdb_ext_db_rls_id $nrdbReleaseId --dots_mgi_file $dotsMGIfile --restart \"$restart\" --idSQL \"$sql\"";
 
-    my $args = "--update_rna_descriptions --copy_manual_descriptions --taxon_id $taxonId --table GUS::Model::DoTS::Assembly --query_table GUS::Model::DoTS::Assembly --doNotVersion --nrdb_ext_db_rls_id $nrdbExtDbRlsId --dots_mgi_file $dotsMGIfile --restart \"$restart\" --idSQL \"$sql\"";
-
-    $mgr->runPlugin("assignSeqDescrip", "DoTS::DotsBuild::Plugin::AssignSequenceDescription", $args, 
-	       "Assigning sequence descriptions from MGI"); 
+    $mgr->runPlugin("assignSeqDescrip", 
+		    "DoTS::DotsBuild::Plugin::AssignSequenceDescription",
+		    $args,
+		    "Assigning sequence descriptions from MGI"); 
 }
 
 sub deleteIndexWords {
@@ -1181,81 +1205,90 @@ sub deleteIndexWords {
 
     my $taxonId = $propertySet->getProp('taxonId');
 
+    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
     my $logFile = "$pipelineDir/logs/$signal.log";
 
-    my $sql = "select index_word_link_id from indexwordlink l,assembly a where a.taxon_id = $taxonId and a.na_sequence_id = l.target_id and l.target_table_id = 56";
+    my $sql = "select index_word_link_id from dots.indexwordlink l,dots.assembly a where a.taxon_id = $taxonId and a.na_sequence_id = l.target_id and l.target_table_id = 56";
 
-    my $cmd = "deleteEntries.pl --table IndexWordLink --idSQL \"$sql\" --verbose 2>> $logFile";
-    
+    my $cmd = "deleteEntries.pl --gusConfigFile $gusConfigFile --table DoTS::IndexWordLink --idSQL \"$sql\" --verbose 2>> $logFile";
+
     $mgr->runCmd($cmd);
 
     $mgr->endStep($signal);
 }
 
 sub makeIndexWords {
-    
+
     my $taxonId = $propertySet->getProp('taxonId');
 
-    my $sql = "select na_sequence_id,description from Assembly where taxon_id = $taxonId";
+    my $sql = "select na_sequence_id,description from dots.Assembly where taxon_id = $taxonId";
 
-    my $args = "--attribute description --table Assembly --idSQL \"$sql\"";
+    my $args = "--attribute description --table DoTS::Assembly --idSQL \"$sql\"";
 
-    $mgr->runPlugin("makeIndexWords", "GUS::Common::Plugin::MakeIndexWordLink", $args, 
-	       "Indexes assembly description words and adds entries to IndexWordLink");
+    $mgr->runPlugin("makeIndexWords", 
+		    "GUS::Common::Plugin::MakeIndexWordLink", $args, 
+		    "Index assembly description words & add entries to IndexWordLink");
 }
  
 
 sub deleteNRDBIndexWords {
-    
-	my $signal = "deleteNRDBIndexWords";
-	
-	return if $mgr->startStep("Deleting nrdb index word links from GUS", $signal, 'downloadNRDB');
-	
-	my $buildDate = $propertySet->getProp('buildDate');
-	
-	my $logFile = "$pipelineDir/logs/$signal.log";
-	
-	my $sql = "select index_word_link_id from indexwordlink l,externalaasequence e where e.aa_sequence_id = l.target_id and l.target_table_id = 83 and e.external_db_id = 4194 and e.modification_date > '$buildDate'";
-	
-	my $cmd = "deleteEntries.pl --table IndexWordLink --idSQL \"$sql\" --verbose 2>> $logFile";
-	
-	$mgr->runCmd($cmd);
-	
-	$mgr->endStep($signal);
-}   
+
+  my $signal = "deleteNRDBIndexWords";
+
+  return if $mgr->startStep("Deleting nrdb index word links from GUS", $signal, 'downloadNRDB');
+
+  my $buildDate = $propertySet->getProp('buildDate');
+  my $nrdbReleaseId = $propertySet->getProp('nrdb_db_rls_id');
+
+  my $logFile = "$pipelineDir/logs/$signal.log";
+
+  my $sql = "select index_word_link_id from dots.indexwordlink l,dots.externalaasequence e where e.aa_sequence_id = l.target_id and l.target_table_id = 83 and e.external_database_release_id = $nrdbReleaseId  and e.modification_date > '$buildDate'";
+
+  my $cmd = "deleteEntries.pl --table DoTS::IndexWordLink --idSQL \"$sql\" --verbose 2>> $logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
 
 sub makeNRDBIndexWordLink {
-	
-	my $sql = "select aa_sequence_id, description from ExternalAASequence where external_db_id=4194 and aa_sequence_id not in (select target_id from IndexWordLink where target_table_id=83)";
 
-	my $args = "--attribute description --table ExternalAASequence --idSQL \"$sql\"";
+  my $nrdbReleaseId = $propertySet->getProp('nrdb_db_rls_id');
 
-	$mgr->runPlugin("makeNRDBIndexWordLink", "GUS::Common::Plugin::MakeIndexWordLink", $args, 
-	       "Making nrdb index word links", 'downloadNRDB');
+  my $sql = "select aa_sequence_id, description from dots.ExternalAASequence where external_database_release_id=$nrdbReleaseId and aa_sequence_id not in (select target_id from  dots.IndexWordLink where target_table_id=83)";
+
+  my $args = "--attribute description --table ExternalAASequence --idSQL \"$sql\"";
+
+  $mgr->runPlugin("makeNRDBIndexWordLink", 
+		  "GUS::Common::Plugin::MakeIndexWordLink", $args, 
+		  "Making nrdb index word links", 'downloadNRDB');
 }
  
 sub indexSimilarityWords { 
 
     my $taxonId = $propertySet->getProp('taxonId');
 
-    my $sql = "select distinct a.na_sequence_id from similarity s, assembly a where s.query_table_id = 56 and s.subject_table_id = 277 and s.query_id = a.na_sequence_id and a.taxon_id = $taxonId";
+    my $sql = "select distinct a.na_sequence_id from dots.similarity s, dots.assembly a where s.query_table_id = 56 and s.subject_table_id = 277 and s.query_id = a.na_sequence_id and a.taxon_id = $taxonId";
     
-    my $args = "--similarity_table MotifAASequence --target_table Assembly --idSQL \"$sql\"";
+    my $args = "--similarity_table DoTS::MotifAASequence --target_table DoTS::Assembly --idSQL \"$sql\"";
 
-    $mgr->runPlugin("indexSimilarityWords", "GUS::Common::Plugin::MakeIndexWordSimLink", $args, 
-	       "Indexing words in similarity descriptions");
+    $mgr->runPlugin("indexSimilarityWords", 
+		    "GUS::Common::Plugin::MakeIndexWordSimLink", $args, 
+		    "Indexing words in similarity descriptions");
 }
 
 sub indexNRDBWords { 
 
     my $taxonId = $propertySet->getProp('taxonId');
 
-    my $sql = "select distinct a.na_sequence_id from similarity s, assembly a where s.query_table_id = 56 and s.subject_table_id = 83 and s.query_id = a.na_sequence_id and a.taxon_id = $taxonId";
+    my $sql = "select distinct a.na_sequence_id from dots.similarity s, dots.assembly a where s.query_table_id = 56 and s.subject_table_id = 83 and s.query_id = a.na_sequence_id and a.taxon_id = $taxonId";
     
-    my $args = "--similarity_table ExternalAASequence --target_table Assembly --idSQL \"$sql\"";
+    my $args = "--similarity_table DoTS::ExternalAASequence --target_table DoTS::Assembly --idSQL \"$sql\"";
 
-    $mgr->runPlugin("indexNRDBWords", "GUS::Common::Plugin::MakeIndexWordSimLink", $args, 
-	       "Indexing words in NRDB descriptions");
+    $mgr->runPlugin("indexNRDBWords", 
+		    "GUS::Common::Plugin::MakeIndexWordSimLink", $args, 
+		    "Indexing words in NRDB descriptions");
 }
 
 
@@ -1267,6 +1300,8 @@ sub getIdsPerAssembly {
 
     my $taxonId = $propertySet->getProp('taxonId');
 
+    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
     my $dotsRelease = $propertySet->getProp('dotsRelease');
     my $speciesNickname = $propertySet->getProp('speciesNickname');
 
@@ -1274,7 +1309,7 @@ sub getIdsPerAssembly {
 
     my $output  = "$pipelineDir/misc/${prefix}_accessionsPerAssembly.dat";
 
-    my $cmd = "getIdsPerAssembly --taxon_id $taxonId > $output";
+    my $cmd = "getIdsPerAssembly --taxon_id $taxonId --gusConfigFile $gusConfigFile  > $output";
 
     $mgr->runCmd($cmd);
 
@@ -1290,7 +1325,9 @@ sub getImcloneOnlyAssemblies {
 
     my $taxonId = $propertySet->getProp('taxonId');
 
-    my $sql = "select distinct (s.assembly_na_sequence_id) from assemblysequence s, externalnasequence e where s.na_sequence_id = e.na_sequence_id and e.taxon_id = 14 and e.external_db_id = 3892 minus (select s.assembly_na_sequence_id from assemblysequence s, externalnasequence e where s.na_sequence_id = e.na_sequence_id and e.taxon_id = $taxonId and e.external_db_id != 3892)";
+    my $imcloneReleaseId = $propertySet->getProp('imclone_db_rls_id');
+
+    my $sql = "select distinct (s.assembly_na_sequence_id) from dots.assemblysequence s, dots.externalnasequence e where s.na_sequence_id = e.na_sequence_id and e.taxon_id = 14 and e.external_database_release_id = $imcloneReleaseId minus (select s.assembly_na_sequence_id from dots.assemblysequence s, dots.externalnasequence e where s.na_sequence_id = e.na_sequence_id and e.taxon_id = $taxonId and e.external_database_release_id != $imcloneReleaseId)";
 
     my $output = "$pipelineDir/misc/imcloneOnlyAssemblies.dat";
 
@@ -1329,7 +1366,9 @@ sub prepareDownloadSiteFiles {
 
     my $logFile = "$pipelineDir/logs/${fastaFile}Extract.log";
 
-    my $cmd = "dumpSequencesFromTable.pl --outputFile $pipelineDir/seqfiles/$fastaFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"select 'DT.'||na_sequence_id,'[$species]',description,'('||number_of_contained_sequences||' sequences)','length='||length,sequence from Assembly where taxon_id = $taxonId\" 2>>  $logFile";
+    my $sql = "select 'DT.'||na_sequence_id,'[$species]',description,'('||number_of_contained_sequences||' sequences)','length='||length,sequence from dots.Assembly where taxon_id = $taxonId";
+
+    my $cmd = "dumpSequencesFromTable.pl --outputFile $pipelineDir/seqfiles/$fastaFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"$sql\" 2>>  $logFile";
 
 
     $mgr->runCmd($cmd);
@@ -1480,7 +1519,9 @@ sub markBadSeqs {
 
     my $args = "--filename $file --processed_category repeat --regex_id \"$regex\"";
 
-    $mgr->runPlugin("markBadSeqs", "DoTS::DotsBuild::Plugin::MarkAssemblySequencesBad", $args, 
+    $mgr->runPlugin("markBadSeqs", 
+		    "DoTS::DotsBuild::Plugin::MarkAssemblySequencesBad", 
+		    $args, 
 		    "Marking bad assembly table sequences");
 }
 
@@ -1533,9 +1574,10 @@ sub insertEPCR {
     my $epcrFile = "$pipelineDir/epcr/finalDots.epcr";
     my $logFile = "$pipelineDir/logs/$signal.log";
 
-    my $args = "--maptable GeneMap --idcol string1 --file $epcrFile --dir $pipelineDir/plugins/$signal --log $logFile --maptableid 366 --seqsubclassview Assembly";
+    my $args = "--idcol string1 --file $epcrFile --dir $pipelineDir/plugins/$signal --log $logFile --maptableid 2782 --seqsubclassview Assembly";
 
-    $mgr->runPlugin($signal, "DoTS::DotsBuild::Plugin::LoadEPCR", $args, "Inserting EPCR");
+    $mgr->runPlugin($signal, "DoTS::DotsBuild::Plugin::LoadEPCR", 
+		    $args, "Inserting EPCR");
 }
 
 sub downloadGOAssoc{
@@ -1727,11 +1769,13 @@ sub deleteAnatomyPercent {
     
     my $taxonId = $propertySet->getProp('taxonId');
 
+    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
     my $logFile = "$pipelineDir/logs/${signal}.log";
 
-    my $sql = "select assembly_anatomy_percent_id from assemblyanatomypercent where na_sequence_id in (select  na_sequence_id from assembly where taxon_id = $taxonId)";
+    my $sql = "select assembly_anatomy_percent_id from dots.assemblyanatomypercent where na_sequence_id in (select  na_sequence_id from dots.assembly where taxon_id = $taxonId)";
 
-    my $cmd = "deleteEntries.pl --table AssemblyAnatomyPercent --idSQL \"$sql\" --verbose 2>> $logFile";
+    my $cmd = "deleteEntries.pl --table DoTS::AssemblyAnatomyPercent --gusConfigFile $gusConfigFile --idSQL \"$sql\" --verbose 2>> $logFile";
     
     $mgr->runCmd($cmd);
 
@@ -1742,11 +1786,14 @@ sub insertAnatomyPercent {
     
     my $taxonId = $propertySet->getProp('taxonId');
 
-    my $idSQL = "select na_sequence_id from Assembly where taxon_id = $taxonId";
+    my $idSQL = "select na_sequence_id from dots.Assembly where taxon_id = $taxonId";
 
     my $args = "--idSQL \"$idSQL\" --taxonId $taxonId";
 
-    $mgr->runPlugin("insertAnatomyPercent", "DoTS::DotsBuild::Plugin::AssignLibraryDistributionToAssemblies", $args, "mapping assemblies onto anatomy_id in AssemblyAnatomypercent");
+    $mgr->runPlugin("insertAnatomyPercent", 
+		    "DoTS::DotsBuild::Plugin::AssignLibraryDistributionToAssemblies", 
+		    $args, 
+		    "mapping assemblies onto anatomy_id in AssemblyAnatomypercent");
 
 } 
 
@@ -1757,16 +1804,20 @@ sub makeFrameFinder {
 
     my $taxonId = $propertySet->getProp('taxonId');
 
-    my $idSQL = "select na_sequence_id from assembly where taxon_id = $taxonId";
+    my $idSQL = "select na_sequence_id from dots.assembly where taxon_id = $taxonId";
 
     my $wordfile = $propertySet->getProp('wordfile'); 
 
-    my $restart = $propertySet->getProp('ffRestart');
+    my $restart = $propertySet->getProp('frameFinderRestart');
 
-    my $args = "--wordfile $wordfile --restart $restart --idSQL \"$idSQL\" ";
+    my $ffDir = $propertySet->getProp('frameFinderDir');
+    my $dianaDir = $propertySet->getProp('dianaDir');
 
-    $mgr->runPlugin("makeFramefinder", "DoTS::DotsBuild::Plugin::FrameFinder", $args, "running FrameFinder plugin"); 
+    my $args = "--wordfile $wordfile --restart $restart --ffdir $ffDir --dianadir $dianaDir --idSQL \"$idSQL\" ";
 
+    $mgr->runPlugin("makeFramefinder", 
+		    "DoTS::DotsBuild::Plugin::FrameFinder",
+		    $args, "running FrameFinder plugin");
 }
 
 sub cleanGORules{
@@ -1785,9 +1836,9 @@ sub versionGeneTrapAssembly {
 
     my $logFile = "$pipelineDir/logs/${signal}.log";
 
-    my $sql = "select gene_trap_assembly_id from genetrapassembly g, assembly a where a.na_sequence_id=g.assembly_na_sequence_id and a.taxon_id=$taxonId";
+    my $sql = "select gene_trap_assembly_id from dots.genetrapassembly g, dots.assembly a where a.na_sequence_id=g.assembly_na_sequence_id and a.taxon_id=$taxonId";
 
-    my $cmd = "versionEntries.pl --table GeneTrapAssembly --idSQL \"$sql\" --tablePK 'gene_trap_assembly_id' --userId $userId --verbose 2>> $logFile";
+    my $cmd = "versionEntries.pl --table DoTS::GeneTrapAssembly --idSQL \"$sql\" --tablePK 'gene_trap_assembly_id' --userId $userId --verbose 2>> $logFile";
     
     $mgr->runCmd($cmd);
 }
@@ -1802,9 +1853,9 @@ sub deleteGeneTrapAssembly {
 
     my $logFile = "$pipelineDir/logs/${signal}.log";
 
-    my $sql = "select gene_trap_assembly_id from genetrapassembly g, assembly a where a.na_sequence_id=g.assembly_na_sequence_id and a.taxon_id=$taxonId";
+    my $sql = "select gene_trap_assembly_id from dots.genetrapassembly g, dots.assembly a where a.na_sequence_id=g.assembly_na_sequence_id and a.taxon_id=$taxonId";
 
-    my $cmd = "deleteEntries.pl --table GeneTrapAssembly --idSQL \"$sql\" --verbose 2>> $logFile";
+    my $cmd = "deleteEntries.pl --table DoTS::GeneTrapAssembly --idSQL \"$sql\" --verbose 2>> $logFile";
     
     $mgr->runCmd($cmd);
 } 
@@ -1818,14 +1869,16 @@ sub extractGeneTrapTags {
     my $gusConfigFile = $propertySet->getProp('gusConfigFile');
 
     my $taxonId = $propertySet->getProp('taxonId');
-    
-    my %external_databases = $propertySet->getProp('geneTagDB');
+    my @DBs = split(/,/, $propertySet->getProp('geneTrapDbRls'));
 
-    foreach my $db_id (keys %external_databases) {
-	my $database_name = $external_databases{$db_id};
-	my $seqFile = "$pipelineDir/genetrap/${database_name}.fsa";
-	my $logFile = "$pipelineDir/logs/geneTrapTag{database_name}.log";
-	my $cmd = "dumpSequencesFromTable.pl --outputFile $seqFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"select na_sequence_id,sequence from ExternalNASequence where taxon_id = 14 and external_db_id = $db_id\" 2>>  $logFile";
+    foreach my $db (@DBs) {
+	my ($name, $id) = split(/:/, $db);
+	my $seqFile = "$pipelineDir/genetrap/${name}.fsa";
+	my $logFile = "$pipelineDir/logs/geneTrapTag${name}.log";
+
+	my $sql = "select na_sequence_id,sequence from dots.ExternalNASequence where taxon_id = 14 and external_database_release_id = $id";
+
+	my $cmd = "dumpSequencesFromTable.pl --outputFile $seqFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"$sql\" 2>>  $logFile";
 
 	$mgr->runCmd($cmd);
     }
@@ -1955,9 +2008,9 @@ sub deleteMGIToDots {
     
     my $logFile = "$pipelineDir/logs/${signal}.log";
 
-    my $sql = "select db_ref_id from dbref where external_db_id = 4893";
+    my $sql = "select db_ref_id from sres.dbref where external_db_id = 4893";
 
-    my $cmd = "deleteEntries.pl --table DbRefNASequence --idSQL \"$sql\" --verbose 2>> $logFile";
+    my $cmd = "deleteEntries.pl --table DoTS::DbRefNASequence --idSQL \"$sql\" --verbose 2>> $logFile";
     
     $mgr->runCmd($cmd);
 
@@ -1986,9 +2039,9 @@ sub deleteGeneCardsToDots {
     
     my $logFile = "$pipelineDir/logs/${signal}.log";
 
-    my $sql = "select db_ref_id from dbref where external_db_id = 4892";
+    my $sql = "select db_ref_id from sres.dbref where external_db_id = 4892";
 
-    my $cmd = "deleteEntries.pl --table DbRefNASequence --idSQL \"$sql\" --verbose 2>> $logFile";
+    my $cmd = "deleteEntries.pl --table SRes::DbRefNASequence --idSQL \"$sql\" --verbose 2>> $logFile";
     
     $mgr->runCmd($cmd);
 
@@ -2016,9 +2069,9 @@ sub deleteGeneCardsToDots {
     
     my $logFile = "$pipelineDir/logs/${signal}.log";
 
-    my $sql = "select db_ref_id from dbref where external_db_id = 6095";
+    my $sql = "select db_ref_id from sres.dbref where external_db_id = 6095";
 
-    my $cmd = "deleteEntries.pl --table DbRefNASequence --idSQL \"$sql\" --verbose 2>> $logFile";
+    my $cmd = "deleteEntries.pl --table SRes::DbRefNASequence --idSQL \"$sql\" --verbose 2>> $logFile";
     
     $mgr->runCmd($cmd);
 

@@ -9,31 +9,26 @@ use DBI;
 use Getopt::Long;
 use Objects::GUS::ObjRelP::DbiDatabase;
 
-my ($login,$password,$debug,$verbose,$outFile,$idSQL,$minLength,$database);
+my ($debug,$verbose,$outFile,$idSQL,$gusConfigFile);
 &GetOptions("verbose!"=> \$verbose,
             "outputFile=s" => \$outFile,"idSQL=s" => \$idSQL, 
-	    "login=s" => \$login,"password=s" => \$password,
-            "database=s" => \$database );
+            "gusConfigFile=s" => \$gusConfigFile );
 
 if(!$idSQL || !$outFile){
-	die "usage: getPrimaryIds.pl --outputFile <outfile> --verbose --debug --idSQL 'sql stmt that returns primary_identifiers' --login [GUSrw] --database [GUSdev]\n";
-}
-
-##set the defaults
-$database = $database ? $database : "GUSdev";
-$login = $login ? $login : 'gusrw';
-
-if(!$password){
-  print STDERR "Enter the password for login $login\n";
-  $password = <STDIN>;
-  chomp $password;
+	die "usage: getPrimaryIds.pl --outputFile <outfile> --verbose --debug --idSQL 'sql stmt that returns primary_identifiers' --gusConfigFile [\$GUS_CONFIG_FILE]\n";
 }
 
 print STDERR "Establishing dbi login\n" if $verbose;
-my $db = new GUS::ObjRelP::DbiDatabase( undef, $login, $password, $verbose, 0, 1, $database );
+
+my $gusconfig = GUS::Common::GusConfig->new($gusConfigFile);
+
+my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
+					$gusconfig->getReadOnlyDatabaseLogin(),
+					$gusconfig->getReadOnlyDatabasePassword,
+					$verbose,0,1,
+					$gusconfig->getCoreSchemaName());
 
 my $dbh = $db->getQueryHandle();
-
 
 open(OUT,">>$outFile");
 

@@ -37,7 +37,8 @@ my ($verbose,$percentCutoff,$lengthCutoff,$chimeraFile,$ignoreFile,$files,
     $consistentEnds, $minConnections,$logBase,$sort,$logBase2,$logBaseMax,
     $iterateCliqueSize,$iterateLogBase,$iterateLogBase2,$iterateLogBaseMax,
     $help,$iterateDescending,$minIterateLogBase,$useAllLinks,$useCloneIds,
-    $reassignLinkNodes,$iterateCliqueSizeArray,$iterateLogBaseArray);
+    $reassignLinkNodes,$iterateCliqueSizeArray,$iterateLogBaseArray,
+   $gusConfigFile);
 
 &GetOptions("verbose!"=> \$verbose,
             "percentCutoff=i"=>\$percentCutoff,
