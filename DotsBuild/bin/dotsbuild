@@ -637,11 +637,11 @@ sub downloadNRDB {
 
     $mgr->runCmd("mkdir -p $downloadSubDir");
 
-    my $cmd = "wget -t5 -b -m -np -nd -nH -o $logfile --cut-dirs=4 -A \"nr.Z\"  -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/blast/db/FASTA/";
+    my $cmd = "wget -t5 -b -m -np -nd -nH -o $logfile --cut-dirs=4 -A \"nr.gz\"  -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/blast/db/FASTA/";
 	
     $mgr->runCmd($cmd);
 
-    $mgr->runCmd("uncompress $downloadSubDir/nr.Z");
+    $mgr->runCmd("gunzip $downloadSubDir/nr.gz");
 
     $mgr->endStep($signal);
 }
