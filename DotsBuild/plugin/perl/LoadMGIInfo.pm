@@ -139,9 +139,8 @@ sub updateDbRef($dataHash) {
 	my $lowercase_secondary_identifier = lc($secondary_identifier);
 	
 	my $newDbRef = GUS::Model::SRes::DbRef->new({'primary_identifier'=>$id,'external_database_release_id'=>$external_db_release_id});
-	
 	$newDbRef->retrieveFromDB;
-	
+
 	if ($chromosome ne $newDbRef->get('chromosome')) {
 	    
 	    $newDbRef->setChromosome($chromosome);
