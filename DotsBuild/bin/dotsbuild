@@ -104,6 +104,8 @@ my @properties =
  ["GOrootId",   "",  "only until GUS 3.0, eg, 59235"],
  ["GOversion",   "",  "version of GO, eg, 2.155"],
  ["gusConfigFile",           "",  ""],
+ ["h-inv_db_id", "","external_database_id for H-invitational"],
+ ["h-inv_db_rls_id", "","external_database_release_id for H-invitational"],
  ["imclone_db_rls_id" , "","the external_database_release_id for imclone"],
  ["includeSubspecies", "","yes or no"],
  ["indexNRDBWordsRestart", "","yes or no"],
@@ -425,6 +427,12 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 &loadLocusLinkInfo($mgr);
 
 &downloadHInvitationalFile($mgr);
+
+&parseHinvitationalFile($mgr);
+
+&deleteHinvitational2NaSeqId($mgr);
+
+&loadHinvitational2NaSeqId($mgr);
 
 &downloadMGIInfo($mgr);
 
