@@ -131,7 +131,7 @@ if (! $useExistingTmpTable) {
 "create table PrintStatsTmp as
 select r.gene_id,a.na_sequence_id,a.number_of_contained_sequences,
        1 as total_seqs,a.taxon_id,ts.aa_sequence_id
-from Dots.RNA r, Dots.RNASequence rs, Dots.NAFeature f,
+from Dots.RNA r, Dots.RNAInstance rs, Dots.NAFeature f,
      Dots.Assembly a, Dots.TranslatedAAFeature tf,
      Dots.TranslatedAASequence ts
 where r.rna_id = rs.rna_id

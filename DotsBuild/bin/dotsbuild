@@ -344,6 +344,16 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &makeAllgenesTable();
 
+&makeProteinChunks();
+
+&predictTmAndSignalP();
+
+&parseTMFile();
+
+&parseSGPSignalP();
+
+&parseSGPHMMSignalP();
+
 &makeStatisticsPage();
 
 $mgr->goodbye("Pipeline complete!\n");
@@ -2317,17 +2327,17 @@ sub RNAProteinIntegration {
 sub makeStatisticsPage {
 
   my $signal = "makeStatisticsPage";
-  
+
   return if $mgr->startStep("Making statistics html file", $signal,'makeStatPage');
   my $login  = $propertySet->getProp('allgenesLogin');
   my $password  = $propertySet->getProp('allgenesPassword');
 
   my $output = "$pipelineDir/misc/statistics.html.in";
-  
+
   my $logfile = "$pipelineDir/logs/${signal}.log";
-  
-  my $cmd = "dotsStatistics --dbLogin $login --dbPassword $password --templateFile $GUS_HOME/data/DoTS/DotsBuild/statsTemplate.html.in --goRowTemplateFile $GUS_HOME/data/DoTS/DotsBuild/statsGoRowTemplate.txt --goBarGraphWidth 200 > $output 2>> $logfile"; 
-  
+
+  my $cmd = "dotsStatistics --dbLogin $login --dbPassword $password --useExistingTmpTable --templateFile $ENV{GUS_HOME}/data/DoTS/DotsBuild/statsTemplate.html.in --goRowTemplateFile $ENV{GUS_HOME}/data/DoTS/DotsBuild/statsGoRowTemplate.txt --goBarGraphWidth 200 > $output 2>> $logfile"; 
+
   $mgr->runCmd($cmd);
 }
 
@@ -2699,7 +2709,7 @@ sub makeAllgenesTable {
   
   my $password = $propertySet->getProp('allgenesPassword');
 
-  $args = "--login $login --password $password";
+  my $args = "--login $login --password $password";
 
   my $cmd = "makeAllgenesTables $args 2>> $logFile";
 
@@ -2709,6 +2719,153 @@ sub makeAllgenesTable {
 
 
 }
+
+sub makeProteinChunks {
+
+  my $signal = "makeProteinChunks";
+
+  return if $mgr->startStep("dividing up the protein sequences", $signal);
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+  my $predictedProteinsFile = "$pipelineDir/downloadSite/${prefix}_predictedProteins.fasta";
+
+  my $proteinChunkDir = "$pipelineDir/downloadSite/proteinSequenceChunks";
+
+  my $cmd = "mkdir $proteinChunkDir";
+
+  $mgr->runCmd($cmd);
+
+  my $cmd ="fasplit --InputFile $predictedProteinsFile --ChunkSize 500 --OutputFileFormat ${proteinChunkDir}/%04.04d.fa";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
+
+
+sub predictTmAndSignalP {
+
+  my $signal = "predictTmAndSignalP";
+
+  return if $mgr->startStep("making TM and signalP predictions", $signal);
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+  my $predictedProteinsFile = "$pipelineDir/downloadSite/${prefix}_predictedProteins.fasta";
+
+  my $outputfile = "$pipelineDir/downloadSite/${prefix}_predictedProteins";
+
+  my $proteinChunkDir = "$pipelineDir/downloadSite/proteinSequenceChunks";
+
+  my $cmd = "all-predictions $predictedProteinsFile $outputfile $proteinChunkDir 2>>$logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+}
+
+
+sub parseTMFile {
+
+  my $signal = "parseTMFile";
+
+  return if $mgr->startStep("parsing the TM prediction file", $signal);
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $predictionPath = "$pipelineDir/downloadSite/*.tmhmm.*";
+
+  my $outputPath = "$pipelineDir/downloadSite";
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+  my $predictedProteinsFile = "$pipelineDir/downloadSite/${prefix}_predictedProteins.fasta";
+
+  my $type = 'tmhmm';
+
+  my $cmd = "parse-all --PredictionPath $predictionPath --OutputPath $outputPath --AASequenceFile $predictedProteinsFile --Type $type 2>>$logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
+
+sub parseSGPSignalP {
+
+  my $signal = "parseSGPSignalPFile";
+
+  return if $mgr->startStep("parsing the signalP SGP prediction files", $signal);
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $predictionPath = "$pipelineDir/downloadSite/proteinSequenceChunks/*.sgp.*";
+
+  my $outputPath = "$pipelineDir/downloadSite/proteinSequenceChunks";
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+  my $predictedProteinsFile = "$pipelineDir/downloadSite/${prefix}_predictedProteins.fasta";
+
+  my $type = 'sgp';
+
+  my $cmd = "parse-all --PredictionPath $predictionPath --OutputPath $outputPath --AASequenceFile $predictedProteinsFile --Type $type 2>>$logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
+ 
+sub parseSGPHMMSignalP {
+
+  my $signal = "parseSGPHMMSignalPFile";
+
+  return if $mgr->startStep("parsing the signalP SGPHMM prediction files", $signal);
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $predictionPath = "$pipelineDir/downloadSite/proteinSequenceChunks/*.sgphmm.*";
+
+  my $outputPath = "$pipelineDir/downloadSite/proteinSequenceChunks";
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+  my $predictedProteinsFile = "$pipelineDir/downloadSite/${prefix}_predictedProteins.fasta";
+
+  my $type = 'sgphmm';
+
+  my $cmd = "parse-all --PredictionPath $predictionPath --OutputPath $outputPath --AASequenceFile $predictedProteinsFile --Type $type 2>>$logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
+
 
 sub makeBuildName {
   my ($nickName) = @_;

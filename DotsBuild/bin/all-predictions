@@ -5,6 +5,9 @@ use DirHandle;
 my $ifile = shift @ARGV;
 my $ofile = shift @ARGV;
 my $idirectory = shift @ARGV;
+my $date = 'date';
+
+print STDERR "$date";
 
 # point to the things we need.
 my $TmhmmFormat = "perl $ENV{HOME}/Pkg/TMHMM2.0a/bin/tmhmmformat.pl";

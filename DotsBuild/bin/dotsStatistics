@@ -49,7 +49,7 @@ eval {
 
 #die "$@\n" if $@;
 
-# &dropTempTable($dbh) unless $useExistingTmpTable;
+#&dropTempTable($dbh) unless $useExistingTmpTable;
 
 # push them into html template for presentation
 
@@ -522,9 +522,12 @@ sub getGODistribution {
 "select pst.taxon_id, t.name, count(distinct pst.gene_id)
       from PrintStatsTmp pst, Dots.GOAssociation ga, SRes.GOTerm t
       where pst.total_seqs > 1
-      and ga.table_id = '180'
+      and ga.table_id = 180
       and ga.row_id = pst.protein_id
       and ga.go_term_id = t.go_term_id
+      and ga.defining = 1
+      and ga.is_deprecated != 1
+      and ga.is_not != 1
       group by pst.taxon_id, t.name";
 
 # FIX
