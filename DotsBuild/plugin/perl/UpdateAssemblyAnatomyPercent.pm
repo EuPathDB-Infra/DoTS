@@ -26,8 +26,8 @@ sub new {
       h => 'taxon_id',
      },
      {o => 'restart',
-      t => 'string',
-      h => 'restarts: ignores assembies in the AssemblyAnatomyPercent table >= this date',
+      t => 'boolean',
+      h => 'restarts: ignores those assembies already in the AssemblyAnatomyPercent',
      },
      {o => 'idSQL',
       t => 'string',
@@ -63,13 +63,16 @@ sub run {
   my $dbh = $self->getQueryHandle();
 
   # make anatomy tree
-  my ($root, $nodeHash) = &makeTree($dbh);
+  my ($root, $nodeHash) = $self->makeTree($dbh);
 
   # place raw EST counts in each node of the tree
-  &setESTCounts($nodeHash, $dbh, $taxonId);
+  $self->setESTCounts($nodeHash, $dbh, $taxonId);
 
-  # handle each DT
+  # handle$self-> each DT
   print "Testing on $testnumber\n" if $testnumber;
+
+  my $sql = $self->getArg('idSQL');
+  $sql .= " and na_sequence_id not in (select na_sequence_id from dots.assemblyanatomypercent where taxon_id = $taxonId)" if $self->getArg('restart');
   my $stmt = $dbh->prepareAndExecute($self->getArg('idSQL'));
   my $count;
   while (my @row = $stmt->fetchRowArray()) {
@@ -78,7 +81,7 @@ sub run {
     die "Error: na_sequence_id '$dt' returned in the result set is not an integer" unless $dt =~ /\d+/;
     $count++;
     print STDERR "Updated $count rows\n" if ($count % 10000) == 0;
-    &processDT($dt, $nodeHash, $taxonId, $root, $dbh);
+    $self->processDT($dt, $nodeHash, $taxonId, $root, $dbh);
     $self->undefPointerCache();
     last if ($testnumber && $count > $testnumber);
   }
@@ -94,7 +97,7 @@ sub run {
 # static method to make a whole tree
 # return (rootNode, hashOfNodesByAnatomyId)
 sub makeTree {
-  my ($dbh) = @_;
+  my ($self, $dbh) = @_;
  
   my $sql = "select anatomy_id,parent_id from sres.anatomy order by hier_level";
 
@@ -133,14 +136,14 @@ sub setESTCounts {
 
 # process a single dt.  
 sub processDT {
-  my ($dt, $nodeHash,$taxonId, $root, $dbh) = @_;
+  my ($self, $dt, $nodeHash,$taxonId, $root, $dbh) = @_;
 
   # zero out previous DT's junk
   $root->clearDTValues();
 
   # load this DT's values into the existing anatomy tree
   # return the sum of the effective counts and the sum of the raw counts
-  my ($sum_effective, $sum_raw) = &loadDT($nodeHash,$dbh,$dt);
+  my ($sum_effective, $sum_raw) = $self->loadDT($nodeHash,$dbh,$dt);
 
   # percolate from bottom up and write out the rows
   $root->percolateAndWrite($dbh, $dt, $sum_effective, $sum_raw, $taxonId);
@@ -152,7 +155,7 @@ sub processDT {
 # Also, accumulate sums for those values
 # return Sum_effective, Sum_raw
 sub loadDT {
-  my ($nodeHash, $dbh, $dtId) = @_;
+  my ($self, $nodeHash, $dbh, $dtId) = @_;
 
   # issue a query (anatomy_id, count)
   my $sql = "select al.anatomy_id, count(e.est_id) from dots.anatomylibrary al,dots.library l, dots.assemblysequence a, dots.est e where a.assembly_na_sequence_id =$dtId and a.na_sequence_id = e.na_sequence_id and e.library_id = l.library_id and l.dbest_id = al.dbest_library_id group by al.anatomy_id";
