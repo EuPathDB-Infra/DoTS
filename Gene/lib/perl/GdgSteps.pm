@@ -169,6 +169,28 @@ sub deleteBlatAlignment {
     $mgr->endStep($signal);
 }
 
+sub cacheEstClonePairs {
+    my ($mgr) = @_;
+
+    my $propertySet = $mgr->{propertySet};
+
+    my $signal = 'cacheEstClonePairs';
+
+    return if $mgr->startStep("Caching EST clone pairs", $signal);
+
+    my $taxonId = $propertySet->getProp('taxonId');
+    my $tempLogin = $propertySet->getProp('tempLogin');
+
+    my @joinCols = ('washu_name', 'image_id');
+    foreach my $jc (@joinCols) {
+	my $args = "--taxon_id $taxonId --temp_login $tempLogin --join_column $jc";
+	$mgr->runPlugin("EstClonePairs", 
+			"DoTS::Gene::Plugin::EstClonePairs",
+			$args, "chacing EST clone pairs joined by $jc");
+    }
+    $mgr->endStep($signal);
+}
+
 sub loadGenomeAlignments {
   my ($mgr, $queryName, $targetName) = @_;
   my $propertySet = $mgr->{propertySet};
@@ -216,19 +238,33 @@ sub findGenomicSignals {
   my $taxonId = $propertySet->getProp('taxonId');
   my $genomeId = $propertySet->getProp('genome_db_rls_id');
   my $tmpLogin = $propertySet->getProp('tempLogin');
-  my $qTabId = 56;
 
-  my $args = "--blat_dir $pslDir --query_file $qFile --gap_table_space $gapTabSpace --keep_best 2 "
-    . "--query_table_id $qTabId --query_taxon_id $taxonId "
-      . "--target_table_id 245 --target_db_rel_id $genomeId --target_taxon_id $taxonId "
-	. "--max_query_gap 5 --min_pct_id 95 max_end_mismatch 10 "
-	  . "--end_gap_factor 10 --min_gap_pct 90 "
-	    . "--ok_internal_gap 15 --ok_end_gap 50 --min_query_pct 10";
+  my $args = "--taxon_id $taxonId --genome_db_rls_id $genomeId --temp_login $tmpLogin";
 
   $mgr->runPlugin("FindGenomicSignals", 
 			  "DoTS::Gene::Plugin::FindGenomicSignals",
 			  $args, "searching for splice/polyA signals etc in genomic context of DT alignments");
   $mgr->endStep($signal);
+}
+
+sub createGenomeDotsGene {
+    my ($mgr) = @_;
+
+    my $signal = 'createGenomeDotsGene';
+
+    return if $mgr->startStep("Creating genome-based Dots Gene from DT alignments ", $signal);
+
+    my $propertySet = $mgr->{propertySet};
+    my $taxonId = $propertySet->getProp('taxonId');
+    my $genomeId = $propertySet->getProp('genome_db_rls_id');
+    my $tmpLogin = $propertySet->getProp('tempLogin');
+
+    my $args = "--taxon_id $taxonId --genome_db_rls_id $genomeId --temp_login $tmpLogin --est_pair_cache ${tmpLogin}.EstClonePair";
+
+    $mgr->runPlugin("CreateGenomeDotsGene", 
+		    "DoTS::Gene::Plugin::CreateGenomeDotsGene",
+		    $args, "create genome-based Dots Gene from DT alignments");
+    $mgr->endStep($signal);
 }
 
 sub makeBuildName {
