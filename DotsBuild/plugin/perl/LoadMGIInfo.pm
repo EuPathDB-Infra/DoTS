@@ -78,7 +78,7 @@ sub run {
 
 sub makeDataHash {
 
-    my ($infoFile, $testnum) = @_;
+    my ($infoFile, $geneFile, $testnum) = @_;
 
     my %dataHash;
 
@@ -133,7 +133,7 @@ sub makeDataHash {
     }
     close(GENE);
 
-    print STDERR ("$num MGI entries will be processed\nThere are $numGene corresponding gene ids\n");
+    print STDERR ("$num MGI entries will be processed\nThere are $geneNum corresponding gene ids\n");
     return \%dataHash;
 }
 
