@@ -1789,7 +1789,7 @@ sub deleteEPCR {
 
     my $logFile = "$pipelineDir/logs/${signal}.log";
 
-    my $sql = "select /*+ RULE */ e.epcr_id from dots.epcr e, dots.nasequenceimp n where n.taxon_id = $taxonId and e.na_sequence_id=e.na_sequence_id";
+    my $sql = "select /*+ RULE */ e.epcr_id from dots.epcr e, dots.nasequenceimp n where n.taxon_id = $taxonId and e.na_sequence_id=n.na_sequence_id";
 
     my $cmd = "deleteEntries.pl --table DoTS::EPCR --idSQL \"$sql\" --verbose 2>> $logFile";
     
