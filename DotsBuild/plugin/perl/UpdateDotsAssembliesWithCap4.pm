@@ -607,7 +607,7 @@ sub submitUpdatedAssemblies {
   foreach my $c (sort{$a->isMarkedDeleted() <=> $b->isMarkedDeleted()}$algoInvo->getAllChildren(0,1)) {
     next if $c->getClassName() eq 'GUS::Model::DoTS::AssemblySequence'; ##already submitted above
     ##first don't submit if is is asembly and marked deleted and does not have an id...
-    if ($c->getClassName() eq 'Assembly') {
+    if ($c->getClassName() eq 'GUS::Model::DoTS::Assembly') {
       next if exists $submitted{$c->getCacheId()};
       $submitted{$c->getCacheId()} = 1;
       next if ( !$c->getId() && ($c->isMarkedDeleted() || scalar($c->getChildren('GUS::Model::DoTS::AssemblySequence')) < 1 ));
