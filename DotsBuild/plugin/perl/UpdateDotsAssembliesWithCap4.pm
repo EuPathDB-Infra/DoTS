@@ -31,7 +31,7 @@ sub new {
 	 {o => 'remote_dir',
 	  t => 'string',
 	  h => 'working directory on cap4_machine',
-	  d => "/tmp/$ENV{USER}/cap4",
+	  d => "/scratch1/$ENV{USER}/cap4",
          },
 	 {o => 'debug_assem_file',
 	  t => 'string',
