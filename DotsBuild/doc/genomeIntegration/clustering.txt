@@ -71,5 +71,6 @@ GOALS
 
 7. motivate our users/funders?
 
+8. simplify the build (and speed it up?)
 
 
