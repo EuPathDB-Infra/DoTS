@@ -105,7 +105,7 @@ sub makeTree {
   my %nodeHash;
 
   while (my ($anatomy_id, $parent_id) = $stmt-> fetchrow_array()) {
-    my $parent = $nodeHash{parent_id};
+    my $parent = $nodeHash{$parent_id};
     my $node = DoTS::DotsBuild::AssemblyAnatomyNode->new($anatomy_id, $parent);
     $nodeHash{$anatomy_id} = $node;
     if ($parent) {
@@ -137,14 +137,14 @@ sub processDT {
   my ($self, $dt, $nodeHash,$taxonId, $root, $dbh) = @_;
 
   # zero out previous DT's junk
-  $root->clearDTValues();
+  $root->clearDTValues($root);
 
   # load this DT's values into the existing anatomy tree
   # return the sum of the effective counts and the sum of the raw counts
   my ($sum_effective, $sum_raw) = $self->loadDT($nodeHash,$dbh,$dt);
 
   # percolate from bottom up and write out the rows
-  $root->percolateAndWrite($dbh, $dt, $sum_effective, $sum_raw, $taxonId);
+  $root->percolateAndWrite($dt, $sum_effective, $sum_raw, $taxonId);
 }
 
 # For a given DT, foreach anatomyID, place in the anatomyId's node:
