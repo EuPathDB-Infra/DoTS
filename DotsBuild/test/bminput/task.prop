@@ -1,5 +1,0 @@
-blastBinDir=/usr/local/pkg/bio/wu-blast/latest
-#blastBinDir=/genomics/share/pkg/bio/wu-blast/latest
-dbFilePath=/home/sfischer/test/DotsBuild/db.fsa
-inputFilePath=/home/sfischer/test/DotsBuild/bminput/seqs.fsa
-
