@@ -25,7 +25,7 @@ sub new {
 	 {o => 'inputfile',
 	  t => 'string',
 	  h => 'file downloaded from MGI containing additional information for rows in DbRef',
-         }
+         },
 	 {o => 'external_db_release_id',
 	  t => 'string',
 	  h => 'file downloaded from MGI containing additional information for rows in DbRef',
