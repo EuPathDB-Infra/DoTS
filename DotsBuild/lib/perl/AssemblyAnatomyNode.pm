@@ -49,7 +49,6 @@ sub percolateAndWrite {
 
     $raw_percolated += $kid_raw_percolated;
     $effective_percolated += $kid_effective_percolated;
-    next if $effective_percolated == 0;
   }
   return ($raw_percolated,$effective_percolated) if $raw_percolated == 0;
   # write
@@ -89,5 +88,15 @@ sub getDTEffective {
   return $noEST;
 
 }
+
+sub printNode {
+  my ($self,$indentation) = @_;
+  print STDOUT "${indentation}$node->{anatomy_id}\t$node->{dtRaw}\t$node->{dtRawPercolated}\t$node->{dtEffectivePercolated}\n";
+  $indentation = "$indentation  " ;
+  foreach my $kid (@{$self->{kids}}) {
+    printNode($kid,$indentation);
+  }
+}
+
 
 1;
