@@ -141,7 +141,7 @@ sub processBLASTResults {
 
 	    if ($meetsCriteria) {
 		++$numMeetingCriteria;
-		my($dotsId) = ($sbj->{'description'} =~ /^DT.(\d+)/);
+		my($dotsId) = ($sbj->{'description'} =~ /(\d+)\s\[Mus musculus\]/);
 
 #		print "Match: $tagSrcId ($tagId) against $dotsId ";
 #		print " $pct% over $len/$tagLen bp bestHit=$bestHit\n";
