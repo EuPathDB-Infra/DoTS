@@ -72,7 +72,7 @@ sub run {
     
     $dbh = $ctx->{self_inv}->getQueryHandle();
 
-    my $dbrel = $ctx->{'cla'}->{'ext_db_rel'})
+    my $dbrel = $ctx->{'cla'}->{'ext_db_rel'});
     
     my $time = `date`;
     chomp($time);
