@@ -326,8 +326,8 @@ print " debug **** exon $i with an id of " . $ef->getNaFeatureId() . "\n";
 	    $efLoc->setIsReversed($gfLoc->getIsReversed);
 	    $success = $efLoc->submit();
 	    $self->error("could not submit new NALocation for " . $gf->getName . " exon $i") if !$success;
-	    $efLoc->undefPointerCache();
-	    $ef->undefPointerCache();
+#	    $efLoc->undefPointerCache();
+#	    $ef->undefPointerCache();
 print " debug **** exon $i with an NA location id " . $efLoc->getNaLocationId() . "\n";
 	}
 
@@ -345,12 +345,15 @@ print " debug **** exon $i with an NA location id " . $efLoc->getNaLocationId() 
 	    # (not yet supported because the current gDG creation process looses this info.)
 	    $success = $rf->submit();
 	    $self->error("could not submit new RNAFeature for " . $gf->getName . " DT.$dt") if !$success;
-	    $rf->undefPointerCache();
+print "*** genefeature id before undef rnaFeatrue: " . $gf->getNaFeatureId() . "\n";
+#	    $rf->undefPointerCache();
+print "*** genefeature id after undef rnaFeatrue: " . $gf->getNaFeatureId() . "\n";
 print " debug **** one RNAFeature row with an NaFeatureId" . $rf->getNaFeatureId() . "\n";
 	}
 
-	$gf->undefPointerCache();
-	$gi->undefPointerCache();
+#	$gf->undefPointerCache();
+#	$gi->undefPointerCache();
+$self->undefPointerCache();
 
 	$self->log("integrated $tally of $total gDGs") unless $tally % 200;
     }
