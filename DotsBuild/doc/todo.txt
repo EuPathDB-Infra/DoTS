@@ -28,6 +28,7 @@ FOR RELEASE 7
 
  **** While Build is Running ****
 
+
    - need procedure for updating externaldatabaserelease where version is continuous (add this to GBParser, NRDB, etc. plugins)
 
    - Look into including controlling index dropping, creating, checking in the pipeline. 
@@ -50,11 +51,15 @@ FOR RELEASE 7
 
 GENERAL:
 
+Framefinder, TM, and SignalP should be redone for mouse and possibly for human. 
+
 Add documentatin to dbEST.pm that indicates the source of the data, dbEST mirror, and how to load the mirror.
 
 Add to dotsbuild: 
     1) method to add README file for each download
     2) method to cat files into a single file for cross-match
+
+Validation, Validation, Validation
 
 NEW ISSUES 
 
