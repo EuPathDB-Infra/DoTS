@@ -2001,11 +2001,11 @@ sub makeEpconFastaFiles {
 
   my $speciesNickname = $propertySet->getProp('speciesNickname');
 
-  my $logFile ="$pipelineDir/logs/${signal}.log";
+  my $logFile ="$mgr->{pipelineDir}/logs/${signal}.log";
 
   my $dotsRelease = $propertySet->getProp('dotsRelease');
 
-  my $outputFile  = "$pipelineDir/misc/EPConDB_rel${dotsRelease}_${speciesNickname}DoTS";
+  my $outputFile  = "$mgr->{pipelineDir}/misc/EPConDB_rel${dotsRelease}_${speciesNickname}DoTS";
 
   my $taxonId = $propertySet->getProp('taxonId');
 
@@ -2027,7 +2027,7 @@ sub makeEpconFastaFiles {
 
   $mgr->runCmd($cmd);
 
-  my $outputFile  = "$pipelineDir/misc/${epconDB_chip}_rel${dotsRelease}_${speciesNickname}DoTS";
+  my $outputFile  = "$mgr->{pipelineDir}/misc/${epconDB_chip}_rel${dotsRelease}_${speciesNickname}DoTS";
 
   my $sql = "select 'DT.' ||a.na_sequence_id, '[ $species ]', a.description ,'(' ||number_of_contained_sequences || ' sequences)' , 'length=' ||a.length, sequence from rad3.elementassembly_mv ea , rad3.spot s, dots.assembly a where s.array_id = $epconDB_array and s.element_id = ea.element_id and ea.assembly_na_sequence_id = a.na_sequence_id";
 
@@ -2051,8 +2051,8 @@ sub prepareEPConBlastSiteFiles {
   my $blastBinDir = $propertySet->getProp('wuBlastBinPath');
   my $dotsRelease = $propertySet->getProp('dotsRelease');
 
-  my $outputFile1  = "$pipelineDir/misc/EPConDB_rel${dotsRelease}_${speciesNickname}DoTS";
-  my $fastalink1 = "$pipelineDir/blastSite/EPConDB_${speciesNickname}DoTS";
+  my $outputFile1  = "$mgr->{pipelineDir}/misc/EPConDB_rel${dotsRelease}_${speciesNickname}DoTS";
+  my $fastalink1 = "$mgr->{pipelineDir}/blastSite/EPConDB_${speciesNickname}DoTS";
 
   $mgr->runCmd("ln -s $outputFile1 $fastalink1");
   $mgr->runCmd("$blastBinDir/xdformat -n $fastalink1");
@@ -2063,8 +2063,8 @@ sub prepareEPConBlastSiteFiles {
   $mgr->endStep($signal) if $epconDB_makefile eq 'no';
 
   my $epconDB_chip = $propertySet->getProp('epconDB_chip');
-  my $outputFile2  = "$pipelineDir/misc/${epconDB_chip}_rel${dotsRelease}_${speciesNickname}DoTS";
-  my $fastalink2 = "$pipelineDir/blastSite/${epconDB_chip}_${speciesNickname}DoTS";
+  my $outputFile2  = "$mgr->{pipelineDir}/misc/${epconDB_chip}_rel${dotsRelease}_${speciesNickname}DoTS";
+  my $fastalink2 = "$mgr->{pipelineDir}/blastSite/${epconDB_chip}_${speciesNickname}DoTS";
 
   $mgr->runCmd("ln -s $outputFile2 $fastalink2");
   $mgr->runCmd("$blastBinDir/xdformat -n $fastalink2");
