@@ -470,6 +470,7 @@ sub createGenomeDotsGene {
     my $tmpLogin = $propertySet->getProp('tempLogin');
 
     my $args = "--taxon_id $taxonId --genome_db_rls_id $genomeId --temp_login $tmpLogin --est_pair_cache EstClonePair";
+    # $args .= ' --skip_chrs 1,2';
 
     $mgr->runPlugin('CreateGenomeDotsGene', "DoTS::Gene::Plugin::CreateGenomeDotsGene",
 		    $args, "create genome-based Dots Gene from DT alignments");
@@ -533,6 +534,21 @@ sub mapToSimilarityDotsGene {
     }
 
     $mgr->endStep($signal);
+}
+
+sub moveToAllgenes {
+    my ($mgr) = @_;
+
+    my $propertySet = $mgr->{propertySet};
+    my $taxonId = $propertySet->getProp('taxonId');
+    my $genomeId = $propertySet->getProp('genome_db_rls_id');
+    my $tmpLogin = $propertySet->getProp('tempLogin');
+
+    my $args = "--taxon_id $taxonId --genome_db_rls_id $genomeId --temp_login $tmpLogin --genome_dots_gene_cache GenomeDotsGene --genome_dots_transcript_cache GenomeDotsTranscript";
+
+    $mgr->runPlugin('MoveGenomeDotsGeneToAllgenes',
+		    "DoTS::Gene::Plugin::MoveGenomeDotsGeneToAllgenes",
+		    $args, "move genome dots gene temp tables to Allgenes schema");
 }
 
 sub integrateWithGus {
