@@ -48,6 +48,14 @@ FOR RELEASE 7
 
    - comb through dotsgenes web site, and replace hardcoding of primary keys (eg external_db_release_ids) with config macros
 
+GENERAL:
+
+Add documentatin to dbEST.pm that indicates the source of the data, dbEST mirror, and how to load the mirror.
+
+Add to dotsbuild: 
+    1) method to add README file for each download
+    2) method to cat files into a single file for cross-match
+
 NEW ISSUES 
 
 NRDB has a version "continuous" and also "unknown"... why?
