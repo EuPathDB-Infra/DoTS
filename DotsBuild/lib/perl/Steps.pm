@@ -2698,7 +2698,7 @@ sub prepareDownloadSiteFiles {
   $mgr->runCmd($cmd) unless -e "$mgr->{pipelineDir}/seqfiles/$predictedProteinsFile" || "$mgr->{pipelineDir}/seqfiles/${predictedProteinsFile}.gz";
   my $cmd = "gzip $mgr->{pipelineDir}/seqfiles/$predictedProteinsFile";
   $mgr->runCmd($cmd) unless -e "$mgr->{pipelineDir}/seqfiles/${predictedProteinsFile}.gz";
-  push(@files, "${predictedProteinsFile}.gz");
+  push(@files, "$mgr->{pipelineDir}/seqfiles/${predictedProteinsFile}.gz");
   $descrip = "The predicted protein translation of each assembled transcript";
   $htaccessString .= "AddDescription \"$descrip\" *Proteins*\n";
   addFileToReadme($mgr, "${predictedProteinsFile}.gz", $descrip);
@@ -2708,7 +2708,7 @@ sub prepareDownloadSiteFiles {
   my $cmd = "makeDTAnatomyFile --taxonId $taxonId --outFile $DTAnatomyFile";
   $mgr->runCmd($cmd);
   $mgr->runCmd("gzip $DTAnatomyFile");
-  push(@files, "${DTAnatomyFile}.gz");
+  push(@files, "$mgr->{pipelineDir}/misc/${DTAnatomyFile}.gz");
   $descrip = "The anatomy percent for assembled transcripts";
   $htaccessString .= "AddDescription \"$descrip\" *Anatomy*\n";
   addFileToReadme($mgr, "${DTAnatomyFile}.gz", $descrip);
