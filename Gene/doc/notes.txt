@@ -1,0 +1,5 @@
+Some of the Dots Gene pipeline steps are duplicated
+instead of imported from DotsBuild pipeline steps.
+This is because the "mgr"s each assume its own distinct buildDir.
+May consider combining the prop files and make Dots Gene pipeline
+part of the DotsBuild pipeline in the future.

@@ -1,0 +1,83 @@
+#!@perl@
+use strict;
+
+use lib "$ENV{GUS_HOME}/lib/perl";
+use GUS::Pipeline::Manager;
+use GUS::Pipeline::MakeTaskDirs;
+use CBIL::Util::PropertySet;
+use CBIL::Util::GenomeDir;
+use File::Basename;
+use DoTS::Gene::GdgSteps;
+
+$| = 1;
+umask 002;
+
+
+my $propertiesFile = $ARGV[0];
+
+&usage unless -e $propertiesFile;
+
+# [name, default (or null if reqd), comment]
+my @properties = 
+(
+ # properties required by Pipeline API
+ ["liniacServer",         "",  "full name of liniac server"],
+ ["liniacUser",         "",  "liniac user, needed if local server user name is different"],
+ ["stopBefore",   "none",  "the step to stop before.  uses the signal name"],
+
+ # properties used by genomic alignments and genome-based DoTS Gene construction
+ ["dotsGeneBuildDir",         "",  "local dots gene build dir"],
+ ["dotsRelease",          "",  "eg 5 or 6"],
+ ["serverPath",           "",  "full path of dots gene dir on compute cluster server"],
+ ["nodePath",             "",  "full path of scratch dir on compute cluster node"],
+ ["taxonId",              "",  "eg 14 for mus"],
+ ["speciesFullname",              "",  "eg Home sapiens"],
+ ["speciesNickname",              "",  "eg mus, hum"],
+ ["gusConfigFile",           "",  ""],
+ ["tempLogin" , "","login for temp table space, e.g. ygan\@cbilrw"],
+ ["tempPassword" , "","password for temp table space"],
+ ["externalDbDir", "", "directory for download data from external databases"],
+ ["serverExternalDbDir", "", "directory on liniac server for external data downloads"],
+ ["genome_db_rls_id", "","the external_database_release_id for the human genome for this species"],
+ ["genomeGapLogin", "","login for table space for genome gap tables"],
+ ["genome.options",   "",  "options to genome-align executable"],
+ ["genome.path",      "",  "path on node of genome-align executable"],
+ ["genome.taskSize",  "",  "number of seqs to process per genome-align subtask"],
+ ["genomeVersion",      "",  "Golden Path genome assembly version, eg hg16, mm4"],
+ ); 
+
+my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
+
+my $dotsGeneBuildDir = $propertySet->getProp('dotsGeneBuildDir');
+my $buildName = &makeBuildName($propertySet->getProp('speciesNickname'),$propertySet->getProp('dotsRelease'));
+my $pipelineDir = "$dotsGeneBuildDir/$buildName";
+
+###################  The Pipeline  ##########################
+
+my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFile);
+$mgr->{buildName} = $buildName;
+$mgr->{pipelineDir} = $pipelineDir;
+$mgr->{propertiesFile} = $propertiesFile;
+$mgr->{propertySet} = $propertySet;
+
+&createDotsGenePipelineDir($mgr);
+
+&createGenomeDir($mgr); 
+
+&copyPipelineDirToLiniac($mgr);
+
+&extractDots($mgr);
+
+&copyDotsToLiniac('final', $mgr);
+
+&startGenomicAlignmentOnLiniac($mgr);
+
+&deleteBlatAlignment($mgr);
+
+$mgr->waitForLiniac("genomic alignments of Dots", "waitGenomeAlignDots");
+
+&copyGenomeDotsFromLiniac($mgr);
+
+&loadGenomeAlignments($mgr, "dots", "genome");
+
+&findGenomicSignals($mgr);
