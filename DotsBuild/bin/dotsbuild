@@ -406,7 +406,7 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 #&updatePancreasAssembliesTable();
 
-#&createManuallyReviewedDoTSFile();
+&createManuallyReviewedDoTSFile();
 
 &createPredTranslDetailsFile();
 
