@@ -99,8 +99,8 @@ my @properties =
  ["loadGEA" ,  "",  "yes or no"],
  ["insertTaxonRestart" , "","last ncbi_tax_id in the log for restarting LoadTaxon.pm"],
  ["nrdbRestart" , "","last set number in log for restarting LoadNrdb.pm"],
- ["nrdbTempLogin" , "","login for temp table space, e.g. pinney\@gusdev"],
- ["nrdbTempPassword" , "","password for temp table space"],
+ ["tempLogin" , "","login for temp table space, e.g. pinney\@gusdev"],
+ ["tempPassword" , "","password for temp table space"],
  ["loadGeneTrapAssembly", "", "yes or no"],
  ["geneTrapDbRls", "", "name:external_database_release_id abbreviation pairs for gene trap sequences e.g. stl:3692,ggtc:5393"],
  ["loadLocusLink", "", "yes or no"],
@@ -1038,9 +1038,9 @@ sub insertNRDB {
   
   my $nrdb = "$externalDbDir/nrdb/$date/nr";
   
-  my $temp_login = $propertySet->getProp('nrdbTempLogin');  
+  my $temp_login = $propertySet->getProp('tempLogin');  
   
-  my $temp_password = $propertySet->getProp('nrdbTempPassword'); 
+  my $temp_password = $propertySet->getProp('tempPassword'); 
   
   my $restart = $propertySet->getProp('nrdbRestart') > 1 ? "--restart" . $propertySet->getProp('nrdbRestart') : "";
   
@@ -1727,6 +1727,11 @@ sub prepareDownloadSiteFiles {
     my $dotsRelease = $propertySet->getProp('dotsRelease');
     my $speciesNickname = $propertySet->getProp('speciesNickname');
     my $speciesFullname = $propertySet->getProp('speciesFullname');
+    my $tempLogin = $propertySet->getProp('tempLogin');  
+    my $tempPassword = $propertySet->getProp('tempPassword'); 
+    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+    my $taxonId = $propertySet->getProp('taxonId');
+  
 
     my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
 
@@ -1734,9 +1739,6 @@ sub prepareDownloadSiteFiles {
 
     my $predictedProteinsFile = "${prefix}_predictedProteins.fasta";
 
-    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
-
-    my $taxonId = $propertySet->getProp('taxonId');
 
     my $logFile = "$pipelineDir/logs/${fastaFile}Extract.log";
 
@@ -1808,9 +1810,21 @@ sub prepareDownloadSiteFiles {
 	$mgr->runCmd($cmd);
     }
 
+    my $manRevwDoTSReportFile = "$pipelineDir/downloadSite/${prefix}_manuallyReviewedTranscriptsReport.txt";
+
+    # create report of manually reviewed dots
+    my $cmd = "gusreport --configModule GUS::ReportMaker::SampleTranscriptReportConfig --dbLogin $tempLogin --dbPassword $tempPassword --tempTableName sfischer.tempResult --requestedColumns 'Description, GeneSymbol, Length, GOid, DoTSGene, SeqsInAssem, MGI, LocusLink, ContainsMRNA, Motifs, Organism, mRNASeq, proteinSeq' --sql 'select distinct pa.na_sequence_id, 9999 from DoTS.rna r, allgenes.proteinassembly pa where r.review_status_id = 1 and r.rna_id = pa.rna_id and pa.taxon_id = $taxonId' > $manRevwDoTSReportFile";
+	$mgr->runCmd($cmd);
+
+        my $cmd = "gzip $manRevwDoTSReportFile";
+
+	$mgr->runCmd($cmd);
+
+    
+
     &writeReadmeFile($prefix, $dotsRelease, $speciesNickname,$speciesFullname,
 		     $fastaFile, $accsPerAssemFile, $nrdbHitsFile, $assPerGeneFile,
-                     $mRNAPerAss,$predictedProteinsFile);
+                     $mRNAPerAss,$predictedProteinsFile, $manRevwDoTSReportFile);
 
     &writeHtaccessFile();
 
@@ -1831,6 +1845,7 @@ AddDescription "The best hit in NRDB for each consensus transcript" *NRDB*
 AddDescription "Assembled transcripts belonging to each gene" *DTperDG*
 AddDescription "The Genbank accessions of mRNAs contained in each assembled transcript" *mRNA*
 AddDescription "The predicted protein translation of each assembled transcript" *Proteins*
+AddDescription "A tab delimited report for all manually reviewed DoTS Transcripts" *manuallyReviewed*
 ';
     close(F);
 
@@ -1839,7 +1854,8 @@ AddDescription "The predicted protein translation of each assembled transcript" 
 
 sub writeReadmeFile {
     my ($prefix, $dotsRelease, $speciesNickname, $speciesFullname, $fastaFile, 
-	$accsPerAssemFile, $nrdbHitsFile, $assPerGeneFile, $mRNAPerAss,$proteinsFile) = @_;
+	$accsPerAssemFile, $nrdbHitsFile, $assPerGeneFile, $mRNAPerAss,$proteinsFile,
+       $manRevwDoTSReport) = @_;
 
     my $readme = "$pipelineDir/downloadSite/${speciesNickname}_README.txt";
 
@@ -1885,6 +1901,9 @@ The files available are:
     $mRNAPerAss
        The Genbank accessions of mRNAs which were assembled, together with ESTs, 
        to form the consensus sequence of each putative transcript.
+
+    $manRevwDoTSReport
+      A tab delimited report for all manually reviewed DoTS Transcripts
  ";
     close(F);
 }
