@@ -184,10 +184,7 @@ sub processQuery {
 	my $ex = GUS::Model::DoTS::ExternalNASequence->new({'na_sequence_id' => $id});
 	next unless $ex->retrieveFromDB();
 	##want to just use the quality_sequence if it exists...
-	##there could be more than one lenssequence child...want newest one...
-	my @ls_sort = sort{$b->getId() <=> $a->getId()} $ex->getChildren('DoTS::EST',1);
-	my $ls;
-	$ls = $ls_sort[0] if scalar(@ls_sort) > 0;
+	my $ls = $ex->getChildren('DoTS::EST',1);
 	my $qStop;
 	$qStop = $ls->getQualityStop() if $ls;
 	if($ls && defined $qStop){  ##exists and has qualityStop...assume quality_start is not relevant if qualitystop is null..
