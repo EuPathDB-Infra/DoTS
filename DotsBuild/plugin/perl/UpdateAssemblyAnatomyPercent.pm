@@ -33,6 +33,10 @@ sub new {
       t => 'string',
       h => 'SQL query that returns Assembly na_sequence_ids, deletes these from AssemblyAnatomyPercent unless >= restart date and then creates new entries for each na_sequence_id',
      },
+     {o => 'print_tree',
+      t => 'boolean',
+      h => 'prints a tree into STDOUT for each DT',
+     }
    ];
 
   $m->initialize({requiredDbVersion => {},
@@ -80,6 +84,7 @@ sub run {
     $count++;
     print STDERR "Updated $count rows\n" if ($count % 10000) == 0;
     $self->processDT($dt, $nodeHash, $taxonId, $root, $dbh);
+    $self->printTree($root) if $self->getArg('print_tree');
     $self->undefPointerCache();
     last if ($testnumber && $count > $testnumber);
   }
@@ -171,5 +176,8 @@ sub loadDT {
   return ($sum_effective, $sum_raw);
 }
 
-
+sub printTree {
+  my ($self,$root) = @_;
+  $root->printNode();
+}
 1;
