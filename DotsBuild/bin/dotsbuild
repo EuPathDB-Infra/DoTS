@@ -453,7 +453,11 @@ sub downloadRefSeq {
 
     my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-    my $downloadSubDir = "$externalDbDir/refseq";
+    my $date = $propertySet->getProp('buildDate');
+
+    my $downloadSubDir = "$externalDbDir/refseq/$date";
+    
+    $mgr->runCmd('mkdir -p $downloadSubDir');
 
     my $ftpsite = "ftp://ftp.ncbi.nih.gov/ref_seq/H_sapiens/mRNA_Prot/";
     my $ftpfile = "hs.gbff.gz";
@@ -482,7 +486,11 @@ sub downloaddbEST {
 
     my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-    my $downloadSubDir = "$externalDbDir/dbest";
+    my $date = $propertySet->getProp('buildDate');
+
+    my $downloadSubDir = "$externalDbDir/dbest/$date";
+    
+    $mgr->runCmd('mkdir -p $downloadSubDir');
 
     my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=3 -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/repository/dbEST/bcp/";
 
@@ -505,7 +513,11 @@ sub downloadTaxon {
 
     my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-    my $downloadSubDir = "$externalDbDir/taxonomy";
+    my $date = $propertySet->getProp('buildDate');
+
+    my $downloadSubDir = "$externalDbDir/taxonomy/$date";
+
+    $mgr->runCmd('mkdir -p $downloadSubDir');
 
     my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=2 -A \"gi_taxid_nucl.dmp.gz,gi_taxid_prot.dmp.gz,taxdump.tar.gz\" -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/pub/taxonomy/"; 
 
@@ -535,7 +547,11 @@ sub downloadNRDB {
 
     my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-    my $downloadSubDir = "$externalDbDir/nrdb";
+    my $date = $propertySet->getProp('buildDate');
+
+    my $downloadSubDir = "$externalDbDir/nrdb/$date";
+
+    $mgr->runCmd('mkdir -p $downloadSubDir');
 
     my $cmd = "wget -t5 -b -m -np -nd -nH -o $logfile --cut-dirs=3 -A \"nr.Z\"  -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/pub/blast/db/";
 	
@@ -929,7 +945,11 @@ sub downloadCDD {
 
     my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-    my $downloadSubDir = "$externalDbDir/cdd";
+    my $date = $propertySet->getProp('buildDate');
+
+    my $downloadSubDir = "$externalDbDir/cdd/$date";
+    
+    $mgr->runCmd('mkdir -p $downloadSubDir');
 
     my $logfile = "$pipelineDir/logs/$signal.log";
 
@@ -1023,7 +1043,11 @@ sub downloadProdom {
 
     my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-    my $downloadSubDir = "$externalDbDir/prodom";
+    my $date = $propertySet->getProp('buildDate');
+
+    my $downloadSubDir = "$externalDbDir/prodom/$date";
+    
+    $mgr->runCmd('mkdir -p $downloadSubDir');
 
     my $file = "$prodomRelease.forblast.gz";
 
@@ -2016,7 +2040,12 @@ sub downloadMGIInfo {
 
     my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-    my $downloadSubDir = "$externalDbDir/mgi";
+    my $date = $propertySet->getProp('buildDate');
+
+    my $downloadSubDir = "$externalDbDir/mgi/$date";
+    
+    $mgr->runCmd('mkdir -p $downloadSubDir');
+
 
     my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=3 -A \"MRK_List2.sql.rpt\"  -P $downloadSubDir  ftp://www.informatics.jax.org/pub/informatics/reports/";
 
