@@ -44,6 +44,10 @@ sub createDotsPipelineDir {
 	     $serverPath, $nodePath, $rmTaskSize, $rmOptions, $dangleMax, $rmPath);
   &makeRMDir("prevDots", $buildName, $dotsBuildDir,
 	     $serverPath,  $nodePath, $rmTaskSize, $rmOptions, $dangleMax, $rmPath);
+  &makeRMDir("unalignedAssemSeqs", $buildName, $dotsBuildDir,
+	     $serverPath, $nodePath, $rmTaskSize, $rmOptions, $dangleMax, $rmPath);
+  &makeRMDir("alignedDots", $buildName, $dotsBuildDir,
+	     $serverPath,  $nodePath, $rmTaskSize, $rmOptions, $dangleMax, $rmPath);
   &makeRMDir("intermedDots", $buildName, $dotsBuildDir,
 	     $serverPath,  $nodePath, $rmTaskSize, $rmOptions, $dangleMax, $rmPath);
   &makeRMDir("finalDots", $buildName, $dotsBuildDir,
@@ -54,6 +58,12 @@ sub createDotsPipelineDir {
   &makeMatrixDir("prevDots", "assemSeqs", $buildName, $dotsBuildDir,
 		 $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
   &makeMatrixDir("prevDots", "prevDots", $buildName, $dotsBuildDir,
+		 $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
+  &makeMatrixDir("unalignedAssemSeqs", "unalignedAssemSeqs", $buildName, $dotsBuildDir,
+		 $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
+  &makeMatrixDir("alignedDots", "unalignedAssemSeqs", $buildName, $dotsBuildDir,
+		 $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
+  &makeMatrixDir("alignedDots", "alignedDots", $buildName, $dotsBuildDir,
 		 $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
   &makeMatrixDir("intermedDots", "intermedDots", $buildName, $dotsBuildDir,
 		 $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
@@ -905,7 +915,7 @@ sub copyDotsToLiniac {
   $mgr->endStep($signal);
 }
 
-sub copyFileToLiniac {
+sub copySeqFileToLiniac {
   my ($name, $mgr) = @_;
   my $propertySet = $mgr->{propertySet};
 
