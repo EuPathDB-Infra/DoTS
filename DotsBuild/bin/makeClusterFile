@@ -14,8 +14,9 @@ my ($verbose,$gusConfigFile,$idSQL,$clusterFile);
 	    "clusterFile=s" => \$clusterFile,
             "gusConfigFile=s" => \$gusConfigFile,);
 
-die "usage: getIdsPerAssembly es
---verbose --gusConfigFile [\$GUS_CONFIG_FILE] --idSQL sql query to retrieve na_sequence_ids of assemblies for reassembly --clusterFile temporary cluster file with full path, to be created\n" unless $taxon_id;
+print "$idSQL \n   $clusterFile \n "; 
+
+die "usage: makeClusterFile --verbose --gusConfigFile [\$GUS_CONFIG_FILE] --idSQL sql query to retrieve na_sequence_ids of assemblies for reassembly --clusterFile name of cluster file with full path\n" unless ($idSQL && $clusterFile );
 
 print STDERR "Establishing dbi login\n" if $verbose;
 
@@ -35,8 +36,8 @@ my $stmt = $dbh->prepareAndExecute($idSQL);
 my $num = 1;
 while(my $id = $stmt->fetchrow_array()){
   print CLUSTER "Cluster_$num (1 sequences): (DT.$id)\n";
+  $num++;
 }
 
 close CLUSTER;
-
 
