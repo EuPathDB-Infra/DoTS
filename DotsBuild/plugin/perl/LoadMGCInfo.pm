@@ -87,10 +87,22 @@ sub updateDbRef {
     else {
       next;
     }
-    my $newDbRef = GUS::Model::SRes::DbRef->new({'primary_identifier'=>$primaryId,'external_database_release_id'=>$externalDbRel});
+    my $newDbRef = GUS::Model::SRes::DbRef->new({'lowercase_primary_identifier'=>lc($primaryId),'external_database_release_id'=>$externalDbRel});
 
     $newDbRef->retrieveFromDB;
 
+    if ($primaryId ne $newDbRef->get('primary_identifier')) {
+
+      $newDbRef->setPrimaryIdentifier($primaryId);
+    }
+    if ($line[4] ne $newDbRef->get('secondary_identifier')) {
+
+      $newDbRef->setSecondaryIdentifier($line[4]);
+    }
+    if (lc ($line[4]) ne $newDbRef->get('lowercase_secondary_identifier')) {
+
+      $newDbRef->setLowercaseSecondaryIdentifier(lc($line[4]));
+    }
     if ($line[0] ne $newDbRef->get('gene_symbol')) {
 
       $newDbRef->setGeneSymbol($line[0]);
@@ -99,6 +111,7 @@ sub updateDbRef {
 
       $newDbRef->setRemark($line[1]);
     }
+    
 
     $num += $newDbRef->submit();
 
