@@ -67,5 +67,5 @@ $db->logout();
 
 sub generateOutput {
   my($dtId,@acc) = @_;
-  return ">DT.$DT (".scalar(@acc)." mRNA\): \(".join(', ',@acc)."\)\n";
+  return ">DT.$dtId (".scalar(@acc)." mRNA\): \(".join(', ',@acc)."\)\n";
 }
