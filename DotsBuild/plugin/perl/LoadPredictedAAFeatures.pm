@@ -625,8 +625,8 @@ sub UpdateSignalPeptideHMMFeature {
 
   if ($SignalPeptideFeature) {
     $self->log("UPDATE $source_id\n") if $self->getArgs()->{'verbose'};
-#    $SignalPeptideFeature->set('anchor_probability', $SAP);
-#    $SignalPeptideFeature->set('signal_probability', $SPP);
+    $SignalPeptideFeature->set('anchor_probability', $SAP);
+    $SignalPeptideFeature->set('signal_probability', $SPP);
     return $SignalPeptideFeature;
   } else {
     $self->log("NOSIGNAL $source_id\n");
@@ -683,7 +683,7 @@ sub existenceSPFeature{
   #	        and pl.project_id = $project_id";
 
   my $sql = <<Sql;
-
+14668199
  select spf.*
    from dots.SignalPeptideFeature spf
       , dots.AALocation           aal
