@@ -30,6 +30,7 @@ sub new {
     $self->{dbh} = $args->{dbh};
     $self->{gdg_tab} = $args->{gdg_tab};
     $self->{gdt_tab} = $args->{gdt_tab};
+    $self->{chr_id} = $args->{chr_id};
     $self->{strand} = undef;
     $self->{chr_s} = undef;
     $self->{chr_e} = undef;
@@ -101,8 +102,11 @@ sub getEntries {
     # get entries from db
     my $type = $self->{type};
     my $id = $self->{id};
+    my $gdg_tab = $self->{gdg_tab};
+    my $gdt_tab = $self->{gdt_tab};
+    my $chr_id = $self->{chr_id};
     my $dbh = $self->{dbh};
-    my $sql = &_getESTOrientationQuery($type, $id, $self->{gdg_tab}, $self->{gdt_tab});
+    my $sql = &_getESTOrientationQuery($type, $id, $gdg_tab, $gdt_tab, $chr_id);
     my $sth = $dbh->prepare($sql) or die "bad sql $sql: $!\n";
     print "$TAG sql=\n$sql\n" if $dbg;
     $sth->execute;
@@ -137,7 +141,7 @@ sub getEntries {
 #### file scoped subroutines
 
 sub _getESTOrientationQuery {
-    my ($type, $id, $gdg_tab, $gdt_tab) = @_;
+    my ($type, $id, $gdg_tab, $gdt_tab, $chr_id) = @_;
 
     my $sql;
     if (lc $type eq 'dt') {
@@ -158,13 +162,12 @@ SELECT g.strand, g.chromosome_start, g.chromosome_end,
        s.assembly_offset as asm_offset,
        s.na_sequence_id as seq_id, est.p_end, length(s.gapped_sequence) as gap_seq_len
 FROM $gdg_tab g, $gdt_tab a, DoTS.blatalignment b, DoTS.assembly asm,
-     DoTS.assemblysequence s, DoTS.EST est, DoTS.virtualsequence v
+     DoTS.assemblysequence s, DoTS.EST est
 WHERE g.genome_dots_gene_id = $id
 and g.genome_dots_gene_id = a.genome_dots_gene_id
 and a.na_sequence_id = b.query_na_sequence_id
 and b.query_table_id = 56
-and b.target_na_sequence_id = v.na_sequence_id
-and v.chromosome = g.chromosome
+and b.target_na_sequence_id = $chr_id
 and b.is_best_alignment = 1
 and b.target_start >= g.chromosome_start and b.target_end <= g.chromosome_end
 and asm.na_sequence_id = s.assembly_na_sequence_id

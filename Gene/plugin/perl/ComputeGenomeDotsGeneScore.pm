@@ -29,112 +29,34 @@ sub new {
     my $howToRestart = <<RESTART; 
 give comma separated list of completed chroms (from log file) 
 RESTART
-
+;
     my $failureCases = <<FAILURE_CASES;
 Not known yet.
 FAILURE_CASES
+;
+    my $notes = &_getNotes;
 
-    my $notes = <<NOTES;
-=pod
-
-=head1 DESCRIPTION
-
-Calculates confidence scores of I<genome-based DoTS Genes> as follows:
-
-=over 4
-
-=item I)
-Look at these signals for aligned genes:
-
-=over 4
-
-=item 1.
-splice signal: GT-AG (in constituent DoTS assemblies)
-
-=item 2.
-polyA signal type (AATAAA or ATTAAA and the reverse complements)
-
-=item 3.
-polyA track
-
-=back
-
-(assume blat_alignment_signals.pl has been run to populate
-the BlatAlignmentSignals table)
-
-=item II)
-Look at EST composition of aligned genes:
-
-=over 4
-
-=item 1.
-number of RNAs
-
-=item 2.
-whether contains_mRNA
-
-=item 3.
-number of distinct EST clones
-
-=item 4.
-number of EST libraries
-
-=item 5.
-number of 5'-3' pairs of ESTs from the same clones
-
-=back
-
-=item III)
-Look at protein coding potential (FrameFinder/DIANA_ATG predictions)
-
-=over 4
-
-=item 1.
-max (FrameFinder) ORF length (among all DTs)
-
-=item 2.
-min (FrameFinder) ORF p_value
-
-=item 3.
-max DIANA_ATG score
-
-=back
-
-=item IV)
-Look at EST stacking consistency
-
-=over 4
-
-=item 1.
-EST plot score (5' ends of 5' ESTs and 3' ends of 3' ESTs)
-
-=back
-
-=back
-
-=head1 AUTHOR
-
-Y. Thomas Gan <ygan\@pcbi.upenn.edu>, October 20, 2003
-
-=head1 COPYRIGHT
-
-Copyright, Trustees of University of Pennsylvania 2004. 
-
-=cut
-
-NOTES
-    
     my $documentation = {purpose=>$purpose, purposeBrief=>$purposeBrief,tablesAffected=>$tablesAffected,tablesDependedOn=>$tablesDependedOn,howToRestart=>$howToRestart,failureCases=>$failureCases,notes=>$notes};
+;
     my $argsDeclaration  =
-    [
-     stringArg({name => 'skip_chrs',
-		descr => 'comma separated chromosomes for which to skip process (for restart)',
-		constraintFunc=> undef,
-		reqd  => 0,
-		isList => 1, 
-	    }),
+	[
+	 stringArg({name => 'skip_chrs',
+		    descr => 'comma separated chromosomes for which to skip process (for restart)',
+		    constraintFunc=> undef,
+		    reqd  => 0,
+		    isList => 1, 
+		}),
     
-     stringArg({name => 'chr',
+	 integerArg({name => 'subset_selector',
+		     descr => '1 for spliced or contains_mrna, -1 for others, 0 for do not care',
+		     constraintFunc=> sub { die "must be -1, 0, or 1 if defined, but is $_[0]"
+						if defined($_[0]) && $_[0] !~ /^-1|0|1$/; },
+		     reqd  => 0,
+		     default => 0,
+		     isList => 0 
+		     }),
+
+    stringArg({name => 'chr',
 		descr => 'chromosome on which to do analysis',
 		constraintFunc=> undef,
 		reqd => 0,
@@ -228,12 +150,11 @@ sub run {
 
     my $c = 0;
     foreach my $coord (@$coords) {
-        $self->log("processing chr" . $coord->{chr} . ":"
-		   . $coord->{start} . "-" . $coord->{end}); 
+        print "processing chr" . $coord->{chr} . ":" . $coord->{start} . "-" . $coord->{end} . "\n"; 
 	$c += &processRegion($dbh, $coord, $args);
 	$dbh->commit;
 	push @done_chrs, $coord->{chr};
-	$self->log("completed/skipped chromosomoes: " . join(', ', @done_chrs));
+	print "completed/skipped chromosomoes: " . join(', ', @done_chrs) . "\n";
     }
     return "finished gDG score calculation for $c genome-based dots genes";
 }
@@ -249,6 +170,7 @@ sub processRegion {
     my $gdgids = &selectGenomeDotsGenes(@_);
     my $gdg_tab = $args->{'temp_login'} . '.' . $args->{'genome_dots_gene_cache'};
     my $gdt_tab = $args->{'temp_login'} . '.' . $args->{'genome_dots_transcript_cache'};
+    my $chr_id = $coord->{'chr_id'};
     my $bs_tab = $args->{'temp_login'} . '.' . $args->{'blat_signals_cache'};
 
     my $stats = {};
@@ -270,14 +192,14 @@ sub processRegion {
 						       $gid, $cs_info);
 	# 4. EST 5'-3' plot score
 	DoTS::Gene::ConfidenceScore::ESTPlotScore::setESTPlotScore($dbh, $gdg_tab, $gdt_tab,
-						       $gid, $cs_info);
+						       $gid, $chr_id, $cs_info);
 	# overall score
 	DoTS::Gene::ConfidenceScore::Overall::setScore($dbh, $gdg_tab,
 						       $gid, $cs_info, $stats);
 
 	&dbUpdate($dbh, $gdg_tab, $gid, $cs_info);
 
-	unless (++$c % 1000) {
+	unless (++$c % 100) {
 	    print "# processed $c entries\n";
 	    $dbh->commit;
 	}
@@ -291,6 +213,7 @@ sub selectGenomeDotsGenes {
     my $genomeId = $args->{'genome_db_rls_id'};
     my $tempLogin = $args->{'temp_login'};
     my $taxonId = $args->{'taxon_id'};
+    my $ss_sel = $args->{'subset_selector'};
     my $gdgCache = $args->{'genome_dots_gene_cache'};
     my $isRerun = ($args->{'skip_chrs'} ? 1 : 0);
 
@@ -302,6 +225,9 @@ sub selectGenomeDotsGenes {
 	    . ($start ? "and chromosome_end >= $start " : "")
 	    . ($end ? "and chromosome_start <= $end " : "")
 	    . ($isRerun ? "and confidence_score is null" : "");
+    if ($ss_sel) {
+	$sql .= " and " . ($ss_sel == 1 ? '' : 'not') . " (max_intron >= 47 or contains_mrna = 1)";
+    }
     my $sth = $dbh->prepareAndExecute($sql);
     my @gdgids;
     while (my ($gdgid) = $sth->fetchrow_array) { push @gdgids, $gdgid; }
@@ -324,6 +250,35 @@ sub dbUpdate {
 	    . "where genome_dots_gene_id = $gid";
 
     $dbh->sqlexec($sql);
+}
+
+sub _getNotes {
+    my $notes =<<NOTES;
+Calculates confidence scores of genome-based DoTS Genes as follows:
+
+Look at these signals for aligned genes:
+-- splice signal: GT-AG (in constituent DoTS assemblies)
+-- polyA signal type (AATAAA or ATTAAA and the reverse complements)
+-- polyA track
+(assume FindGenomeSignals plugin has been run)
+
+Look at EST composition of aligned genes:
+-- number of RNAs
+-- whether contains_mRNA
+-- number of distinct EST clones
+-- number of EST libraries
+-- number of 5\'-3\' pairs of ESTs from the same clones
+
+Look at protein coding potential (FrameFinder/DIANA_ATG predictions)
+-- max (FrameFinder) ORF length (among all DTs)
+-- min (FrameFinder) ORF p_value
+-- max DIANA_ATG score
+
+Look at EST stacking consistency
+-- EST plot score (5\' ends of 5\' ESTs and 3\' ends of 3\' ESTs)
+
+NOTES
+    $notes;
 }
 
 1;

@@ -261,7 +261,7 @@ sub computeQualityScore {
     my $genomeId = $propertySet->getProp('genome_db_rls_id');
     my $tmpLogin = $propertySet->getProp('tempLogin');
 
-    my $args = "--taxon_id $taxonId --genome_db_rls_id $genomeId --temp_login $tmpLogin --blat_signals_cache BlatAlignmentSignals";
+    my $args = "--taxon_id $taxonId --genome_db_rls_id $genomeId --temp_login $tmpLogin --blat_signals_cache BlatAlignmentSignals --subset_selector 1";
 
     $mgr->runPlugin('ComputeGenomeDotsGeneScore',
 		    "DoTS::Gene::Plugin::ComputeGenomeDotsGeneScore",

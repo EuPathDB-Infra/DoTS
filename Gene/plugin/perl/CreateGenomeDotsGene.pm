@@ -293,14 +293,17 @@ sub createTempTables {
 		   'NUMBER(6)', 'NUMBER(4)', 'NUMBER(3)',
 		   'NUMBER(4)', 'NUMBER(1)', 'NUMBER(8)', 'FLOAT(126)', 'FLOAT(126)', 'NUMBER(10)');
   my @gdg_csts = ("alter table ${tmpLogin}.$gdg_tab add constraint PK_" . uc($gdg_tab) . " primary key ($gdg_cols[0])",
-		  "create index " . uc($gdg_tab) . "_IND01 on ${tmpLogin}.$gdg_tab($gdg_cols[1],$gdg_cols[2])"); 
+		  "create index " . uc($gdg_tab) . "_IND01 on ${tmpLogin}.$gdg_tab($gdg_cols[1],$gdg_cols[2])",
+                  "create index " . uc($gdg_tab) . "_IND02 on ${tmpLogin}.$gdg_tab($gdg_cols[1],$gdg_cols[2])"); 
 
   my $gdt_tab = 'GenomeDotsTranscript';
   my @gdt_cols = ('taxon_id', 'genome_external_db_release_id', $gdg_cols[0], 'blat_alignment_id', 'na_sequence_id');
   my @gdt_types = ('NUMBER(10) NOT NULL', 'NUMBER(10)',$gdg_types[0], 'NUMBER(10)', 'NUMBER(10)');
   my @gdt_csts = ("alter table ${tmpLogin}.$gdt_tab add constraint " . uc($gdt_tab)
 		  . "_FK01 foreign key ($gdt_cols[2]) references ${tmpLogin}.$gdg_tab ($gdg_cols[0])",
-		  "create index " . uc($gdt_tab) . "_IND01 on ${tmpLogin}.$gdt_tab($gdt_cols[1],$gdt_cols[2])"); 
+		  "create index GENOME_DG_TRANS_IND01 on ${tmpLogin}.$gdt_tab($gdt_cols[3],$gdt_cols[4])",
+                  "create index GENOME_DG_TRANS_IND02 on ${tmpLogin}.$gdt_tab($gdt_cols[4])",
+                   ); 
 
 #  my $g2s_tab = 'GdgSdgMap';
 #  my @g2s_cols = ('taxon_id', 'genome_external_db_release_id', $gdg_cols[0], 'similarity_dots_gene_id', 'selected');
