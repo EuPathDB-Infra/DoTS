@@ -2634,7 +2634,7 @@ sub prepareDownloadSiteFiles {
   $mgr->runCmd($cmd) unless -e "$mgr->{pipelineDir}/seqfiles/$predictedProteinsFile" || "$mgr->{pipelineDir}/seqfiles/${predictedProteinsFile}.gz";
   my $cmd = "gzip $mgr->{pipelineDir}/seqfiles/$predictedProteinsFile";
   $mgr->runCmd($cmd) unless -e "$mgr->{pipelineDir}/seqfiles/${predictedProteinsFile}.gz";
-  push(@files, "$mgr->{pipelineDir}/seqfiles/${predictedProteinsFile}.gz");
+  push(@files, "${predictedProteinsFile}.gz");
   $descrip = "The predicted protein translation of each assembled transcript";
   $htaccessString .= "AddDescription \"$descrip\" *Proteins*\n";
   addFileToReadme($mgr, "${predictedProteinsFile}.gz", $descrip);
