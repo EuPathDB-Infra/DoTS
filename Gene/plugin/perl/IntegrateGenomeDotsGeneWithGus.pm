@@ -90,6 +90,20 @@ FAILURE_CASES
 		     constraintFunc=> undef,
 		     reqd  => 0,
 		     isList => 0
+		     }),
+
+	 integerArg({name => 'is_restart',
+		     descr => 'whether this is a restart',
+		     constraintFunc=> undef,
+		     reqd  => 0,
+		     isList => 0
+		     }),
+
+	 booleanArg({name => 'only_delete',
+		     descr => 'flag, only delete exist gDG result',
+		     constraintFunc=> undef,
+		     reqd  => 0,
+		     isList => 0
 		     })
 	 ];
 
@@ -119,10 +133,22 @@ sub run {
     my $gdgTab = $tempLogin . '.' . $self->getArg('genome_dots_gene_cache');
     my $gdtTab = $tempLogin . '.' . $self->getArg('genome_dots_transcript_cache');
     my $testNum = $self->getArg('test_number');
+    my $isRestart = $self->getArg('is_restart');
+    my $onlyDelete = $self->getArg('only_delete');
 
-    $self->moveToGus($dbh, $taxonId, $genomeId, $gdgTab, $gdtTab, $testNum);
+    my ($gis, $gfs, $gdgs) = $self->getExistGiGfGdg($dbh);
+    unless ($isRestart) {
+	my $efs = $self->getExistEfOrRf($dbh, 'DoTS.ExonFeature');
+	my $rfs = $self->getExistEfOrRf($dbh, 'DoTS.RnaFeature');
+	$self->cleanOldResults($dbh, $gis, $gfs, $efs, $rfs);
+    }
 
-    return "finished moving $gdgTab and $gdtTab into GUS central dogma tables";
+    if ($onlyDelete) {
+	return "finished deleting old gDG results"; 
+    } else {
+	$self->moveToGus($dbh, $taxonId, $genomeId, $gdgTab, $gdtTab, $gdgs, $testNum);
+	return "finished moving $gdgTab and $gdtTab into GUS central dogma tables";
+    }
 }
 
 #----------------
@@ -131,8 +157,64 @@ sub run {
 #
 #----------------
 
+sub getExistGiGfGdg {
+    my ($self, $dbh) = @_;
+
+    my $sql = "select gi.gene_instance_id, gf.na_feature_id, gf.name"
+	. " from DoTS.GeneFeature gf, DoTS.GeneInstance gi"
+	. " where gf.na_feature_id = gi.na_feature_id and gi.gene_instance_category_id = 1";
+    my $sth = $dbh->prepareAndExecute($sql);
+    my ($gis, $gfs, $gdgs) = ([], [], {});
+    while (my ($gi, $gf, $nam) = $sth->fetchrow_array) { 
+	push @$gis, $gi;
+	push @$gfs, $gf;
+	my $id = $1 if $nam =~ /gdg\.(\d+)/i;
+	$gdgs->{$id} = 1 if defined $id;
+    }
+    return ($gis, $gfs, $gdgs);
+}
+
+sub getExistEfOrRf {
+    my ($self, $dbh, $tab) = @_;
+
+    my $sql = "select f.na_feature_id"
+	. " from $tab f, DoTS.GeneFeature gf, DoTS.GeneInstance gi"
+	. " where f.parent_id = gf.na_feature_id"
+	. " and gf.na_feature_id = gi.na_feature_id"
+	. " and gi.gene_instance_category_id = 1";
+    my $sth = $dbh->prepareAndExecute($sql);
+    my $res = [];
+    while (my ($f) = $sth->fetchrow_array) { 
+	push @$res, $f;
+    }
+    return $res;
+}
+
+sub cleanOldResults {
+    my ($self, $dbh, $gis, $gfs, $efs, $rfs) = @_;
+
+    my $c = 0;
+    $c = &DoTS::Gene::Util::delete($dbh, 'DoTS.GeneInstance', 'gene_instance_id', $gis);
+    $self->log("deleted $c GeneInstance entries by gene_instance_id");
+
+    $c = &DoTS::Gene::Util::delete($dbh, 'DoTS.NALocation', 'na_feature_id', $gfs);
+    $self->log("deleted $c NALocation entries by na_feature_id of GeneFeature");
+
+    $c = &DoTS::Gene::Util::delete($dbh, 'DoTS.NALocation', 'na_feature_id', $efs);
+    $self->log("deleted $c NALocation entries by na_feature_id of ExonFeature");
+
+    $c = &DoTS::Gene::Util::delete($dbh, 'DoTS.ExonFeature', 'na_feature_id', $efs);
+    $self->log("deleted $c ExonFeature entries by na_feature_id");
+
+    $c = &DoTS::Gene::Util::delete($dbh, 'DoTS.RnaFeature', 'na_feature_id', $rfs);
+    $self->log("deleted $c RnaFeature entries by na_feature_id");
+
+    $c = &DoTS::Gene::Util::delete($dbh, 'DoTS.GeneFeature', 'na_feature_id', $gfs);
+    $self->log("deleted $c GeneFeature entries by na_feature_id");
+}
+
 sub moveToGus {
-    my ($self, $dbh, $taxonId, $genomeId, $gdgTab, $gdtTab, $testNum) = @_;
+    my ($self, $dbh, $taxonId, $genomeId, $gdgTab, $gdtTab, $skip, $testNum) = @_;
 
     my $sql = "select genome_dots_gene_id from $gdgTab"
 	. " where taxon_id = $taxonId and genome_external_db_release_id = $genomeId";
@@ -145,10 +227,10 @@ sub moveToGus {
 
     my $gi_cat = $self->getGeneInstanceCategory;
     my $fake_gene = $self->getFakeGene; # place holder for gDGs w/o sDG ids
-    my @chrs = DoTS::Gene::Util::getChromsInfo($dbh, $genomeId);
-    my %chrIds; foreach (@chrs) { $chrIds{$_->{chr}} => $_->{chr_id}; }
+    my $chrIds = DoTS::Gene::Util::getChromToId($dbh, $genomeId);
 
     foreach my $gdg_id (@gdg_ids) {
+	next if $skip && $skip->{$gdg_id};
 	$sql = "select gdg.gene_id, gdg.genome_dots_gene_id, gdg.number_of_exons, "
 	    . " gdg.chromosome, gdg.chromosome_start, gdg.chromosome_end, gdg.strand, "
 	    . " gdg.exonstarts, gdg.exonends, "
@@ -170,7 +252,9 @@ sub moveToGus {
 	$gf->setName('gDG.' . $r1->{genome_dots_gene_id});
 	$gf->setNumberOfExons($r1->{number_of_exons});
 	$gf->setScore($r1->{confidence_score});
-	$gf->setNaSequenceId($chrIds{$r1->{chromosome}});
+	my $cid = $chrIds->{$r1->{chromosome}};
+	die "no chrom id found for chr" . $r1->{chromosome} unless $cid;
+	$gf->setNaSequenceId($cid);
 	my $success = $gf->submit(0);
 	die "could not submit new GeneFeature " . $gf->getName if !$success;
 
@@ -192,8 +276,8 @@ sub moveToGus {
 	die "could not submit new NALocation for " . $gf->getName if !$success;
 
 	my $exoncount = $gf->getNumberOfExons;
-	my @exonstarts = split(/,/, @{ $r1->{exonstarts} });
-	my @exonends = split(/,/, @{ $r1->{exonends} });
+	my @exonstarts = split(/,/, $r1->{exonstarts});
+	my @exonends = split(/,/, $r1->{exonends});
 	for (my $i=1; $i<=$exoncount; $i++) {
 	    my $ef = GUS::Model::DoTS::ExonFeature->new();
 	    $ef->setParent($gf);
@@ -237,6 +321,8 @@ sub getGeneInstanceCategory {
     my ($self) = @_;
 
     my $gic = GUS::Model::DoTS::GeneInstanceCategory->new({ 'gene_instance_category_id' => 1 });
+    return $gic if $gic->retrieveFromDB();
+
     $gic->setName('gDG');
     $gic->setDescription('DoTS gene created from genome alignments of DTs');
     if ($gic->submit()) {
@@ -250,13 +336,14 @@ sub getGeneInstanceCategory {
 sub getFakeGene {
     my ($self) = @_;
     my $gene = GUS::Model::DoTS::Gene->new({'gene_id'=>-1});
+    return $gene if $gene->retrieveFromDB();
+
     $gene->setReviewStatusId(0);
     my $success = $gene->submit;
     die "not able to submit fake gene (id: -1)" unless $success;
 
     return $gene;
 }
-
 
 sub addGene {
   my ($self,$rnaArray) = @_;
