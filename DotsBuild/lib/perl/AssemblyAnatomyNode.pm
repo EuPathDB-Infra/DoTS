@@ -59,7 +59,7 @@ sub percolateAndWrite {
 	      EST_count => $sumRaw,
 	      taxon_id => $taxonId,
 	      na_sequence_id => $dtId
-	     }
+	     };
   my $assemblyAnatPercent = new GUS::Model::DoTS::AssemblyAnatomyPercent($args);
   $assemblyAnatPercent->submit();
 }
