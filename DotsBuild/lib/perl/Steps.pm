@@ -482,13 +482,10 @@ sub copyPipelineDirToLiniac {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
 
-  my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
-
   my $nickName = $propertySet->getProp('speciesNickname');
-  my $dotsRelease = "release" . $propertySet->getProp('dotsRelease');
   my $serverPath = $propertySet->getProp('serverPath') . "/$dotsRelease";
   my $liniacServer = $propertySet->getProp('liniacServer');
-  my $fromDir = "$dotsBuildDir/$dotsRelease";
+  my $fromDir = $mgr->{pipelineDir};
   my $signal = "dir2liniac";
   return if $mgr->startStep("Copying $dotsBuildDir/$dotsRelease/$nickName to $serverPath on $liniacServer", $signal);
 
