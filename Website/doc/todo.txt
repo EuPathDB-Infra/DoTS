@@ -1,44 +1,49 @@
 DoTS todo
 
 Misc
- - from assembly page, links to refseq is broken
 
 website
-  - complete the upgrade to GUS 3.0
-  - genomic location query
-  - move to release 6 of dots
+  - upgrade query page: collapse id queries into one pull down.
   - mapping to GeneNet
-  - batch submission
-     - email notification??
-  - history mode upgrade (jonathan?)
-  - report generating
-     - develop interface to control modular report generator 
-     - include sequence in report (based on landmark)
-     - include protein sequence too.
-  - Gene list
+  - genomic location query
   - map RAD to DoTS?
+  - Use Cases and tutorials
 
-build
-  - finish build 6
+website build
+  - find ALL hard coded urls get them into the config files!
+  - move project into new CVS structure
+
+Website - Gene/Genome integration
+  - Gene set queries
+  - annotate transcripts as coding/non-coding
+  - coding/non-coding query (for DT and DG)
+  - annotate transcripts with confidence
+  - coding/non-coding query
+  - move to RNAs from na_sequences
+  - model alternative splices?
+
+DoTS build
+  - develop new clustering algorithm (new graph approach + genome)
   - do a quick build 7 WITH NO CHANGES to show that we can do it quickly?
   - move to DIANA from framefinder for build 8?
+  - unify our approach to loading links to external dbs
 
-- poster
+Schema
+  - integrate various gene symbols/names
+
+poster
   - tutorial (using use cases)
   - improve this and put it on site
 
-- dots grant
+dots grant
   - log scan
   - literature search
   - ...
 
-- DoTS build and website paper
+DoTS build and website paper
 
-- move project into new CVS structure
 
-- develop new clustering algorithm (new graph approach + genome)
 
-- model alternative splices?
 
 
 DONE
@@ -46,3 +51,17 @@ DONE
   - DG query
     - replace "genes" tab with "query"
   - revise home page text (and elsewhere) to emphasize DoTS instead of allgenes
+  - from assembly page, links to refseq is broken
+  - complete the upgrade to GUS 3.0
+  - move to release 6 of dots
+  - batch submission
+     - email notification??
+  - history mode upgrade (jonathan?)
+  - report generating
+     - develop interface to control modular report generator 
+     - include sequence in report (based on landmark)
+     - include protein sequence too.
+  - finish build 6
+  - find ALL hard coded urls and db_ids and get them into the config files!
+  - move .gus.properties to a place outside of gushome so they don't get clobbered
+  - fix trimming in repeatmask
