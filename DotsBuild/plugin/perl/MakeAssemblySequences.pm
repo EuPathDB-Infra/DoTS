@@ -7,9 +7,7 @@ use strict;
 
 use GUS::Model::DoTS::ExternalNASequence;
 use GUS::Model::DoTS::AssemblySequence;
-
-use FileHandle;
-use SequenceUtils;
+use CBIL::Bio::SequenceUtils;
 
 sub new {
   my ($class) = @_;
