@@ -674,7 +674,7 @@ sub copyGenomeAssemSeqsFromCluster {
   return if $mgr->startStep("Copying genome alignment of assemSeqs from cluster", $signal);
     
   $mgr->{cluster}->copyFrom("$serverPath/$buildName/genome/assemSeqs-genome/master/mainresult",
-		       "per-chr",
+		       "per-seq",
 		       "$pipelineDir/genome/assemSeqs-genome");
   
   $mgr->runCmd("mkdir -p $pipelineDir/repeatmask/assemSeqs/master/mainresult");
@@ -720,7 +720,7 @@ sub loadGenomeAlignments {
   my $genomeId = $propertySet->getProp('genome_db_rls_id');
   #my $gapTabSpace = $propertySet->getProp('genomeGapLogin');
   my $pipelineDir = $mgr->{'pipelineDir'};
-  my $pslDir = "$pipelineDir/genome/$queryName-$targetName/per-chr";
+  my $pslDir = "$pipelineDir/genome/$queryName-$targetName/per-seq";
 
   #my $qFile = "$pipelineDir/repeatmask/$queryName/master/mainresult/blocked.seq";
   my $qFile = "/tmp/dotsbuild/blocked.seq";
