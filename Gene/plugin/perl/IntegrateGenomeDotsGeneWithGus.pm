@@ -259,7 +259,7 @@ sub moveToGus {
 	$sth = $dbh->prepareAndExecute($sql);
 	my @rows;
 	while (my $row = $sth->fetchrow_hashref('NAME_lc')) {  push @rows, $row; }
-	die "unexpected error: not info about gDG.$gdg_id" unless @rows;
+	die "unexpected error: no info about gDG.$gdg_id" unless @rows;
 	my $r1 = $rows[0];
 
 	my $gene = $fake_gene;
@@ -310,7 +310,7 @@ sub moveToGus {
 	    $ef->setName("E$i");
 	    $ef->setNaSequenceId($gf->getNaSequenceId);
 	    $ef->setOrderNumber($i);
-	    $rf->setExternalDatabaseReleaseId($genomeId);
+	    $ef->setExternalDatabaseReleaseId($genomeId);
 	    $success = $ef->submit(0);
 	    $self->error("could not submit new ExonFeature for " . $gf->getName . " exon $i") if !$success;
 	    
