@@ -23,13 +23,12 @@ my ($verbose, $createTmpTableOnly,$dbLogin,$dbPassword,
 	    'goBarGraphWidth=s' => \$totalBarWidth
            );
 
-&usage() unless ($dbLogin && $dbPassword && $goRowTemplateFile 
-		&& $goRowTemplateFile && $totalBarWidth);
+&usage() unless ($goRowTemplateFile && $goRowTemplateFile && $totalBarWidth);
+
+my $gusconfig = GUS::Common::GusConfig->new();
 
 $dbLogin = $gusconfig->getDatabaseLogin() unless $dbLogin;
 $dbPassword = $gusconfig->getDatabasePassword() unless $dbPassword;
-
-my $gusconfig = GUS::Common::GusConfig->new();
 
 my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
 					$dbLogin,
@@ -79,33 +78,34 @@ sub usage {
 sub createTmpTable {
   my ($dbh) = @_;
 
-  print STDERR "Creating tmp table PrintStatsTmp\n";
+  print STDERR "Creating tmp table PrintStatsTemp\n";
 
   my $sql = 
-"create table PrintStatsTmp as
+"create table PrintStatsTemp as
 select r.gene_id, a.na_sequence_id, a.number_of_contained_sequences,
-       1 as total_seqs, a.taxon_id, p.protein_id
-from Dots.RNA r, Dots.RNAInstance rs, Dots.NAFeature f, Dots.Assembly a,
-     Dots.Protein p
-where r.rna_id = rs.rna_id
-and rs.rna_id = p.rna_id
-and rs.na_feature_id = f.na_feature_id
-and a.na_sequence_id = f.na_sequence_id
+       1 as total_seqs, a.taxon_id, p.protein_id 
+from Dots.RNA r, Dots.RNAInstance rs, Dots.NAFeature f, 
+     Dots.Assembly a,Dots.Protein p 
+where r.rna_id = rs.rna_id 
+and rs.rna_id = p.rna_id 
+and rs.na_feature_id = f.na_feature_id 
+and a.na_sequence_id = f.na_sequence_id 
 and a.taxon_id in (8,14)";
-#and r.gene_id in (35588675,35732838)";  # for debugging
+# and r.gene_id in (35588675,35732838)";  # for debugging
 
   my $rows = $dbh->do($sql);
 
-  die "Couldn't create temp table PrintStatsTmp\n SQL: $sql" unless $rows;
-
   $dbh->commit();
-  print STDERR "tmp table created..entered $rows rows\n";
+ 
+  die "Couldn't create temp table PrintStatsTemp\n SQL: $sql" unless $rows;
+
+#  print STDERR "tmp table created..entered $rows rows\n";
 
   $sql =
-"update PrintStatsTmp set total_seqs = 2
+"update PrintStatsTemp set total_seqs = 2
 where gene_id in (
      select gene_id
-     from PrintStatsTmp
+     from PrintStatsTemp
      group by gene_id
      having sum(number_of_contained_sequences) > 1
 )";
@@ -115,7 +115,7 @@ where gene_id in (
   $dbh->commit();
 
   $sql = 
-"update printstatstmp set total_seqs = 2
+"update printstatstemp set total_seqs = 2
 where na_sequence_id in (
       select na_sequence_id
       from dots.assembly
@@ -125,12 +125,12 @@ and total_seqs = 1";
   ##want to update total_seqs to two where sequence is singleton but mRNA
   print STDERR "  Updating total_seqs for mRNAs: ".$dbh->do($sql)." rows\n";
   $dbh->commit();
-  print STDERR "  Updating number_of_contained_sequences: ".$dbh->do("update PrintStatsTmp set number_of_contained_sequences = 2 where number_of_contained_sequences > 1")." rows\n";
+  print STDERR "  Updating number_of_contained_sequences: ".$dbh->do("update PrintStatsTemp set number_of_contained_sequences = 2 where number_of_contained_sequences > 1")." rows\n";
   $dbh->commit();
   ##create indexes to facilitate queries
-  $dbh->do("create index tran_id_ind on printstatstmp (gene_id)");
-  $dbh->do("create index na_id_ind on printstatstmp (na_sequence_id)");
-  $dbh->do("create index p_id_ind on printstatstmp (protein_id)");
+  $dbh->do("create index tran_id_ind on printstatstemp (gene_id)");
+  $dbh->do("create index na_id_ind on printstatstemp (na_sequence_id)");
+  $dbh->do("create index p_id_ind on printstatstemp (protein_id)");
   $dbh->commit();
 }
 
@@ -138,7 +138,7 @@ sub dropTempTable {
   my ($dbh) = @_;
 
   print STDERR "Dropping temp table\n";
-  $dbh->do("drop table PrintStatsTmp"); 
+  $dbh->do("drop table PrintStatsTemp"); 
   $dbh->commit();
 }
 
@@ -315,7 +315,7 @@ sub countDoTSGenes {
   my ($dbh) = @_;
 
   ##now the number of DoTS genes....
-  my $stmt = $dbh->prepare("select taxon_id,count(distinct gene_id) from PrintStatsTmp where total_seqs > 1 group by taxon_id");
+  my $stmt = $dbh->prepare("select taxon_id,count(distinct gene_id) from PrintStatsTemp where total_seqs > 1 group by taxon_id");
   print STDERR "Retrieving number of DoTS genes\n" ;
   $stmt->execute();
 
@@ -338,7 +338,7 @@ sub countGenesWithGoodAlignment {
 
   ##now want to get the number of consistent DoTS alignments on genomic sequence...only for human...
   my $stmt = $dbh->prepare("select taxon_id,count(distinct gene_id)
- from PrintStatsTmp t, Dots.ConsistentAlignment c
+ from PrintStatsTemp t, Dots.ConsistentAlignment c
  where t.total_seqs > 1
  and c.transcript_na_sequence_id = t.na_sequence_id
  and c.is_consistent = 1
@@ -364,7 +364,7 @@ sub countDoTSWithGoodAlignment {
 
   ##now the number of consistent DoTS and Assemblies...
   my $stmt = $dbh->prepare("select taxon_id,number_of_contained_sequences,count(*)
- from PrintStatsTmp t, Dots.ConsistentAlignment c
+ from PrintStatsTemp t, Dots.ConsistentAlignment c
  where c.transcript_na_sequence_id = t.na_sequence_id
  and c.is_consistent = 1
  group by taxon_id,number_of_contained_sequences");
@@ -395,7 +395,7 @@ sub countKnownGenes {
 
   ## Now determine the "known" Genes ...
   print STDERR "Determining number of DoTS genes with NR neigbors:\n" ;
-  my $stmt = $dbh->prepare("select pst.taxon_id,count(distinct pst.gene_id) from PrintStatsTmp pst, Dots.Similarity s where s.query_table_id = 56 and s.query_id = pst.na_sequence_id and s.subject_table_id = 83 and pst.total_seqs > 1 group by pst.taxon_id");
+  my $stmt = $dbh->prepare("select pst.taxon_id,count(distinct pst.gene_id) from PrintStatsTemp pst, Dots.Similarity s where s.query_table_id = 56 and s.query_id = pst.na_sequence_id and s.subject_table_id = 83 and pst.total_seqs > 1 group by pst.taxon_id");
   $stmt->execute();
 
   my ($humGenesWithNR, $musGenesWithNR);
@@ -416,7 +416,7 @@ sub countKnownDoTs {
 
   ##now assemblies ...
   print STDERR "Determining number of DoTS assemblies with NR neigbors:\n" ;
-  my $stmt = $dbh->prepare("select a.taxon_id,a.number_of_contained_sequences,count(distinct a.na_sequence_id) from PrintStatsTmp a, Dots.Similarity s where s.query_table_id = 56 and s.query_id = a.na_sequence_id and s.subject_table_id = 83 group by a.taxon_id,a.number_of_contained_sequences");
+  my $stmt = $dbh->prepare("select a.taxon_id,a.number_of_contained_sequences,count(distinct a.na_sequence_id) from PrintStatsTemp a, Dots.Similarity s where s.query_table_id = 56 and s.query_id = a.na_sequence_id and s.subject_table_id = 83 group by a.taxon_id,a.number_of_contained_sequences");
   $stmt->execute();
 
   my ($humAssWithNR, $humDoTSWithNR, $musAssWithNR, $musDoTSWithNR);
@@ -441,7 +441,7 @@ sub countGOGenes {
 
   my $sql =
 "select pst.taxon_id, count(distinct pst.gene_id) 
-from PrintStatsTmp pst, Dots.GOAssociation ga
+from PrintStatsTemp pst, Dots.GOAssociation ga
 where pst.total_seqs > 1 
 and ga.row_id = pst.protein_id 
 and ga.table_id = '180'
@@ -473,7 +473,7 @@ sub countGODoTs {
   my $sql =
 "select pst.taxon_id, pst.number_of_contained_sequences, 
         count(distinct pst.na_sequence_id) 
-from PrintStatsTmp pst, Dots.GOAssociation ga
+from PrintStatsTemp pst, Dots.GOAssociation ga
 where pst.total_seqs > 1 
 and ga.row_id = pst.protein_id 
 and ga.table_id = '180'
@@ -510,7 +510,7 @@ sub getGODistribution {
 
   my $sql = 
 "select pst.taxon_id, t.name, t.go_term_id, count(distinct pst.gene_id)
-   from PrintStatsTmp pst, Dots.GOAssociation ga, SRes.GOTerm t
+   from PrintStatsTemp pst, Dots.GOAssociation ga, SRes.GOTerm t
    where pst.total_seqs > 1
    and ga.table_id = 180
    and ga.row_id = pst.protein_id
