@@ -1814,13 +1814,12 @@ sub prepareDownloadSiteFiles {
 
     # create report of manually reviewed dots
     my $cmd = "gusreport --configModule GUS::ReportMaker::SampleTranscriptReportConfig --dbLogin $tempLogin --dbPassword $tempPassword --tempTableName sfischer.tempResult --requestedColumns 'Description, GeneSymbol, Length, GOid, DoTSGene, SeqsInAssem, MGI, LocusLink, ContainsMRNA, Motifs, Organism, mRNASeq, proteinSeq' --sql 'select distinct pa.na_sequence_id, 9999 from DoTS.rna r, allgenes.proteinassembly pa where r.review_status_id = 1 and r.rna_id = pa.rna_id and pa.taxon_id = $taxonId' > $manRevwDoTSReportFile";
-	$mgr->runCmd($cmd);
+    $mgr->runCmd($cmd);
 
-        my $cmd = "gzip $manRevwDoTSReportFile";
+    my $cmd = "gzip $manRevwDoTSReportFile";
 
-	$mgr->runCmd($cmd);
+    $mgr->runCmd($cmd);
 
-    
 
     &writeReadmeFile($prefix, $dotsRelease, $speciesNickname,$speciesFullname,
 		     $fastaFile, $accsPerAssemFile, $nrdbHitsFile, $assPerGeneFile,
@@ -2650,7 +2649,7 @@ sub parseLocusLink {
 
   my $date = $propertySet->getProp('buildDate');
 
-  my $downloadSubDir = "$externalDbDir/locuslink/$date";
+  my $downloadSubDir = "$externalDbDir/locusLink/$date";
 
   my $inputfile = "$downloadSubDir/loc2acc";
   
@@ -2665,6 +2664,8 @@ sub parseLocusLink {
   my $cmd = "makeLL2DoTSfile --inputFile $inputfile --taxon_id $taxonId --tax_id $tax_id > $outputfile 2>>$logFile";
 
   $mgr->runCmd($cmd);
+
+  $mgr->runCmd("cp $outputfile $pipelineDir/downloadSite/${species}LL2DoTS");
 
   $mgr->endStep($signal);
 }
