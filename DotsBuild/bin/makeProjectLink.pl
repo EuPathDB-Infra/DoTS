@@ -43,7 +43,7 @@ my $idHash = &getHash($dbh,$taxon);
 
 &idsDone($dbh,$idHash,$project_id) if ($restart);
 
-&insertProjectLink($db,$idHash,$project_id);
+&insertProjectLink($db,$dbh,$idHash,$project_id);
 
 
 
@@ -116,7 +116,7 @@ sub idsDone {
 
 sub insertProjectLink {
 
-    my ($db,$hash,$project) = @_;
+    my ($db,$dbh,$hash,$project) = @_;
 
     my $count = 0;
 
@@ -129,13 +129,13 @@ sub insertProjectLink {
     my $sql = "insert into dots.ProjectLink Values ($nextvalSql,$project,56,?,null,SYSDATE,1,1,1,1,1,0,12,0,$project,0)";
     print STDERR ("$sql\n");
 
-    my $stmt = $db->prepare($sql);
+    my $stmt = $dbh->prepare($sql);
 
     foreach my $id (keys %{$hash}) {
 
 	$stmt->execute($id);
 
-	$db->commit if ($commit);
+	$dbh->commit if ($commit);
 
 	$count++;
 
