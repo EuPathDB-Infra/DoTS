@@ -310,6 +310,8 @@ $mgr->waitForLiniac("genomic alignments of assemSeqs", "waitGenomeAlignAss");
 
 &matrix("final", $mgr);
 
+&copyDotsMatrixFromLiniac("finalDots-finalDots",$mgr);
+
 &markBadSeqs($mgr);  
 
 &getIdsPerAssembly($mgr); 
@@ -373,6 +375,8 @@ $mgr->waitForLiniac("genomic alignments of assemSeqs", "waitGenomeAlignAss");
    &versionGeneTrapAssembly($mgr);
 
    &deleteGeneTrapAssembly($mgr);
+
+   &updateGeneTrapTags($mgr);
 
    &extractGeneTrapTags($mgr);
 
