@@ -1,0 +1,48 @@
+#!@perl@
+use strict;
+use lib "$ENV{GUS_HOME}/lib/perl";
+use Getopt::Long;
+use GUS::ObjRelP::DbiDatabase;
+use GUS::Common::GusConfig;
+
+
+my ($verbose,$materializedView,$gusConfigFile,$schema);
+&GetOptions("verbose!"=> \$verbose,
+	    "materializedView"=> \$materializedView,
+            "schema=s"=> \$schema,
+            "gusConfigFile=s" => \$gusConfigFile);
+
+
+die "usage: makeAssemblySignalPSummary --materializedView (e.g. MolecularWeight_mv) --schema (e.g. EPCondev) --verbose --gusConfigFile [\$GUS_CONFIG_FILE]\n"
+unless ($schema && $materializedView);
+
+print STDERR "Establishing dbi login\n" if $verbose;
+
+my $gusconfig = GUS::Common::GusConfig->new($gusConfigFile);
+
+my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
+					$gusconfig->getDatabaseLogin(),
+					$gusconfig->getDatabasePassword(),
+					$verbose,0,1,
+					$gusconfig->getCoreSchemaName());
+
+my $dbh = $db->getQueryHandle();
+
+my $tableName = "'${schema}.materializedView'";
+
+
+my $refreshSql =
+"EXECUTE DBMS_MVIEW.REFRESH($tableName)";
+print STDERR "Refreshing $tableName \n";
+print STDERR "refreshSql: $refreshSql\n" if $verbose;
+
+$dbh->do($refreshSql) || die "Refresh failed.\nSQL: $refreshSql";
+
+print STDERR "Committing refresh\n";
+$dbh->commit();
+
+
+
+
+
+
