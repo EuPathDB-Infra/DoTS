@@ -620,6 +620,21 @@ sub parseGenbank {
     $mgr->runPlugin($signal, "GUS::Common::Plugin::GBParser", $args, "Loading GenBank files into GUS");
     
   }
+  foreach my $file (@gbFiles) {
+
+    my $dotsRelease = "release" . $propertySet->getProp('dotsRelease');
+
+    my $buildName = &makeBuildName($propertySet->getProp('speciesNickname'));
+
+    my $failFiles = "$dotsBuildDir/$dotsRelease/$buildName/plugins/$file/gbparserFailures/*.gb";
+
+    my @fileArr = `glob($failFiles)`;
+    
+    if ((scalar @fileArr) >= 1) {
+      die "There are GenBank entry failures - evaluate and run GBParser manually - then restart dotsbuild\n";
+    }
+  } 
+  
 }
 
 sub parseRefSeq {
@@ -639,6 +654,19 @@ sub parseRefSeq {
   my $signal = "refseq_${refseqFile}";
     
   $mgr->runPlugin($signal, "GUS::Common::Plugin::GBParser", $args, "Loading RefSeq files into GUS");
+
+  my $dotsRelease = "release" . $propertySet->getProp('dotsRelease');
+
+  my $buildName = &makeBuildName($propertySet->getProp('speciesNickname'));
+
+  my $failFiles = "$dotsBuildDir/$dotsRelease/$buildName/plugins/$refseqFile/gbparserFailures/*.gb";
+  
+  my @fileArr = `glob($failFiles)`;
+    
+  if ((scalar @fileArr) >= 1) {
+    die "There are RefSeq entry failures - evaluate and run GBParser manually - then restart dotsbuild\n";
+  }
+
 }
 
 sub parsedbEST {
