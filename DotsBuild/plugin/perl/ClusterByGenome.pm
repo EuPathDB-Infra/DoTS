@@ -80,7 +80,7 @@ sub run {
   my $aid = &getAlignedGeneAnalysisId($dbh,$taxon_id, $genome_id);
 
   $self->logData("seeding clusters ...");
-  my $clusters = &getClusterSeeds($dbh, $aid, $test_chr);
+  my $clusters = &getClusterSeeds($dbh, $aid, $genome_id, $taxon_id, $test_chr, $query_dbid);
   $self->logData("number of clusters seeded: " . scalar(keys %$clusters) . '.');
 
   $self->logData("adding new members to clusters ...");
@@ -230,6 +230,9 @@ sub getClusterLinks {
 
 sub addNewMembers {
     my ($dbh, $aid, $taxon_id, $query_dbid, $genome_id, $stage, $clusters) = @_;
+
+    return if ! defined $aid;
+
     my $new_seqs = 0;
     my %changed_dgs;
     my %assSeqs;
@@ -289,12 +292,14 @@ sub getAlignedGeneAnalysisId {
     my $aid;
     if (($aid) = $sth->fetchrow_array) { ; }
     $sth->finish;
-    die "could not get latest aligned_gene_analysis_id for taxon $taxon_id" unless defined($aid);
+    # die "could not get latest aligned_gene_analysis_id for taxon $taxon_id" unless defined($aid);
     $aid;
 }
 
 sub getClusterSeeds {
-    my ($dbh, $aid, $testChr) = @_;
+    my ($dbh, $aid, $genome_id, $taxon_id, $testChr, $query_dbid) = @_;
+
+    return &makeClusters($dbh, $genome_id, $taxon_id, $testChr, $query_dbid) if !defined $aid;
 
     my $sql = "select ag.aligned_gene_id, 'DT.' || aga.na_sequence_id "
 	. "from Allgenes.AlignedGene ag, Allgenes.AlignedGeneAssembly aga "
@@ -311,6 +316,65 @@ sub getClusterSeeds {
     $seed_clusters;
 }
 
+sub makeClusters {
+    my ($dbh, $genome_id, $taxon_id, $testChr, $query_dbid) = @_;
+
+    my @seqs = &getSequencePieces($dbh, $genome_id, $testChr);
+
+    my $clusters = {};
+    my $cinfo = {id=>0, start=>0, end=>0};
+    foreach my $seqId (@seqs) {
+        my $sql = "select '' || s.assembly_sequence_id as sid, b.target_start, b.target_end "
+        . "from DoTS.BlatAlignment b, DoTS.AssemblySequence s "
+        . "where b.query_na_sequence_id = s.na_sequence_id "
+        . "and b.query_table_id = 57 and b.query_taxon_id = $taxon_id "
+        . "and b.query_external_db_release_id = $query_dbid "
+        . "and b.target_table_id = 245 and b.target_taxon_id = $taxon_id "
+        . "and b.target_na_sequence_id = $seqId and b.is_best_alignment = 1 "
+        . "union "
+        . "select 'DT.' || a.na_sequence_id as sid, b.target_start, b.target_end "
+        . "from Dots.BlatAlignment b, Dots.Assembly a "
+        . "where b.query_na_sequence_id = a.na_sequence_id "
+        . "and b.query_table_id = 56 and b.query_taxon_id = $taxon_id "
+        . "and b.target_table_id = 245 and b.target_taxon_id = $taxon_id "
+        . "and b.target_na_sequence_id = $seqId and b.is_best_alignment = 1 ";
+        $sql = "select * from ($sql) order by target_start asc, target_end asc";
+
+        my $sth = $dbh->prepare($sql) or die "bad sql $sql";
+        $sth->execute or die "could not run $sql";
+
+        while (my ($sid, $s, $e) = $sth->fetchrow_array) {
+            # make this a new command line arg
+            my $CDIST = 100000;
+            if ($cinfo->{end} == 0 || $s - $cinfo->{start} > $CDIST) {
+                my $newCid = $cinfo->{id} + 1;
+                $cinfo = {id=>$newCid, start=>$s, end=>$e};
+                $clusters->{$newCid}->{$sid} = '';
+            } else {
+                my $cid = $cinfo->{id};
+                $clusters->{$cid}->{$sid} = '';
+                $cinfo->{end} = $e if $e > $cinfo->{end};
+            }
+        }
+        $sth->finish;
+    }
+
+    return $clusters;
+}
+
+sub getSequencePieces {
+    my ($dbh, $genome_id, $testChr) = @_;
+
+    my $sql = "select na_sequence_id from dots.VirtualSequence where external_database_release_id = $genome_id";
+    $sql .= " where chromosome = '$testChr'" if $testChr;
+    my $sth = $dbh->prepare($sql) or die "bad sql $sql";
+    $sth->execute or die "could not run $sql";
+    my @seqs = ();
+    while (my ($id) = $sth->fetchrow_array) {
+        push @seqs, $id;
+    }
+    @seqs;
+}
 
 1;
 
