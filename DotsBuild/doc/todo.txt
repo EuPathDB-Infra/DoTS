@@ -6,7 +6,7 @@ Add procedures to dotsbuild to add COG and cd to db-done
 
 Add option for regex for task.prop for cdd
 
-write download sub for genetags:http://baygenomics.ucsf.edu/cgi-bin/BayDbAccess.py?TYPE=download  (this is the URL for the Skarnes/Tessier-Levigne gene tag download)- I downloaded these manually for release6
+write download sub for genetags:http://baygenomics.ucsf.edu/cgi-bin/BayDbAccess.py?TYPE=download  (this is the URL for the Skarnes/Tessier-Levigne gene tag download)- I downloaded these manually for release6  
 
 need procedure for updating externaldatabaserelease where version is unknown or continuous
 
@@ -22,8 +22,9 @@ add sub to run plugin/script that updates all the quality attributes for existin
 
 For release7, run reassemble for the initial (just the initial?) assembly plugin - compare times
 
-Try splitting the similarity files and running two processes for loading the similarities-this seems to be working for human nrdb and could halve the time for loading.
+Investigate speed up for LoadBlastSimilaritiesPK (Tried splitting the similarity files and running two processes for loading the similarities-this seems to be working for human nrdb but with one conflict getting SmilaritySpan id and another failure for ?).
 
+Look into includingcontrolling index dropping, creating, checking in the pipeline. 
 
 
 
