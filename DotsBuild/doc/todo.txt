@@ -18,7 +18,8 @@ in controller.prop for intermed matrix,taskclass=DistribJobTasks::BlastMatrixTas
 nodeclass=DistribJob::BprocNode should read taskclass=DJob::DistribJobTasks::BlastMatrixTask
 nodeclass=DJob::DistribJob::BprocNode
 
-replace repeat/vector file on both ptolemy and liniac
+replace repeat/vector file on both ptolemy and liniac:ftp://ftp.ncbi.nih.gov/blast/db/FASTA/vector.Z
+
 
 add sub to run plugin/script that updates all the quality attributes for existing AssemblySequences-time this to see if this should be done at every build or there should be a set of rules to detect when a sequence has changed
 
@@ -35,6 +36,10 @@ modify teh Similarity plugins to commit on a better schedule
 Modify dots.SignalPeptideFeature to include signal_probability and anchor_probability or otherwise remedy that situation and then rerun the plugin to add that data. The plugin may have to be modified.
 
 Do we want to add an attribute to the externaldatabase table indicating whether the corresponding release_id(s) should be changed with each new version or if we just want to update the row in ExternalDatabaseRelease. Related to this, I gave both GenBank and RefSeq new release_ids for release6 and I think I need to change them to the original and update the rows in ExternalDatabaseRelease. 
+
+There are ~1300 duplicates in the ExternalNASrquence that are GenBank or RefSeq (maybe the above is responsible, when update is deemed necessary from the NAEntry table)-investigate and remedy if possible.
+
+The file set that resulted from partitioning the human predicted protein (framefinder) file, is too large to process with signalP and signalPHMM. I had to do it twice. See about changing the file size - need to change code for partitioning and processing scripts. 
 
 BUILD ISSUES
 

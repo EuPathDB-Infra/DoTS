@@ -354,6 +354,12 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &parseSGPHMMSignalP();
 
+&loadTMHMM();
+
+&loadSGPSignalP();
+
+&loadSGPHMMSignalP();
+
 &makeStatisticsPage();
 
 $mgr->goodbye("Pipeline complete!\n");
@@ -2339,6 +2345,8 @@ sub makeStatisticsPage {
   my $cmd = "dotsStatistics --dbLogin $login --dbPassword $password --useExistingTmpTable --templateFile $ENV{GUS_HOME}/data/DoTS/DotsBuild/statsTemplate.html.in --goRowTemplateFile $ENV{GUS_HOME}/data/DoTS/DotsBuild/statsGoRowTemplate.txt --goBarGraphWidth 200 > $output 2>> $logfile"; 
 
   $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
 }
 
 
@@ -2789,19 +2797,19 @@ sub parseTMFile {
 
   my $predictionPath = "$pipelineDir/downloadSite/*.tmhmm.*";
 
-  my $outputPath = "$pipelineDir/downloadSite";
-
   my $dotsRelease = $propertySet->getProp('dotsRelease');
 
   my $speciesNickname = $propertySet->getProp('speciesNickname');
   
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
 
+  my $outputFile = "$pipelineDir/downloadSite/${prefix}_predictedProteins.tmhmm.parsed";
+
   my $predictedProteinsFile = "$pipelineDir/downloadSite/${prefix}_predictedProteins.fasta";
 
   my $type = 'tmhmm';
 
-  my $cmd = "parse-all --PredictionPath $predictionPath --OutputPath $outputPath --AASequenceFile $predictedProteinsFile --Type $type 2>>$logFile";
+  my $cmd = " parse-predictions --PredictionPath $predictionPath --AaSequenceFile $predictedProteinsFile --Type $type > $outputFile 2>>$logFile";
 
   $mgr->runCmd($cmd);
 
@@ -2816,9 +2824,7 @@ sub parseSGPSignalP {
 
   my $logFile = "$pipelineDir/logs/${signal}.log";
 
-  my $predictionPath = "$pipelineDir/downloadSite/proteinSequenceChunks/*.sgp.*";
-
-  my $outputPath = "$pipelineDir/downloadSite/proteinSequenceChunks";
+  my $predictionPath = "$pipelineDir/downloadSite/proteinSequenceChunks/*.fa.sgp.Z";
 
   my $dotsRelease = $propertySet->getProp('dotsRelease');
 
@@ -2826,11 +2832,13 @@ sub parseSGPSignalP {
   
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
 
+  my $outputFile = "$pipelineDir/downloadSite/proteinSequenceChunks/${prefix}_predictedProteins.sgp.parsed";
+
   my $predictedProteinsFile = "$pipelineDir/downloadSite/${prefix}_predictedProteins.fasta";
 
   my $type = 'sgp';
 
-  my $cmd = "parse-all --PredictionPath $predictionPath --OutputPath $outputPath --AASequenceFile $predictedProteinsFile --Type $type 2>>$logFile";
+  my $cmd = " parse-predictions --PredictionPath \"$predictionPath\" --AaSequenceFile $predictedProteinsFile --Type $type > $outputFile 2>>$logFile";
 
   $mgr->runCmd($cmd);
 
@@ -2845,9 +2853,7 @@ sub parseSGPHMMSignalP {
 
   my $logFile = "$pipelineDir/logs/${signal}.log";
 
-  my $predictionPath = "$pipelineDir/downloadSite/proteinSequenceChunks/*.sgphmm.*";
-
-  my $outputPath = "$pipelineDir/downloadSite/proteinSequenceChunks";
+  my $predictionPath = "$pipelineDir/downloadSite/proteinSequenceChunks/*.fa.sgphmm.Z";
 
   my $dotsRelease = $propertySet->getProp('dotsRelease');
 
@@ -2855,16 +2861,73 @@ sub parseSGPHMMSignalP {
 
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
 
+  my $outputFile = "$pipelineDir/downloadSite/proteinSequenceChunks/${prefix}_predictedProteins.sgphmm.parsed";
+
   my $predictedProteinsFile = "$pipelineDir/downloadSite/${prefix}_predictedProteins.fasta";
 
   my $type = 'sgphmm';
 
-  my $cmd = "parse-all --PredictionPath $predictionPath --OutputPath $outputPath --AASequenceFile $predictedProteinsFile --Type $type 2>>$logFile";
+  my $cmd = " parse-predictions --PredictionPath \"$predictionPath\" --AaSequenceFile $predictedProteinsFile --Type $type > $outputFile 2>>$logFile";
 
   $mgr->runCmd($cmd);
 
   $mgr->endStep($signal);
 }
+
+sub loadTMHMM {
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+  my $inputFile = "$pipelineDir/downloadSite/${prefix}_predictedProteins.tmhmm.parsed";
+
+  my $project_id = $propertySet->getProp('project_id');
+
+  my $args = "--filename $inputFile --project_id $project_id";
+
+  $mgr->runPlugin("loadTMHMM", "DoTS::DotsBuild::Plugin::LoadPredictedAAFeatures", $args, "loading parsed TMHMM predictions into GUS");
+
+}
+
+
+sub loadSGPSignalP {
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+  my $inputFile = "$pipelineDir/downloadSite/proteinSequenceChunks/${prefix}_predictedProteins.sgp.parsed";
+
+  my $project_id = $propertySet->getProp('project_id');
+
+  my $args = "--filename $inputFile --project_id $project_id";
+
+  $mgr->runPlugin("loadSGPSignalP", "DoTS::DotsBuild::Plugin::LoadPredictedAAFeatures", $args, "loading parsed SignalP predictions into GUS");
+}
+
+sub loadSGPHMMSignalP {
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+  my $inputFile = "$pipelineDir/downloadSite/proteinSequenceChunks/${prefix}_predictedProteins.sgphmm.parsed";
+
+  my $project_id = $propertySet->getProp('project_id');
+
+  my $args = "--filename $inputFile --project_id $project_id";
+  
+  $mgr->runPlugin("loadSGPHMMSignalP", "DoTS::DotsBuild::Plugin::LoadPredictedAAFeatures", $args, "loading parsed SignalPHMM predictions into GUS");
+}
+
+
 
 
 sub makeBuildName {
