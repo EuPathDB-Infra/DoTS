@@ -141,11 +141,11 @@ sub run {
         $manRevGenes{$g} = $g if $g->getReviewStatusId == 1;
         $g->removeAllChildPointers(1);
         $self->log ("Retrieving RNAs for gene ",$g->getId(),"\n") if $debug;
-        foreach my $rna ($g->getRNAs(1)) {
+        foreach my $rna ($g->getChildren('DoTS::RNA',1)) {
           $self->log ("setting gene id to null for RNA.",$rna->getId(),"\n") if $debug;
           
           ##if  is  a reference sequence..keep associated with  gene unless is one of rnas working with..
-          if ($rna->getChild('DoTS::RNARNACategory')->getRnaCategoryId() == 17) { ##is a reference rna 
+          if ($rna->getChild('DoTS::RNARNACategory') && $rna->getChild('DoTS::RNARNACategory')->getRnaCategoryId() == 17) { ##is a reference rna 
             if (exists $rnas{"$rna"}) { #3and in this cluster.. 
               if (!$gene) {	## don't yet have a gene..
                 $gene = $g;
@@ -167,7 +167,6 @@ sub run {
           $algoInvo->addChild($rna);
           
         }                       ##end of foreach $rna... 
-        $algoInvo->addChild($self->createMergeSplit($g,$gene,1)) if "$g" ne "$gene";
       } 
       ##now get a gene if  don't  have one...
       ##want a gene that is manually reviewed if it does not have other RNA with reference..
@@ -189,10 +188,6 @@ sub run {
         $gene = $self->createNewGene();
       }				##don't have any so create a new one...
 	
-      ##now foreach  rna in  cluster...add to the gene
-      foreach my $r (values %rnas) {
-        $gene->addChild($r);
-      }
 	
       ##now mark extra genes deleted...
       foreach my $g (@genes) {
@@ -202,21 +197,31 @@ sub run {
         }
         ##may still have reference rna associated...don't want  to  alter gene...
         next if $genesWithReference{$g};
+
+	$algoInvo->addChild($self->createMergeSplit($g,$gene,1)) if ($gene && "$g" ne "$gene");
           
         $g->retrieveAllChildrenFromDB(); ##don't do it recursively
-        $g->removeChildren($g->getChildren('RNA'));
-        #        foreach my $c ($gene->getChildren('RNA')){
-        #          $c->removeParent($g);
-        #        }
+#	print STDERR "\nRetrieving all children and then removing the RNAs\n\n";
+        #$g->removeChildren($g->getChildren('DOTS::RNA'));
+        foreach my $c ($g->getChildren('DOTS::RNA')){
+          $c->removeParent($g);
+        }
         $g->markDeleted(1);
         $gene->addToSubmitList($g);
       }
+
+      ##now foreach  rna in  cluster...add to the gene
+      foreach my $r (values %rnas) {
+        $gene->addChild($r);
+      }
+
       ##and submit...
       $self->submit($algoInvo,$gene);
       $algoInvo->removeAllChildren();
       $algoInvo->undefPointerCache();
       print L "$cluster complete\n";
     }
+  }
       
     close F;
       
@@ -229,7 +234,6 @@ sub run {
     print L "\n$res\n";
     close L;
     return "$res";
-  }
 }
 
   ##need to  submit the rna children first before the genes..
