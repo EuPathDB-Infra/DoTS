@@ -1,79 +1,61 @@
           ================ DOTS BUILD TODO ===============
 
+NOW
+  - use 'allgenes' schema instead of 'allgenes_xx'
+  - include makePromoterRegionTable
+  - look into brian's observation about the promoter regions
+  - continute reviewing scripts and plugins to make sure they are dying properly
+  - revise plugin that fills the anatomy percent table
+  - validate framefinder predictions?
+  - add the FF file to the downloads department
+  - get a legit version of the TMHMM package
+  - get new GEA files  
+  - cope with FF's * 
+  - look into ExtractAndBlockAssemblySeqs problem of adding "sequences length"
+  - update the release date in externaldatabaserelease where version is continuous (add this to GBParser, NRDB, etc. plugins)
+  - decide if we are using new cdd, prodom for build 8  
+  - write download sub for genetags:http://baygenomics.ucsf.edu/cgi-bin/BayDbAccess.py?TYPE=download  (this is the URL for the Skarnes/Tessier-Levigne gene tag download)
+  - human EPCR markers are not in the database. 
+  - add to pipeline the dropping of BlatAlignment Index before we do the CAP4, and restoring after.
+  - add options for --maketemp,--plugin,--delete to properties file and to dotsbuild for loadNRDB
+  - reminder to do manual library assignment as soon as ESTs are loaded
 
-Some more things:
-  1. use 'allgenes' schema instead of 'allgenes_xx'
-  2. clean up and rename makeAllgenesTables
-  3. somehow review scripts and plugins to make sure they are dying properly
-  4. revise plugin that fills the anatomy percent table
-  5. include makePromoterRegionTable
-  6. re-run MGI and GeneCards
-  7. validate framefinder predictions?
-  8. integrate blat alignment stuff (parallel)
-  9. integrate the GO stuff (parallel)
-  10. didn't run the cleanup step
-  11. zip as we go
-  12. add the FF file to the downloads department
-  13. double check the promoter region table
-  14. get a legit version of the TMHMM package
-  15. move from /ptolemy to /files
-  16. get new GEA files  
-FrameFinder
-   - investigate and why and what to do about Framefinder's putting an * in the translated sequence
 
 
-For Release 8 and beyond
+LATER
+  - move from /ptolemy to /files
+  - continue to zip as we go
+  - sanity check and run the cleanup step
+  - validate framefinder predictions?
+  - integrate blat alignment stuff (parallel)
+  - integrate the GO stuff (parallel)
   - move to DIANA from framefinder for build 8?
   - develop new clustering algorithm (new graph approach + genome)
   - unify our approach to loading links to external dbs
+  - Discover what makes All on liniac-we made All but rpsblast replaced it.
+  - consider adding a "incrementally_maintained" boolean to externaldatabaserelease
+  - dbest.pm-makes a taxon cache with hard coded taxon_ids and even though a comment says that all others are on demand, there is no way to retrieve the "others"-this should be changed to accomodate the others and specific taxon_ids.(see line 843).
+  - deal with the novalidctxok added to the command line to run blast 
+       -so that blast wouldn't fail with "no valid context" 
+       -the result file has no line for the query rather than a line with >XXX and no blast result
+       -validation is thrown off by this
+  - Add documentatin to dbEST.pm that indicates the source of the data, dbEST mirror, and how to load the mirror.
+  - method to add README file for each download
+  - method to cat files into a single file for cross-match
+  - Validation, Validation, Validation
+  - NRDB has a version "continuous" and also "unknown" (6593).  probably should delete 6593.
+  - do we have to limit our queries that make the download site files by project id?
+  - Add property for regex for task.prop for cdd (do this the next time the regex changes)
+  - standardize all sequence entry, blast, and similarity (incl. gene tags) procedures and code
 
-   - need procedure for updating the release date in externaldatabaserelease where version is continuous (add this to GBParser, NRDB, etc. plugins)
 
-   - Discover what makes All on liniac-we made All but rpsblast replaced it.
 
-   - write download sub for genetags:http://baygenomics.ucsf.edu/cgi-bin/BayDbAccess.py?TYPE=download  (this is the URL for the Skarnes/Tessier-Levigne gene tag download)- I downloaded these manually for release6  
 
-   - consider adding a "incrementally_maintained" boolean to externaldatabaserelease
 
-GENERAL:
 
-Consider deleting BlatAlignment rows for each taxon_id before running the Cap4 plugin.
-
-dbest.pm-makes a taxon cache with hard coded taxon_ids and even though a comment says that all others are on demand, there is no way to retrieve the "others"-this should be changed to accomodate the others and specific taxon_ids.(see line 843).
-
-Look into deadlocking with UpdateDotsAssembliesWithCap4
-
-Handle "no valid context" blast result:
-    -novalidctxok was added to the command line to run blast in the blastMatrix script (/home/pinney/projects/DJob/DistribJobTasks/bin) so that blast wouldn't fail when there was a "no valid context" found for a query sequence
-    -the result file after blast and parse blast has no line for the query at all rather than a line with >XXX and no blast result
-    -validation as it now is done should compare input and output files and detect the count difference, therefore we need to change something at some level.
-    -the failed seq-in /mnt/io1/genomics/binf/dotsBuilds/release7/hum/matrix/assemSeqs-assemSeqs/master.save/failures-save/subtask_459/result/seqTemp
-	 >27291543
-GCCTNCCTNCACGGNATTGCTNTGTGNACCTNCAGGTGNACCCACNTGNAGCTTTTNAGCCTNCAG  
-
-add options for --maketemp,--plugin,--delete to properties file and to dotsbuild for loadNRDB
-
-Add documentatin to dbEST.pm that indicates the source of the data, dbEST mirror, and how to load the mirror.
-
-Add to dotsbuild: 
-    1) method to add README file for each download
-    2) method to cat files into a single file for cross-match
-
-Validation, Validation, Validation
-
-NEW ISSUES 
-
-NRDB has a version "continuous" and also "unknown" (6593).  probably should delete 6593.
-
-do we have to limit our queries that make the download site files by project id?
-
-make all big files .gz
-
-Add property for regex for task.prop for cdd (do this the next time the regex changes)
-
-standardize all sequence entry, blast, and similarity (incl. gene tags) procedures and code
-
-BUILD ISSUES
+FrameFinder
+   - investigate and why and what to do about Framefinder's putting an * in the translated sequence
+   - investigate the negative stop
 
 
 
@@ -122,9 +104,6 @@ d 3  0.50 - look for other plugins that could use distribjob
 
 NEW PIPELINE STEPS
 
-eventually add in the GO pipeline to dotsbuild
-
-
 
 d 1  1.00 - index prodom and cdd and nrdb
             - have property to say whether to do it or not
@@ -140,9 +119,6 @@ s 1  0.25 - final step to provide todo list, including:
             - remove all cached values on allgenes site
             - update count of curated genes on the allgenes home page
 
-s 2  0.25 - reminder to do manual library assignment as soon as ESTs are loaded
-
-s 2  0.50 - pipeline should zip files (at end?) 
 
 s 2  0.50 - Pipeline API should support sub-pipelines
 
@@ -309,5 +285,6 @@ d 1  0.25 - call the statistics statistics script
             - use property to say if this should be done (eg, after mus&hum)
 d 2  1.00 - clean up after assembly is done (eg assemblies w/ len=0, if we 
             have them)
+  2. clean up and rename makeAllgenesTables
 
 
