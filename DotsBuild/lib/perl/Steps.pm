@@ -5,6 +5,8 @@ use strict;
 #use GUS::Pipeline::MakeTaskDirs;
 #use CBIL::Util::PropertySet;
 #use File::Basename;
+use Bio::SeqIO;
+use CBIL::Util::GenomeDir;
 
 sub createDotsPipelineDir {
   my ($mgr) = @_;
@@ -255,7 +257,7 @@ sub downloadNRDB {
 }
 
 sub downloadGenome {
-  my ($mgr) = @_;
+  my ($mgr, $genomeSrcIdRegEx) = @_;
   my $propertySet = $mgr->{propertySet};
 
   my $signal = "downloadGenome";
@@ -265,25 +267,64 @@ sub downloadGenome {
   my $externalDbDir = $propertySet->getProp('externalDbDir');
   my $genomeDir = $propertySet->getProp('genomeDir');
   my $genomeVer = $propertySet->getProp('genomeVersion');
+  my $genomeUrlPath = $propertySet->getProp('genomeUrlPath');
+  my $genomeFile = $propertySet->getProp('genomeFile');
+
+  my $downloadSubDir = "$externalDbDir/$genomeDir/$genomeVer";
+
+  my $logfile = "$mgr->{pipelineDir}/logs/downloadGenome.log";
+
+  $mgr->runCmd("mkdir -p $downloadSubDir");
+
+#  my $cmd = "wget -t5 -o $logfile -m -np -nd -nH --cut-dirs=1 -P $downloadSubDir "
+#	. "http://genome.ucsc.edu/$genomeDir/$genomeVer/bigZips/chromFa.zip";
+  my $cmd = "wget -t5 -o $logfile -m -np -nd -nH --cut-dirs=1 -P $downloadSubDir "
+	. $genomeUrlPath . $genomeFile;
+
+  $mgr->runCmd($cmd);
+
+  if ( $genomeFile =~ '\.zip$') {
+    $mgr->runCmd("unzip $downloadSubDir/$genomeFile -d $downloadSubDir");
+    $mgr->runCmd("rm $downloadSubDir/$genomeFile");
+  } elsif ( $genomeFile =~ '\.gz$') {
+    $mgr->runCmd("gunzip -f $downloadSubDir/$genomeFile");
+  }
+
+  my $gd = CBIL::Util::GenomeDir->new($downloadSubDir, $genomeSrcIdRegEx);
+
+  if ($genomeSrcIdRegEx) {
+    $gd->splitUp();
+  }
+
+  $mgr->endStep($signal);
+}
+
+
+sub downloadGenomeGaps {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "downloadGenomeGaps";
+
+  return if $mgr->startStep("Downloading genome gaps", $signal, 'downloadGenomeGaps');
+
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+  my $genomeDir = $propertySet->getProp('genomeDir');
+  my $genomeVer = $propertySet->getProp('genomeVersion');
+  my $genomeUrlPath = $propertySet->getProp('genomeUrlPath');
+  my $genomeFile = $propertySet->getProp('genomeFile');
 
   my $downloadSubDir = "$externalDbDir/$genomeDir/$genomeVer";
   my $downloadGapDir = "$externalDbDir/$genomeDir/$genomeVer" . 'gaps';
 
   my $logfile = "$mgr->{pipelineDir}/logs/downloadGenome.log";
 
-  $mgr->runCmd("mkdir -p $downloadSubDir");
   $mgr->runCmd("mkdir -p $downloadGapDir");
-
-  my $cmd = "wget -t5 -o $logfile -m -np -nd -nH --cut-dirs=1 -P $downloadSubDir "
-	. "http://genome.ucsc.edu/$genomeDir/$genomeVer/bigZips/chromFa.zip";
-  $mgr->runCmd($cmd);
-  $mgr->runCmd("unzip $downloadSubDir/chromAgp.zip -d $downloadSubDir");
-  $mgr->runCmd("rm $downloadSubDir/chromFa.zip");
 
   my $gd = CBIL::Util::GenomeDir->new($downloadSubDir);
   my @chrs = $gd->getChromosomes;
   foreach my $chr (@chrs) {
-    $cmd = "wget -t5 -o $logfile -m -np -nd -nH --cut-dirs=1 -P $downloadGapDir "
+    my $cmd = "wget -t5 -o $logfile -m -np -nd -nH --cut-dirs=1 -P $downloadGapDir "
       . "http://genome.ucsc.edu/$genomeDir/$genomeVer/database/chr${chr}_gap.txt.gz";
     $mgr->runCmd($cmd);
   }
@@ -494,8 +535,8 @@ sub copyGenomeToCluster {
 
   my $gVer = $propertySet->getProp('genomeVersion');
   my $gDir = $propertySet->getProp('genomeDir');
-  my $fromDir = $propertySet->getProp('externalDbDir') . '/$gDir';
-  my $serverPath = $propertySet->getProp('serverExternalDbDir') . '/gDir';
+  my $fromDir = $propertySet->getProp('externalDbDir') . "/$gDir";
+  my $serverPath = $propertySet->getProp('serverExternalDbDir') . "/$gDir";
   return if $mgr->startStep("Copying $fromDir/$gVer to $serverPath on cluster",
 			      $signal, 'copyGenomeToCluster');
 
@@ -519,6 +560,29 @@ sub copyPipelineDirToCluster {
   $mgr->{cluster}->copyTo($fromDir, $nickName, $serverPath);
 
   $mgr->endStep($signal);
+}
+
+sub prepareGenomeAlignmentOnCluster {
+  my ($mgr, $queryName, $targetName) = @_;
+  my $signal = "prepGenomeAlign";
+  my $doDo = 'downloadGenome';
+  my $propertySet = $mgr->{propertySet};
+  my $serverPath = $propertySet->getProp('serverPath');
+  my $buildName = $mgr->{buildName};
+  my $seq_lst = "$serverPath/$buildName/genome/$queryName-$targetName/input/target.lst";
+
+  my $gaPath = $propertySet->getProp('genome.path');
+  my $genomeVer = $propertySet->getProp('genomeVersion');
+  my $genomeDir = $propertySet->getProp('genomeDir');
+  my $srvGDir = $propertySet->getProp('serverExternalDbDir') . '/' . $genomeDir . '/' . $genomeVer;
+
+  my $clusterCmdMsg = "$gaPath $seq_lst x.fa x.psl -makeOoc=$srvGDir/11.ooc";
+  my $clusterLogMsg = "wait a little while for it to finish ";
+
+  return if $mgr->startStep("Making 11.ooc file for over-represented words on cluster", $signal, $doDo);
+  $mgr->endStep($signal);
+
+  $mgr->exitToCluster($clusterCmdMsg, $clusterLogMsg, 1);
 }
 
 sub startGenomicAlignmentOnCluster {
@@ -554,19 +618,45 @@ sub insertGenome {
   my $gd = CBIL::Util::GenomeDir->new($genomeDir);
   my $taxon = $propertySet->getProp('taxonId');
   my $genome_rel = $propertySet->getProp('genome_db_rls_id');
-  my $dbrXml = "$genomeDir/gusExtDbRel.xml";
-  $gd->makeGusExtDbRelXML($taxon, $genome_rel, $dbrXml);
+#  my $dbrXml = "$genomeDir/gusExtDbRel.xml";
+#  $gd->makeGusExtDbRelXML($taxon, $genome_rel, $dbrXml);
 
-  my $args = "--comment \"add this ext db rel for $genomeVer\" --filename $dbrXml";
-  $mgr->runPlugin("makeGenomeReleaseId", "GUS::Common::Plugin::UpdateGusFromXML",
-		    $args, "Making genome release", 'insertGenome');
+#  my $args = "--comment \"add this ext db rel for $genomeVer\" --filename $dbrXml";
+#  $mgr->runPlugin("makeGenomeReleaseId", "GUS::Common::Plugin::UpdateGusFromXML",
+#		    $args, "Making genome release", 'insertGenome');
 
-  $args = "--comment \"load genomic seqs for $genomeVer\" "
+  my $args = "--comment \"load genomic seqs for $genomeVer\" "
 	. "--genomeDir $genomeDir --genomeVersion $genomeVer";
   $mgr->runPlugin("insertGenomeSequences", "GUS::Common::Plugin::UpdateNASequences",
 		  $args, "Loading genomic sequences", 'insertGenome');
 
-  $args = "--tempLogin \"$temp_login\" --tempPassword \"$temp_password\" "
+  $mgr->endStep($signal);
+}
+
+sub insertGenomeGaps {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+  my $signal = "insertGenomeGaps";
+  return if $mgr->startStep("Inserting genome sequences into GUS", $signal, 'insertGenome');
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+  my $genomeVer = $propertySet->getProp('genomeVersion');
+  my $genomeDir = $propertySet->getProp('genomeDir');
+  my $dbi_str = $propertySet->getProp('dbi_str');
+  my $genomeDir = "$externalDbDir/$genomeDir/$genomeVer";
+  my $gapDir = "$externalDbDir/$genomeDir/$genomeVer" . 'gaps';
+  my $temp_login = $propertySet->getProp('tempLogin');  
+  my $temp_password = $propertySet->getProp('tempPassword'); 
+  my $gd = CBIL::Util::GenomeDir->new($genomeDir);
+  my $taxon = $propertySet->getProp('taxonId');
+  my $genome_rel = $propertySet->getProp('genome_db_rls_id');
+#  my $dbrXml = "$genomeDir/gusExtDbRel.xml";
+#  $gd->makeGusExtDbRelXML($taxon, $genome_rel, $dbrXml);
+
+#  my $args = "--comment \"add this ext db rel for $genomeVer\" --filename $dbrXml";
+#  $mgr->runPlugin("makeGenomeReleaseId", "GUS::Common::Plugin::UpdateGusFromXML",
+#		    $args, "Making genome release", 'insertGenome');
+
+  my $args = "--tempLogin \"$temp_login\" --tempPassword \"$temp_password\" "
     . "--dbiStr \"$dbi_str\" --gapDir $gapDir";
   $mgr->runPlugin("loadGenomeGaps", "GUS::Common::Plugin::LoadGenomeGaps",
 		  $args, "Loading genome gaps", 'insertGenome');
