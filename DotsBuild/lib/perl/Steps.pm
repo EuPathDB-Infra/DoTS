@@ -1113,7 +1113,7 @@ sub blastGeneTrapTags {
 
     my $mkdir = "mkdir $outputDir";
 
-    $mgr->runCmd($mkdir);
+    $mgr->runCmd($mkdir) unless (-e "$outputDir");
 
     my $cmd = "blastAll.pl --blastn $blastn --seqfile $tagFile --musdots $dotsFile --targetdirlogin $outputDir 2>> $logFile";
 
