@@ -79,7 +79,7 @@ sub addGene {
   my ($self,$rnaArray) = @_;
   my $count;
   foreach my $rna_id (@$rnaArray) {
-    my $rna = GUS::Model::DoTS::RNA->new({'rna_id' => $id});
+    my $rna = GUS::Model::DoTS::RNA->new({'rna_id' => $rna_id});
     $rna->retrieveFromDB();
     my $gene = $rna->getParent('DoTS::Gene',1) ? $rna->getParent('DoTS::Gene') : $self->makeGene($rna);
     $rna->addToSubmitList($gene);
@@ -92,7 +92,7 @@ sub addGene {
 
 
 sub makeGene {
-  my ($self,$rna), = @_;
+  my ($self,$rna) = @_;
   my $review_status_id = 0;  
   my $gene = GUS::Model::DoTS::Gene->new({'review_status_id'=>$review_status_id});
   $gene->addChild($rna);
