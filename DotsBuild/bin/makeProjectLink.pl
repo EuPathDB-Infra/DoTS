@@ -62,7 +62,7 @@ sub getProject {
     
     if (!$restart) {
 	$project++;
-	my $rows = $db->do("insert into core.ProjectInfo Values ($project,$allgenes,$description,SYSDATE,1,1,1,1,1,0,12,0,0,0)");
+	my $rows = $db->do("insert into core.ProjectInfo Values ($project,'$allgenes','$description',SYSDATE,1,1,1,1,1,0,12,0,0,0)");
 	if ($rows) {
 	    print STDERR ("Row inserted into core.ProjectInfo table, project_id = $project\n");
 	    $db->commit() if ($commit);
@@ -81,7 +81,7 @@ sub getHash {
     my ($db, $taxon_id) = @_; 
 
     # subtract away assemblies that are exclusively imclone ESTs.
-    my $sql = "select na_sequence_id from dots.assembly where taxon_id in ($taxon_id)";
+    my $sql = "select na_sequence_id from dots.assembly where taxon_id in = $taxon_id";
 
     my $stmt = $db->prepareAndExecute($sql);
 
