@@ -2587,8 +2587,82 @@ sub downloadHInvitationalFile {
   my $cmd = "wget -t5 -o $logfile -m -np -nd -nH  -A \"acc2hinv_id.txt.gz\" -P $downloadSubDir ftp://hinv.ddbj.nig.ac.jp/";
 
   $mgr->runCmd($cmd);
+  
+  $mgr->runCmd("gunzip $downloadSubDir/acc2hinv_id.txt.gz");
 
   $mgr->endStep($signal);
+}
+
+sub parseHinvitationalFile {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "parseHinvitational";
+
+  return if $mgr->startStep("Parse H-inviational file", $signal, 'downloadHinvitational');
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+  my $date = $propertySet->getProp('buildDate');
+
+  my $logfile = "$mgr->{pipelineDir}/logs/${signal}.log";
+
+  my $inputFile = "$externalDbDir/h-invitational/$date/acc2hinv_id.txt";
+
+  my $outputFile = "$externalDbDir/h-invitational/$date/acc2hinv_id.txt.out";
+
+  my $cmd = "makeHinvToNaSeqId --taxon_id $taxonId --inputFile  $inputFile > $outputFile 2>> $logfile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
+
+sub deleteHinvitational2NaSeqId {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "deleteHinvitational2NaSeqId";
+
+  return if $mgr->startStep("Delete H-inviational to na_seq_id", $signal, 'downloadHinvitational');
+
+  my $db_id = $propertySet->getProp('h-inv_db_id');
+
+  my $db_rel_id = $propertySet->getProp('h-inv_db_rls_id');
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $sql = "select n.db_ref_na_sequence_id from sres.dbref d, dots.dbrefnasequence n, dots.assembly a where d.external_database_release_id = $db_rel_id and d.db_ref_id = n.db_ref_id and n.na_sequence_id = a.na_sequence_id and a.taxon_id = $taxonId";
+
+  my $cmd = "deleteEntries.pl --table DoTS::DbRefNASequence --idSQL \"$sql\" --verbose 2>> $logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
+
+sub loadHinvitational2NaSeqId {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $db_id = $propertySet->getProp('h-inv_db_id');
+
+  my $db_rel_id = $propertySet->getProp('h-inv_db_rls_id');
+
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+  my $date = $propertySet->getProp('buildDate');
+
+  my $inputFile = "$externalDbDir/h-invitational/$date/acc2hinv_id.txt.out";
+
+  my $args = "--mappingfiles $inputFile --pattern1 '(HIT\S+)' --pattern2 'HIT\S+\t(\d+)' --db_id $db_id --db_rel_id $db_rel_id";
+
+  $mgr->runPlugin("loadHinvitational2NaSeqId", "GUS::Common::Plugin::InsertDbRefAndDbRefNaSequenceGeneral", $args, "Load H-inviational file to na_seq_id", 'downloadHinvitational');
+
 }
 
 sub prepareDownloadSiteFiles {
