@@ -120,10 +120,10 @@ sub run {
       $self->processSet($miniLib,$tmpFile);
       $miniLib = "";						##reset for next set of seqs
       $count = 0;
-      $ctx->{'self_inv'}->undefPointerCache();
+      $dbiDb->undefPointerCache();
     }
   }
-  &processSet($miniLib,$tmpFile);				##processes last set
+  $self->processSet($miniLib,$tmpFile) if $count;				##processes last set
   $dbiDb->undefPointerCache();
 
   ##delete thetmp files.
@@ -145,7 +145,7 @@ sub processSet {
   open(S, ">$tmpFile");
   print S $miniLib;
   close S;
-  
+  my $phrap_dir = $self->getArgs()->{'phrapDir'};
   ##NOTE that need to get this installed correctly...
   #  system("/usr/local/src/bio/PHRAP_etal/phrap.SUNWspro/ultra.bin/cross_match tmpLib /usr/local/db/others/repeat/vector -screen > cross.test");
   ##NOTE: need to use species specific library if human or mouse as am removing ribosomal and mitochondrial sequences for these as well...
@@ -169,7 +169,7 @@ sub processSet {
       $na_seq_id = $1;
       $seq = "";
       if($countProcessed % 100 == 0){
-        &submitAssSeqs(@sub);
+        $self->submitAssSeqs(@sub);
         undef @sub;
         print STDERR "Processed: $countProcessed, low_quality: $countBad\n";
       }
