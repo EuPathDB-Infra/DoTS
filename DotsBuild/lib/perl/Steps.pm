@@ -574,6 +574,39 @@ sub copyGenomeAssemSeqsFromLiniac {
   $mgr->endStep($signal);
 }
 
+sub loadGenomeAlignments {
+  my ($mgr, $queryName, $targetName) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "$queryName-$targetName" . 'Load';
+
+  return if $mgr->startStep("Loading $queryName-$targetName alignments", $signal);
+
+  my $taxonId = $propertySet->getProp('taxonId');
+  my $genomeId = $propertySet->getProp('genome_db_rls_id');
+  my $gapTabSpace = $propertySet->getProp('tempLogin');
+
+  my $pslDir = "$pipelineDir/genome/$queryName-$targetName/per-chr";
+
+  my $qFile = "$pipelineDir/repeatmask/$queryName/master/mainresult/blocked.seq";
+  my $qTabId = ($queryName =~ /dots/i ? 56 : 57);
+
+  my $args = "--blat_dir $pslDir --query_file $qFile --gap_table_space $gapTabSpace --keep_best 2 "
+    . "--query_table_id $qTabId --query_taxon_id $taxonId "
+      . "--target_table_id 245 --target_db_rel_id $genomeId --target_taxon_id $taxonId "
+	. "--max_query_gap 5 --min_pct_id 95 max_end_mismatch 10 "
+	  . "--end_gap_factor 10 --min_gap_pct 90 "
+	    . "--ok_internal_gap 15 --ok_end_gap 50 --min_query_pct 10";
+  if ($qTabId == 57) {
+    my $gb_db_rel_id = $propertySet->getProp('gb_db_rel_id');
+    $args .= " --query_db_rel_id $gb_db_rel_id";
+  }
+
+  $mgr->runPluginNoCommit("LoadBLATAlignments", 
+			  "GUS::Common::Plugin::LoadBLATAlignments",
+			  $args, "loading genomic alignments of $queryName vs $targetName");
+  $mgr->endStep($signal);
+}
 
 sub qualityStart {
   my ($mgr) = @_;
