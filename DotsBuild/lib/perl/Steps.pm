@@ -1069,7 +1069,7 @@ sub blastGeneTrapTags {
 
   my $signal = "blastGeneTrapTags";
 
-  return if $mgr->startStep("Blasting gene trap tags vs final mouse DoTS", $signal, 'blastGeneTrapAssembly');
+  return if $mgr->startStep("Blasting gene trap tags vs final mouse DoTS", $signal, 'loadGeneTrapAssembly');
 
   my $dotsFile = "$mgr->{pipelineDir}/blastSite/musDoTS";
 
