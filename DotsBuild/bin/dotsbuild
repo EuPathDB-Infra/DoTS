@@ -418,18 +418,18 @@ sub createDotsPipelineDir {
 		       $serverPath, $nodePath, $bsTaskSize, 
 		       $wuBlastBinPathLiniac,
 		       "nrdb.fsa", '(\d+)', 'blastx', 
-		       '-wordmask=seg+xnu', 'W=3', 'T=1000','B=$bsBparam','V=$bsVparam','E=$bsEparam');
+		       "-wordmask=seg+xnu W=3 T=1000 B=$bsBparam V=$bsVparam E=$bsEparam");
 
     &makeSimilarityDir("finalDots", "prodom", $buildName, $dotsBuildDir, 
 		       $serverPath, $nodePath, $bsTaskSize, 
 		       $wuBlastBinPathLiniac,
 		       "prodom.fsa", '(\S+)', 'blastx', 
-		       '-wordmask=seg+xnu', 'W=3', 'T=1000','B=$bsBparam','V=$bsVparam','E=$bsEparam');
+		       "-wordmask=seg+xnu W=3 T=1000 B=$bsBparam V=$bsVparam E=$bsEparam");
     &makeSimilarityDir("finalDots", "cdd", $buildName, $dotsBuildDir, 
 		       $serverPath, $nodePath, $bsTaskSize, 
 		       $ncbiBlastBinPathLiniac,
 		       "cdd/All",  '\w+\|\w+\|(\S+)', 'rpsblast', 
-		       '-a 2', '-e .1', '-p F');
+		       "-a 2 -e .1 -p F");
 
     &makeAssemblyDir("initial", $buildName, $dotsBuildDir);
     &makeAssemblyDir("intermed", $buildName, $dotsBuildDir);
