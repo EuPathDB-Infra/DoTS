@@ -605,7 +605,7 @@ sub submitUpdatedAssemblies {
   }
 
   foreach my $c (sort{$a->isMarkedDeleted() <=> $b->isMarkedDeleted()}$algoInvo->getAllChildren(0,1)) {
-    next if $c->getClassName() eq 'AssemblySequence'; ##already submitted above
+    next if $c->getClassName() eq 'GUS::Model::DoTS::AssemblySequence'; ##already submitted above
     ##first don't submit if is is asembly and marked deleted and does not have an id...
     if ($c->getClassName() eq 'Assembly') {
       next if exists $submitted{$c->getCacheId()};
@@ -1125,7 +1125,7 @@ sub getGusEntries {
         ##need to add to algoInfo as that is how am currenty submitting and all assemblies will need to 
         #3 be submitted.
         $algoInvo->addChild($a);
-        #        $a->retrieveChildrenFromDB('AssemblySequence');  ##may not need to do this but shouldn't impact the spped unless this assembly remains a singleton...
+        #        $a->retrieveChildrenFromDB('GUS::Model::DoTS::AssemblySequence');  ##may not need to do this but shouldn't impact the spped unless this assembly remains a singleton...
       } else {
         print STDERR "ERROR:  Unable to retrieve Assembly for '$na_seq_id'\n";
         ##want to remove the missing id and  continue
