@@ -547,6 +547,33 @@ sub insertGenome {
   $mgr->endStep($signal);
 }
 
+sub copyGenomeAssemSeqsFromLiniac {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+  my $serverPath = $propertySet->getProp('serverPath');
+  my $liniacServer = $propertySet->getProp('liniacServer');
+  my $liniacUser = $propertySet->getProp('liniacUser');
+  my $buildName = $mgr->{'buildName'};
+  my $pipelineDir = $mgr->{'pipelineDir'};
+  my $signal = "genomeAssemSeqsFromLiniac";
+  return if $mgr->startStep("Copying genome alignment of assemSeqs from $liniacServer", $signal);
+    
+  $mgr->copyFromLiniac($liniacServer,
+		       "$serverPath/$buildName/genome/assemSeqs-genome/master/mainresult",
+		       "per-chr",
+		       "$pipelineDir/genome/assemSeqs-genome",
+		       $liniacUser);
+  
+  $mgr->runCmd("mkdir -p $pipelineDir/repeatmask/assemSeqs/master/mainresult");
+  $mgr->copyFromLiniac($liniacServer,
+		       "$serverPath/$buildName/repeatmask/assemSeqs/master/mainresult",
+		       "blocked.seq",
+		       "$pipelineDir/repeatmask/assemSeqs/master/mainresult",
+		       $liniacUser);
+    
+  $mgr->endStep($signal);
+}
+
 
 sub qualityStart {
   my ($mgr) = @_;
@@ -1224,7 +1251,7 @@ sub copyProteinDBsToLiniac {
     $mgr->copyToLiniac($downloadSubDir, "cdd", $liniacServer, 
 		       "$serverPath/$mgr->{buildName}/seqfiles");
   }else {
-    my $linkCmd = "ln $dotsBuildDir/$proteinRelease/$proteinDir/seqfiles/$f $dotsBuildDir/$release/$speciesNickname/seqfiles/$f";
+    my $linkCmd = "ln -s $dotsBuildDir/$proteinRelease/$proteinDir/seqfiles/$f $dotsBuildDir/$release/$speciesNickname/seqfiles/$f";
     $mgr->runCmdOnLiniac($liniacServer, $linkCmd);
   }
   $mgr->runCmd("mv $tmpCddDir $downloadSubDir/$date") if ($copyNRDBToLiniac eq 'yes');
