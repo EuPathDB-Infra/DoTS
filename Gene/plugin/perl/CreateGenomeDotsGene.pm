@@ -8,6 +8,7 @@ use CBIL::Util::PropertySet;
 
 use GUS::PluginMgr::Plugin;
 use DoTS::Gene::GenomeWalker;
+use DoTS::Gene::Util;
 
 sub new {
     my ($class) = @_;
@@ -197,13 +198,15 @@ sub run {
 
     my $db = $self->getDb();
     my $dbh = $self->getQueryHandle();
+    my $args = $self->getArgs();
+    my $genomeId = $self->getArg('genome_db_rls_id');
     my $tempLogin = $self->getArg('temp_login');
 
     $self->log("Clean out or create temp tables to hold genome dots gene analysis result...");
     my @tmpMeta = &createTempTables($dbh, $tempLogin) unless $self->getArg('skip_chrs');
 
     $self->log("Creating genome-based DoTS genes...");
-    my ($coords, $skip_chrs) = $self->getRegionSelections();
+    my ($coords, $skip_chrs) = &DoTS::Gene::Util::getCoordSelectAndSkip($dbh, $genomeId, $args);
     my @done_chrs = @$skip_chrs;
 
     my $baseQSel = $self->getBaseQuerySelector();
@@ -227,7 +230,9 @@ sub run {
 	push @done_chrs, $coord->{chr};
 	$self->log("completed/skipped chromosomoes: " . join(', ', @done_chrs));
     }
-    return "finished gDG creation for chromosomes: " . join(', ', @done_chrs);
+
+    my $sum = "finished gDG creation for chromosomes: " . join(', ', @done_chrs);
+    $sum = substr($sum, 0, 254) if length($sum) > 255;
 }
 
 ##########################
@@ -265,36 +270,6 @@ sub getMergeCriteria {
     my $epc = $self->getArg('temp_login') . '.' . $self->getArg('est_pair_cache');
     return { overlap_merge => $oM, proximity_merge => $pM,
 	     clonelink_merge => $cM, est_pair_cache => $epc };
-}
-
-sub getRegionSelections {
-    my ($self) = @_;
-
-    my $dbh = $self->getQueryHandle();
-    my $genomeId = $self->getArg('genome_db_rls_id');
-
-    if ($self->getArg('test')) {
-	my $chr = '1';
-	my ($chr_id) = &getChromIdAndLen($dbh, $genomeId, $chr);
-	return [{chr=>$chr, chr_id=>$chr_id, start=>5e6, end=>10e6}];
-    }
-
-    my $chr = $self->getArg('chr'); $chr =~ s/^chr//i;
-    my $start = $self->getArg('start');
-    my $end = $self->getArg('end');
-
-    die "start or end set while chr is not defined" if (defined($start) || $end) && !$chr;
-    if ($chr) {
-	my ($chr_id, $chr_len) = &getChromIdAndLen($dbh, $genomeId, $chr);
-	my $s = 0 unless $start; 
-	my $e = $chr_len unless $end < $chr_len;
-	return ([{ chr_id=> $chr_id, chr => $chr, start => $s, end => $e }], []);
-    } else {
-	my $skipChrs = $self->getArg('skip_chrs'); $skipChrs =~ s/chr//gi;
-	my @skipChrs = split(/,/, $skipChrs);
-	my @chroms = &getChroms($dbh, $genomeId, \@$skipChrs);
-	return (\@chroms, \@skipChrs);
-    }
 }
 
 sub createTempTables {
@@ -360,36 +335,6 @@ sub createTable {
     $dbh->sqlexec($sql);
     $dbh->sqlexec("GRANT SELECT ON ${schema}.$tab to PUBLIC");
     foreach (@$constraints) { $dbh->sqlexec($_); }
-}
-
-sub getChromIdAndLen {
-  my ($dbh, $ext_db_rel_id, $chr) = @_;
-
-  my $sql = "select na_sequence_id, length(sequence) from DoTS.VirtualSequence "
-    . "where external_database_release_id = $ext_db_rel_id and chromosome = '$chr'";
-  my $sth = $dbh->prepareAndExecute($sql);
-  my ($chr_id, $len) = $sth->fetchrow_array;
-
-  die "no chr_id found for $chr and external database release $ext_db_rel_id\n" unless $chr_id;
-  ($chr_id,$len);
-}
-
-sub getChroms {
-  my ($dbh, $ext_db_rel_id, $skipChrs) = @_;
-
-  my $sql = "select na_sequence_id, chromosome, length(sequence) from DoTS.VirtualSequence "
-    . "where external_database_release_id = $ext_db_rel_id";
-  if (scalar(@$skipChrs) > 0) {   
-    $sql .= " and chromosome not in (" . join(', ', map { "'" . $_ . "'" } @$skipChrs). ")";
-  }
-  my $sth = $dbh->prepareAndExecute($sql);
-
-  my @chroms;
-  while (my ($chr_id, $chr, $len) = $sth->fetchrow_array) {
-      push @chroms, { chr_id => $chr_id, chr => $chr, len => $len, start => 0, end => $len };
-  }
-
-  return @chroms;
 }
 
 sub saveGene {
