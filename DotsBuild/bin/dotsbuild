@@ -79,6 +79,7 @@ my @properties =
  ["cog_db_rls_id", "","a new id,COG of CDD,for the external_database_release table"],
  ["cd_db_rls_id", "","a new id, CD of CDD, for the external_database_release table"],
  ["nrdb_db_rls_id" , "","the external_database_release_id for nrdb"],
+ ["genome_db_rls_id", "","the external_database_release_id for the human genome for this species"],
  ["ucgt_db_rls_id", "","the external_database_release_id for the UC gene tag db"],
  ["ggtc_db_rls_id", "","the external_database_release_id for the GGTC"],
  ["imclone_db_rls_id" , "","the external_database_release_id for imclone"],
@@ -2898,9 +2899,11 @@ sub updatePromoterRegionTable {
 
   my $allgenesSchema = $propertySet->getProp('allgenesSchema');
 
+  my $genome_rls_id = $propertySet->getProp('genome_db_rls_id');
+
   my $logFile = "$pipelineDir/logs/${signal}.log";
 
-  my $args = "--verbose --taxon $taxonId --allgenesSchema $allgenesSchema";
+  my $args = "--verbose --taxon $taxonId --genomeExtRelDbId $genome_rls_id --allgenesSchema $allgenesSchema";
 
   my $cmd = "updatePromoterRegionTable $args 2>> $logFile";
 
