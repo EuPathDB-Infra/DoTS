@@ -682,8 +682,7 @@ sub existenceSPFeature{
   #	        and pl.table_id = 108
   #	        and pl.project_id = $project_id";
 
-  my $sql = <<Sql;
- select spf.*
+  my $sql = "select spf.*
    from dots.SignalPeptideFeature spf
       , dots.AALocation           aal
   where spf.aa_sequence_id = $source_id
@@ -691,9 +690,7 @@ sub existenceSPFeature{
     and aal.start_min      = $start
     and aal.end_max        = $stop
     and spf.name           = 'SIGNAL'
-    and spf.algorithm_name = 'SignalP'
-
-Sql
+    and spf.algorithm_name = 'SignalP'";
 
   my $stmt = $dbh->prepareAndExecute( $sql );
 
