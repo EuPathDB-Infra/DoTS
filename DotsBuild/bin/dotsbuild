@@ -115,7 +115,8 @@ my @properties =
  ["dbi_str", "", "string used to identify server and login for LoadNRDB temp table"],
  ["prodomFile", "","specific prodom file for download"],
  ["sourceDB", "", "pair list of ExternalDatabase.name:ncbi abreviations for nrdb, e.g. GENBANK (NRDB):gb,EMBL DATA LIBRARY (NRDB):emb"],
- ["proteinDir", "","directory containing protein sequence files"]
+ ["proteinDir", "","directory containing protein sequence files"],
+ ["project_id", "","project_id from projectinfo table, used in projectLink table,get from first species run"]
  ); 
 
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
@@ -2383,11 +2384,14 @@ sub makeProjectLink {
 
     my $allgenesVer = $propertySet->getProp('allgenesVersion');
     
+    my $project_id = $propertySet->getProp('project_id');
+    
     my $logFile = "$pipelineDir/logs/${signal}.log";
 
     my $args;
 
-    $args = "--commit --verbose --allgenes_num $allgenesVer --taxon $taxonId";
+    my $project = $project_id > 0 ? "--project_id ".$project_id : "";
+    $args = "--commit --verbose --allgenes_num $allgenesVer --taxon $taxonId $project";
 
     $args .= " --restart"
       if ($propertySet->getProp('projectLinkRestart') eq "yes");
