@@ -1791,13 +1791,13 @@ sub makeEpconFastaFiles {
 
   my $signal = "makeEpconFastaFiles";
 
-  return if $mgr->startStep("Making EpConDB fasta files", $signal)
+  return if $mgr->startStep("Making EpConDB fasta files", $signal);
 
   my $dotsRelease = $propertySet->getProp('dotsRelease');
 
   my $speciesNickname = $propertySet->getProp('speciesNickname');
 
-  my $prefix = "EPConDB_${dotsRelease}_$speciesNickname";
+  my $prefix = "EPConDB_${dotsRelease}_${speciesNickname}";
 
   my $logfile ="$pipelineDir/logs/${signal}.log"; 
 
