@@ -380,17 +380,17 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &makeProjectLink(); 
 
-&makeProteinAssembly();
+&updateProteinAssemblyTable();
 
-&makeDTOrfPValueTable();
+&updateDTOrfPValueTable();
 
-&makeAssemblySignalPSummaryTable();
+&updateAssemblySignalPSummaryTable();
 
-&makeAssemblyTMDomainSummaryTable();
+&updateAssemblyTMDomainSummaryTable();
 
-&makePromoterRegionTable();
+&updatePromoterRegionTable();
 
-&makePancreasAssembliesTable();
+&updatePancreasAssembliesTable();
 
 &createManuallyReviewedDoTSFile();
 
@@ -1130,6 +1130,7 @@ sub insertNRDB {
   #my $args = "--temp_login \"$temp_login\" --sourceDB $sourceDB --temp_password \"$temp_password\" --dbi_str \"$dbi_str\" $restart --gitax $gitax --nrdb $nrdb --extDbRelId $nrdbReleaseId --maketemp --plugin --delete";
 
   my $args = "--temp_login \"$temp_login\" --sourceDB $sourceDB --temp_password \"$temp_password\" --dbi_str \"$dbi_str\" $restart --gitax $gitax --nrdb $nrdb --extDbRelId $nrdbReleaseId --plugin --delete";
+
   
   $mgr->runPlugin("loadNRDB", "GUS::Common::Plugin::LoadNRDB", $args, "Loading NRDB", 'downloadNRDB');
 }	
@@ -1979,9 +1980,9 @@ sub createManuallyReviewedDoTSFile {
 
   $mgr->runCmd($cmd);
 
-  my $desrip = "A tab delimited report for all manually reviewed DoTS Transcript";
+  my $descrip = "A tab delimited report for all manually reviewed DoTS Transcript";
   &updateHtaccessFile("AddDescription \"$descrip\" *manuallyReviewed*\n");
-  &addFileToReadme("$manRevwDoTSReportFile.gz", $desrip);
+  &addFileToReadme("$manRevwDoTSReportFile.gz", $descrip);
 
   $mgr->endStep($signal);
 }	
@@ -2432,7 +2433,21 @@ sub RNAProteinIntegration {
 
     my $taxonId = $propertySet->getProp('taxonId');
 
-    my $args = "--taxon_id $taxonId";
+    my $sourceDB = $propertySet->getProp('sourceDB');
+
+    my @DBs = split(/,/, $sourceDB);
+
+    my @extRel;
+
+    foreach my $db (@DBs) {
+      my ($db_rel_id, $abrev) = split(/:/, $db);
+      die "--sourceDB db_rel_id:abreviation pairs must be provided\n" if (!$db_rel_id || !$abrev);
+      push (@extRel, $db_rel_id);
+    }
+
+    my $relList = join(',', @extRel);
+
+    my $args = "--taxon_id $taxonId --ext_db_rel $relList";
 
     $mgr->runPlugin("integrateRNAProtein", "DoTS::DotsBuild::Plugin::RNAProteinIntegration", $args, "integrating RNA and proteins");
 } 
@@ -2828,9 +2843,9 @@ sub makeProjectLink {
     $mgr->endStep($signal);
 }
 
-sub makeProteinAssembly {
+sub updateProteinAssemblyTable {
   
-  my $signal = "makeProteinAssemblyTable";
+  my $signal = "updateProteinAssemblyTable";
 
   return if $mgr->startStep("Insert entries in allgenes ProteinAssembly table ", $signal);
 
@@ -2842,7 +2857,7 @@ sub makeProteinAssembly {
 
   my $args = "--verbose --taxon_id $taxonId --allgenesSchema $allgenesSchema";
 
-  my $cmd = "makeProteinAssembly $args 2>> $logFile";
+  my $cmd = "updateProteinAssemblyTable $args 2>> $logFile";
 
   $mgr->runCmd($cmd);
 
@@ -2851,9 +2866,9 @@ sub makeProteinAssembly {
 
 }
 
-sub makeDTOrfPValueTable {
+sub updateDTOrfPValueTable {
 
-  my $signal = "makeDTOrfPValueTable";
+  my $signal = "updateDTOrfPValueTable";
 
   return if $mgr->startStep("Insert entries in allgenes makeDTOrfPValue table", $signal);
 
@@ -2865,7 +2880,7 @@ sub makeDTOrfPValueTable {
 
   my $args = "--verbose --taxon $taxonId --allgenesSchema $allgenesSchema";
 
-  my $cmd = "makeDTOrfPvalue $args 2>> $logFile";
+  my $cmd = "updateDTOrfPvalueTable $args 2>> $logFile";
 
   $mgr->runCmd($cmd);
 
@@ -2873,9 +2888,9 @@ sub makeDTOrfPValueTable {
 
 }
 
-sub makePromoterRegionTable {
+sub updatePromoterRegionTable {
 
-  my $signal = "makePromoterRegionTable";
+  my $signal = "updatePromoterRegionTable";
 
   return if $mgr->startStep("Insert entries into Allgenes.PromoterRegion table", $signal);
 
@@ -2887,7 +2902,7 @@ sub makePromoterRegionTable {
 
   my $args = "--verbose --taxon $taxonId --allgenesSchema $allgenesSchema";
 
-  my $cmd = "makePromoterRegionTable $args 2>> $logFile";
+  my $cmd = "updatePromoterRegionTable $args 2>> $logFile";
 
   $mgr->runCmd($cmd);
 
@@ -2895,9 +2910,9 @@ sub makePromoterRegionTable {
 
 }
 
-sub makePancreasAssembliesTable {
+sub updatePancreasAssembliesTable {
 
-  my $signal = "makePancreasAssembliesTable";
+  my $signal = "updatePancreasAssembliesTable";
 
   return if $mgr->startStep("Insert entries in Allgenes.PancreasAssemblies table", $signal);
 
@@ -2909,7 +2924,7 @@ sub makePancreasAssembliesTable {
 
   my $args = "--verbose --taxon $taxonId --allgenesSchema $allgenesSchema";
 
-  my $cmd = "makePancreasAssemblies $args 2>> $logFile";
+  my $cmd = "updatePancreasAssembliesTable $args 2>> $logFile";
 
   $mgr->runCmd($cmd);
 
@@ -2917,9 +2932,9 @@ sub makePancreasAssembliesTable {
 
 }
 
-sub makeAssemblySignalPSummaryTable {
+sub updateAssemblySignalPSummaryTable {
 
-  my $signal = "makeAssemblySignalPSummaryTable";
+  my $signal = "updateAssemblySignalPSummaryTable";
 
   return if $mgr->startStep("Insert entries in allgenes makeAssemblySignalPSummary table", $signal);
 
@@ -2931,7 +2946,7 @@ sub makeAssemblySignalPSummaryTable {
 
   my $args = "--verbose --taxon $taxonId --allgenesSchema $allgenesSchema";
 
-  my $cmd = "makeAssemblySignalPSummary $args 2>> $logFile";
+  my $cmd = "updateAssemblySignalPSummaryTable $args 2>> $logFile";
 
   $mgr->runCmd($cmd);
 
@@ -2939,9 +2954,9 @@ sub makeAssemblySignalPSummaryTable {
 
 }
 
-sub makeAssemblyTMDomainSummaryTable {
+sub updateAssemblyTMDomainSummaryTable {
 
-  my $signal = "makeAssemblyTMDomainSummaryTable";
+  my $signal = "updateAssemblyTMDomainSummaryTable";
 
   return if $mgr->startStep("Insert entries in allgenes makeAssemblyTMDomainSummary table", $signal);
 
@@ -2953,7 +2968,7 @@ sub makeAssemblyTMDomainSummaryTable {
 
   my $args = "--verbose --taxon $taxonId --allgenesSchema $allgenesSchema";
 
-  my $cmd = "makeAssemblyTMDomainSummary $args 2>> $logFile";
+  my $cmd = "updateAssemblyTMDomainSummaryTable $args 2>> $logFile";
 
   $mgr->runCmd($cmd);
 
