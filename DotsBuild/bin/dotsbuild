@@ -309,6 +309,8 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &getmRNAPerAssembly();
 
+&makePredictedProteinFile();
+
 &makeProteinChunks();
 
 &predictTmAndSignalP();
@@ -397,7 +399,7 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &makeStatisticsPage();
 
-&cleanUpFiles();
+#&cleanUpFiles();
 
 $mgr->goodbye("Pipeline complete!\n");
 
@@ -1128,9 +1130,9 @@ sub insertNRDB {
   
   my $nrdbReleaseId = $propertySet->getProp('nrdb_db_rls_id');
   
-  #my $args = "--temp_login \"$temp_login\" --sourceDB $sourceDB --temp_password \"$temp_password\" --dbi_str \"$dbi_str\" $restart --gitax $gitax --nrdb $nrdb --extDbRelId $nrdbReleaseId --maketemp --plugin --delete";
+  my $args = "--temp_login \"$temp_login\" --sourceDB $sourceDB --temp_password \"$temp_password\" --dbi_str \"$dbi_str\" $restart --gitax $gitax --nrdb $nrdb --extDbRelId $nrdbReleaseId --maketemp --plugin --delete";
 
-  my $args = "--temp_login \"$temp_login\" --sourceDB $sourceDB --temp_password \"$temp_password\" --dbi_str \"$dbi_str\" $restart --gitax $gitax --nrdb $nrdb --extDbRelId $nrdbReleaseId --plugin --delete";
+  #my $args = "--temp_login \"$temp_login\" --sourceDB $sourceDB --temp_password \"$temp_password\" --dbi_str \"$dbi_str\" $restart --gitax $gitax --nrdb $nrdb --extDbRelId $nrdbReleaseId --plugin --delete";
 
   
   $mgr->runPlugin("loadNRDB", "GUS::Common::Plugin::LoadNRDB", $args, "Loading NRDB", 'downloadNRDB');
@@ -2979,6 +2981,34 @@ sub updateAssemblyTMDomainSummaryTable {
 
 }
 
+sub makePredictedProteinFile {
+
+
+  my $signal = "makePredictedProteinFile";
+  
+  return if $mgr->startStep("Preparing predicted protein file", $signal);
+  
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+  my $predictedProteinsFile = "${prefix}_predictedProteins.fasta";
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
+  my $logFile = "$pipelineDir/logs/${predictedProteinsFile}Extract.log";
+  
+  my $sql = "select 'DT.'||a.na_sequence_id,'length of predicted protein sequence ='||ts.length,ts.sequence from dots.translatedaasequence ts,dots.translatedaafeature tf,dots.rnafeature rf,dots.assembly a where a.taxon_id = $taxonId and a.na_sequence_id = rf.na_sequence_id and rf.na_feature_id = tf.na_feature_id and tf.aa_sequence_id = ts.aa_sequence_id";
+  
+  my $cmd = "dumpSequencesFromTable.pl --outputFile $pipelineDir/seqfiles/$predictedProteinsFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"$sql\" 2>>  $logFile";
+  
+  $mgr->runCmd($cmd);
+  
+  $mgr->endStep($signal);
+
+}
+
 sub makeProteinChunks {
 
   my $signal = "makeProteinChunks";
@@ -2993,7 +3023,7 @@ sub makeProteinChunks {
   
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
 
-  my $predictedProteinsFile = "$pipelineDir/downloadSite/${prefix}_predictedProteins.fasta";
+  my $predictedProteinsFile = "$pipelineDir/seqfiles/${prefix}_predictedProteins.fasta";
 
   my $proteinChunkDir = "$pipelineDir/misc/proteinSequenceChunks";
 
@@ -3023,7 +3053,7 @@ sub predictTmAndSignalP {
   
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
 
-  my $predictedProteinsFile = "$pipelineDir/downloadSite/${prefix}_predictedProteins.fasta";
+  my $predictedProteinsFile = "$pipelineDir/seqfiles/${prefix}_predictedProteins.fasta";
 
   my $outputfile = "$pipelineDir/misc/${prefix}_predictedProteins";
 
@@ -3056,7 +3086,7 @@ sub parseTMFile {
 
   my $outputFile = "$pipelineDir/misc/${prefix}_predictedProteins.tmhmm.parsed";
 
-  my $predictedProteinsFile = "$pipelineDir/downloadSite/${prefix}_predictedProteins.fasta";
+  my $predictedProteinsFile = "$pipelineDir/seqfiles/${prefix}_predictedProteins.fasta";
 
   my $type = 'tmhmm';
 
@@ -3085,7 +3115,7 @@ sub parseSGPSignalP {
 
   my $outputFile = "$pipelineDir/misc/proteinSequenceChunks/${prefix}_predictedProteins.sgp.parsed";
 
-  my $predictedProteinsFile = "$pipelineDir/downloadSite/${prefix}_predictedProteins.fasta";
+  my $predictedProteinsFile = "$pipelineDir/seqfiles/${prefix}_predictedProteins.fasta";
 
   my $type = 'sgp';
 
@@ -3114,7 +3144,7 @@ sub parseSGPHMMSignalP {
 
   my $outputFile = "$pipelineDir/misc/proteinSequenceChunks/${prefix}_predictedProteins.sgphmm.parsed";
 
-  my $predictedProteinsFile = "$pipelineDir/downloadSite/${prefix}_predictedProteins.fasta";
+  my $predictedProteinsFile = "$pipelineDir/seqfiles/${prefix}_predictedProteins.fasta";
 
   my $type = 'sgphmm';
 
