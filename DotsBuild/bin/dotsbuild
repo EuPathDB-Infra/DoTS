@@ -145,7 +145,11 @@ my @properties =
  ["repeatmask.dangleMax", "","option for trimDangling in repeatMasker"],
  ["allgenesSchema", "","login used for allgenes tables schema"],
  ["runQualityStart", "","yes or no"],
- ["otherSpeciesRelease", "","most recent, completed, release number of other the species, hum or mus"]
+ ["otherSpeciesRelease", "","most recent, completed, release number of other the species, hum or mus"],
+ ["epconDB_anatomy_ids", "","anatomyids used in query to create EPConDB input seqs file"],
+ ["epconDB_array", "","array id used in query to create EPConDB input seqs for array file"],
+ ["epconDB_chip", "","chip name used in query to create EPConDB input seqs for array file"],
+ ["epcon_makefile", "","make file of input seqs for EPConDB array, yes or no"]
  ); 
 
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
@@ -290,6 +294,8 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
 
    &getAssembliesPerGene();
 
+   &makeEpconFastaFiles();
+
 $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &copySimilaritiesFromLiniac();
@@ -399,6 +405,8 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 #&updatePancreasAssembliesTable();
 
 &createManuallyReviewedDoTSFile();
+
+#&createPredTranslDetailsFile();
 
 &makeStatisticsPage();
 
@@ -1779,6 +1787,53 @@ sub getAssembliesPerGene {
 
 }
 
+sub makeEpconFastaFiles {
+
+  my $signal = "makeEpconFastaFiles";
+
+  return if $mgr->startStep("Making EpConDB fasta files", $signal)
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+
+  my $prefix = "EPConDB_${dotsRelease}_$speciesNickname";
+
+  my $logfile ="$pipelineDir/logs/${signal}.log"; 
+
+  my $outputfile  = "$pipelineDir/misc/${prefix}_input_seqs.txt";
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $species = $propertySet->getProp('speciesFullname');
+
+  my $epconDB_anatomy_ids = $propertySet->getProp('epconDB_anatomy_ids');
+
+  my $epconDB_array = $propertySet->getProp('epconDB_array');
+  
+  my $epconDB_chip = $propertySet->getProp('epcon_chip');
+
+  my $epconDB_makefile = $propertySet->getProp('epcon_makefile');
+
+  my $sql = "select 'DT.' ||a.na_sequence_id, '[ $species ]', a.description ,'('||number_of_contained_sequences || ' sequences)', 'length=' || a.length ,sequence from dots.assembly a, dots.assemblyanatomypercent p where p.anatomy_id in ($epconDB_anatomy_ids) and p.percent>0 and a.na_sequence_id=p.na_sequence_id and p.taxon_id=a.taxon_id and a.taxon_id=$taxonId";
+
+  my $cmd = "dumpSequencesFromTable.pl --verbose --gusConfigFile $gusConfigFile --outputFile $outputfile --idSQL \"$sql\" 2>>  $logFile";
+
+  $mgr->runCmd($cmd);
+
+  my $outputfile  = "$pipelineDir/misc/${prefix}_${epconDB_chip}_input_seqs.txt";
+
+  my $sql = "select 'DT.' ||a.na_sequence_id, '[ $species]', a.description ,'(' ||number_of_contained_sequences || ' sequences)' , 'length=' ||a.length, sequence from rad3.elementassembly_mv ea , rad3.spot s, dots.assembly a where s.array_id = $epconDB_array and s.element_id = ea.element_id and ea.assembly_na_sequence_id = a.na_sequence_id";
+
+  my $cmd = "dumpSequencesFromTable.pl --verbose --gusConfigFile $gusConfigFile --outputFile $outputfile --idSQL \"$sql\" 2>>  $logFile";
+
+  $mgr->runCmd($cmd) unless ;
+
+  $mgr->endStep($signal);
+
+}
+
+
 sub getmRNAPerAssembly {
 
   my $signal = "getmRNAPerAssembly";
@@ -1828,7 +1883,7 @@ sub prepareDownloadSiteFiles {
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
 
   # readme file header
-  writeReadmeFileHeader();
+  &writeReadmeFileHeader();
 
   # fasta file of sequences
   my $fastaFile = "${prefix}.fasta";
@@ -1952,11 +2007,11 @@ sub addFileToReadme {
 
   my $speciesNickname = $propertySet->getProp('speciesNickname');
   my $readme = "$pipelineDir/downloadSite/${speciesNickname}_README.txt";
-  open(F, ">$readme") || $mgr->error("Can't open $readme for writing");
+  open(F, ">>$readme") || $mgr->error("Can't open $readme for writing");
 
   print F "
-$filename:
-$descrip
+$filename
+    $descrip
 ";
 }
 
@@ -1979,7 +2034,7 @@ sub createManuallyReviewedDoTSFile {
   my $manRevwDoTSReportFile = "$pipelineDir/downloadSite/${prefix}_manuallyReviewedTranscriptsReport.txt";
     
   # create report of manually reviewed dots
-  my $cmd = "gusreport --configModule GUS::ReportMaker::SampleTranscriptReportConfig --dbLogin $tempLogin --dbPassword $tempPassword --tempTableName ${tempLogin}.tempResult --requestedColumns 'Description, GeneSymbol, Length, GOid, DoTSGene, SeqsInAssem, MGI, LocusLink, ContainsMRNA, Motifs, Organism, mRNASeq, proteinSeq' --sql 'select distinct pa.na_sequence_id, 9999 from DoTS.rna r, allgenes.proteinassembly pa where r.review_status_id = 1 and r.rna_id = pa.rna_id and pa.taxon_id = $taxonId' > $manRevwDoTSReportFile";
+  my $cmd = "gusreport --configModule GUS::ReportMaker::SampleTranscriptReportConfig --tempTableName tempResult --requestedColumns 'Description, GeneSymbol, Length, GOid, DoTSGene, SeqsInAssem, MGI, LocusLink, ContainsMRNA, Motifs, Organism, mRNASeq, proteinSeq' --sql 'select distinct pa.na_sequence_id, 9999 from DoTS.rna r, allgenes.proteinassembly pa where r.review_status_id = 1 and r.rna_id = pa.rna_id and pa.taxon_id = $taxonId' > $manRevwDoTSReportFile";
   $mgr->runCmd($cmd);
 
   my $cmd = "gzip $manRevwDoTSReportFile";
@@ -1988,10 +2043,36 @@ sub createManuallyReviewedDoTSFile {
 
   my $descrip = "A tab delimited report for all manually reviewed DoTS Transcript";
   &updateHtaccessFile("AddDescription \"$descrip\" *manuallyReviewed*\n");
-  &addFileToReadme("$manRevwDoTSReportFile.gz", $descrip);
+  &addFileToReadme("${prefix}_manuallyReviewedTranscriptsReport.txt.gz", $descrip);
 
   $mgr->endStep($signal);
-}	
+}
+
+sub createPredTranslDetailsFile {
+
+  my $signal = "createPredTranslDetailsFile";
+  return if $mgr->startStep("Preparing predicted translation details file", $signal);
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+  my $predTranslDetailsFile = "$pipelineDir/downloadSite/${prefix}_predictedProteinDetails.txt";
+
+  my $taxonId = $propertySet->getProp('taxonId');
+  
+  my $cmd = "getAssTranslATGStartStop --taxon_id $taxonId >$predTranslDetailsFile";  
+  $mgr->runCmd($cmd);
+
+  my $cmd = "gzip $predTranslDetailsFile";
+  $mgr->runCmd($cmd);
+
+  my $descrip = "A tab delimited file of the translation details for all the predicted proteins";
+  &updateHtaccessFile("AddDescription \"$descrip\" *Details*\n");
+  &addFileToReadme("${prefix}_predictedProteinDetails.txt.gz", $descrip);
+
+  $mgr->endStep($signal);
+}
+  
 
 sub updateHtaccessFile {
   my ($htaccessString) = @_;
