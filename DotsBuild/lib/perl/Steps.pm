@@ -1541,16 +1541,16 @@ sub extractNRDB {
 
   my $sql = "select aa_sequence_id,'source_id='||source_id,'secondary_identifier='||secondary_identifier,description,'length='||length,sequence from dots.ExternalAASequence where external_database_release_id = $nrdbReleaseId";
 
-  &extractProteinSeqs("nrdb", $sql, $mgr);
+  &extractProteinSeqs("nrdb", $sql, $mgr, 'copyNRDBToCluster');
 }
 
 sub extractProteinSeqs {
-  my ($name, $sql, $mgr) = @_;
+  my ($name, $sql, $mgr, $doItProp) = @_;
   my $propertySet = $mgr->{propertySet};
 
   my $signal = "${name}Extract";
 
-  return if $mgr->startStep("Extracting $name protein sequences from GUS", $signal);
+  return if $mgr->startStep("Extracting $name protein sequences from GUS", $signal, $doItProp);
 
   my $gusConfigFile = $propertySet->getProp('gusConfigFile');
 
@@ -1830,7 +1830,7 @@ sub extractProdom {
 
   my $sql = "select aa_sequence_id,'source_id='||source_id,'secondary_identifier='||secondary_identifier,description,'length='||length,sequence from dots.MotifAASequence where external_database_release_id = $prodomDB";
 
-  &extractProteinSeqs("prodom", $sql, $mgr);
+  &extractProteinSeqs("prodom", $sql, $mgr, 'copyProdomToCluster');
 }
 
 sub copyProteinDBsToCluster {
@@ -1858,7 +1858,7 @@ sub copyProteinDBsToCluster {
     $proteinRelease = "release" . $propertySet->getProp('proteinRelease');
     $proteinDir = $propertySet->getProp('proteinDir');
     my $linkCmd = "ln $dotsBuildDir/$proteinRelease/$proteinDir/seqfiles/$f $dotsBuildDir/$release/$speciesNickname/seqfiles/$f";
-    $mgr->runCmdOnCluster($linkCmd);
+    $mgr->{cluster}->runCmdOnCluster($linkCmd);
   }
 
   my $externalDbDir = $propertySet->getProp('externalDbDir');
@@ -1874,7 +1874,7 @@ sub copyProteinDBsToCluster {
 		       "$serverPath/$mgr->{buildName}/seqfiles");
   }else {
     my $linkCmd = "ln -s $dotsBuildDir/$proteinRelease/$proteinDir/seqfiles/$f $dotsBuildDir/$release/$speciesNickname/seqfiles/$f";
-    $mgr->runCmdOnCluster($linkCmd);
+    $mgr->{cluster}->runCmdOnCluster($linkCmd);
   }
   $mgr->runCmd("mv $tmpCddDir $downloadSubDir/$date") if ($copyNRDBToCluster eq 'yes');
 
@@ -1885,7 +1885,7 @@ sub copyProteinDBsToCluster {
 		       "$serverPath/$mgr->{buildName}/seqfiles");
   } else {
     my $linkCmd = "ln $dotsBuildDir/$proteinRelease/$proteinDir/seqfiles/$f $dotsBuildDir/$release/$speciesNickname/seqfiles/$f";
-    $mgr->runCmdOnCluster($linkCmd);
+    $mgr->{cluster}->runCmdOnCluster($linkCmd);
   }
 
   $mgr->endStep($signal);
