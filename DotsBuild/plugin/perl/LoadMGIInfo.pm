@@ -1,60 +1,54 @@
-########################################################################
-##LoadMGIInfo.pm 
-##
-##This is a ga plug_in to add information to DbRef from the MRK_List2.sql.rpt 
-##and MRK_Synonym.sql.rpt files downloaded from 
-##ftp://www.informatics.jax.org/pub/informatics/reports/
-##
-##MGI external_db_id = 4893
-##
-##Created Nov. 21, 2002
-##
-##Deborah Pinney 
-##
-##algorithm_id=9195      
-##algorithm_imp_id=11027      
-########################################################################
-package LoadMGIInfo;
+package DoTS::DotsBuild::Plugin::LoadMGIInfo;
 
-use Objects::GUSdev::DbRef;
+@ISA = qw(GUS::PluginMgr::Plugin);
 
+use strict;
+use GUS::Model::SRes::DbRef;
 
-my $Cfg;
-my $ctx;
-my $count=0;
 my $debug = 0;
+
 $| = 1;
 
 sub new {
-    my $Class = shift;
-    $Cfg = shift;
-    return bless {}, $Class;
+    my ($class) = @_;
+    
+    my $self = {};
+    bless($self,$class);
+    
+    my $usage = 'Plug_in to populate the NRDBEntry table';
+    
+    my $easycsp =
+	[{o => 'testnumber',
+	  t => 'int',
+	  h => 'number of iterations for testing',
+         },
+	 {o => 'inputfile',
+	  t => 'string',
+	  h => 'file downloaded from MGI containing additional information for rows in DbRef',
+         }
+	 {o => 'external_db_release_id',
+	  t => 'string',
+	  h => 'file downloaded from MGI containing additional information for rows in DbRef',
+         }
+	 ];
+    
+    $self->initialize({requiredDbVersion => {},
+		       cvsRevision => '$Revision$',  # cvs fills this in!
+		     cvsTag => '$Name$', # cvs fills this in!
+		       name => ref($self),
+		       revisionNotes => 'make consistent with GUS 3.0',
+		       easyCspOptions => $easycsp,
+		       usage => $usage
+		       });
+    
+    return $self;
 }
 
-sub Usage {
-    my $M   = shift;
-    return 'Plug_in to populate the NRDBEntry table';
-}
 
-sub EasyCspOptions {
-    my $M   = shift;
-    {
-	
-	testnumber  => {
-	    o => 'testnumber=i',
-	    h => 'number of entries for testing',
-	},
-	
-	inputfile   => {
-	    o => 'inputfile=s',
-	    h => 'file downloaded from MGI containing additional information for rows in DbRef'},
-    }
-}
-
-sub Run {
+sub run {
 
     my $M  = shift;
-    $ctx = shift;
+    my $ctx = shift;
     my $testnum;
     print STDERR $ctx->{'commit'}?"***COMMIT ON***\n":"**COMMIT TURNED OFF**\n";
     if ($ctx->{'cla'}->{'testnumber'}) {
@@ -70,10 +64,12 @@ sub Run {
 
     }
     my $inputfile = $ctx->{'cla'}->{'inputfile'};
+
+    my $external_db_release_id = $ctx->{'cla'}->{'external_db_release_id'};
     
     my $dataHash = &makeDataHash($inputfile, $testnum);
     
-    &updateDbRef($dataHash);    
+    &updateDbRef($dataHash, $external_db_release_id);    
 }
 
 sub makeDataHash {
@@ -136,9 +132,8 @@ sub makeDataHash {
 
 sub updateDbRef($dataHash) {
     
-    my $dataHash = @_;
+    my ($dataHash,$external_db_release_id) = @_;
     
-    my $external_db_id = 4893;
     
     my $num = 0;
     
@@ -149,7 +144,7 @@ sub updateDbRef($dataHash) {
 	my $secondary_identifier = $dataHash->{$id}->[2];
 	my $remark = $dataHash->{$id}->[3];
 	
-	my $newDbRef = DbRef->new({'primary_identifier'=>$primary_identifier,'external_db_id'=>$external_db_id});
+	my $newDbRef = GUS::Model::SRes::DbRef->new({'primary_identifier'=>$primary_identifier,'external_db_release_id'=>$external_db_release_id});
 	
 	$newDbRef->retrieveFromDB;
 	
@@ -190,5 +185,5 @@ __END__
 B<LoadMGIInfo> - a plug_in that udates rows in DbRef with information from MGI for C<ga> (GUS application) package.
 
 =head1 Purpose
-B<LoadMGIInfo> plug_in that updates inforamtion in DbRef rows.
+B<LoadMGIInfo> plug_in that updates informtion in DbRef rows.
 =cut
