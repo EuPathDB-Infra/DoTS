@@ -936,7 +936,8 @@ sub assemble {
     $mgr->endStep($signal);
     my $msg = 
 "EXITING.... PLEASE DO THE FOLLOWING:
- 1. resume when assembly completes (validly) by re-runnning 'dotsbuild $propertiesFile'
+ 1. check for errors in assemble.errLog and sql failures in updateDOTSAssemblies.log
+ 2. resume when assembly completes (validly) by re-runnning 'dotsbuild $propertiesFile'
 ";
     print STDERR $msg;
     print $msg;
