@@ -2765,7 +2765,7 @@ sub prepareBlastSiteFiles {
 sub markBadSeqs {
   my ($mgr) = @_;
 
-  my $file = "$mgr->{pipelineDir}/repeatmask/assemSeqs/master/mainresult/blocked.err";
+  my $file = "$mgr->{pipelineDir}/repeatmask/assemSeqs/blocked.err";
 
   my $regex = "\\>(\\d+)";
 
