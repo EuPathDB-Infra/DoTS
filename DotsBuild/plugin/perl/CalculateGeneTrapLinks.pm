@@ -139,7 +139,7 @@ sub processBLASTResults {
     my $tagId = $tag->{na_sequence_id};
     my $tagSrcId = $tag->{source_id};
     my $restart = "0 (done in previous run - skipping)\n";
-    return $restart if (${$restartHash->{$tagSrcId}} == 1);
+    return $restart if ($restartHash->{$tagSrcId} == 1);
     my $tagLen = $tag->{length};
     my $minMatchLen = ($minLenPct / 100.0) * $tagLen;
 
