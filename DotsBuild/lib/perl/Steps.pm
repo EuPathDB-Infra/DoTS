@@ -608,6 +608,33 @@ sub loadGenomeAlignments {
   $mgr->endStep($signal);
 }
 
+sub clusterByGenome {
+    my ($mgr, $name) = @_;
+    my $propertySet = $mgr->{propertySet};
+
+    my $signal = "${name}ClusterByGenome";
+
+    return if $mgr->startStep("Clustering $name by genome", $signal);
+
+    my $taxonId = $propertySet->getProp("taxonId");
+    my $extDbRelId = $propertySet->getProp("genome_db_rls_id");
+    my $gb_db_rel_id = $propertySet->getProp('gb_db_rel_id');
+
+    my $outputFile = "$pipelineDir/cluster/$name/cluster.out";
+    my $logFile = "$pipelineDir/logs/$signal.log";
+
+    my $args = "--stage $name --taxon_id $taxonId --query_db_rel_id $gb_db_rel_id "
+	. "--target_db_rel_id $extDbRelId --out $outputFile --sort 1";
+    # $args .= " --test_chr 5";
+
+    $mgr->runPlugin("ClusterByGenome", 
+		    "DoTS::DotsBuild::Plugin::ClusterByGenome",
+		    $args, "$name clustering by genome alignment");
+
+    $mgr->endStep($signal);
+}
+
+
 sub qualityStart {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
