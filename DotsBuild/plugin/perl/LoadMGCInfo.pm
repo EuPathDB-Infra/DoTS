@@ -51,7 +51,7 @@ sub run {
 
   $self->log ("Testing on". $self->getArgs()->{'testnumber'}."insertions\n") if $self->getArgs()->{'testnumber'};
 
-  if (!self->getArgs()->{'infoFile'} || !$self->getArgs()->{'externalDbRel'}) {
+  if (!$self->getArgs()->{'infoFile'} || !$self->getArgs()->{'externalDbRel'}) {
 
     die "--infoFile --ncbiTaxId --externalDbRel must be supplied\n";
 
