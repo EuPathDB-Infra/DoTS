@@ -145,16 +145,15 @@ sub _doMerge {
     my $old_tot =  scalar(@$old_seeds);
 
     for (my $i=0; $i<$old_tot-1; $i++) {
-	my $os1 = $old_seeds->[$i]; next unless $os1;
-	my $id1 = $os1->{id}; my $crd1 = $os1->{coords};
-
-	print "coord1: " . join(':', map { $_->[0] . '-' . $_->[1] } @{ $os1->{coords} }) . "\n" if $vl >= 3;
-
 	for (my $j=$i+1; $j<$old_tot; $j++) {
+	    # TRICKY: seed of outer loop needs to be refreshed since it can change!
+	    my $os1 = $old_seeds->[$i]; last unless $os1; 
+	    my $id1 = $os1->{id}; my $crd1 = $os1->{coords};
 	    my $os2 = $old_seeds->[$j]; next unless $os2;
 	    my $id2 = $os2->{id}; my $crd2 = $os2->{coords};
 
-	    print "coord2: " . join(':', map { $_->[0] . '-' . $_->[1] } @{ $os2->{coords} }) . "\n" if $vl >= 3;
+	    print "coord1: " . join(':', map { $_->[0] . '-' . $_->[1] } @$crd1) . "\n" if $vl >= 3;
+	    print "coord2: " . join(':', map { $_->[0] . '-' . $_->[1] } @$crd2) . "\n" if $vl >= 3;
 
 	    print "_doMerge::[$i, $j], seeds [$id1, $id2]\n" if $vl >= 3;
 
@@ -163,12 +162,14 @@ sub _doMerge {
 		my $mc = DoTS::Gene::CompositeGenomeFeature::mergeCoordinateSets($crd1, $crd2);
 		$os1->{coords} = $mc;
 
-		print "merged: " . join(':', map { $_->[0] . '-' . $_->[1] } @{ $mc }) . "\n" if $vl >= 3;
+		print "merged: " . join(':', map { $_->[0] . '-' . $_->[1] } @$mc) . "\n" if $vl >= 3;
 
 		push @{ $os1->{alns} }, @{ $os2->{alns} };
 		foreach (keys %{ $os2->{qseqs} }) { $os1->{qseqs}->{$_} = 1; }
 		$old_seeds->[$j] = undef;
 		print "mered seed at index $j to $i\n" if $vl >= 2;
+	    } else {
+		print "no merge detected\n" if $vl >= 3; 
 	    }
 	    last if $stop;
 	}
