@@ -33,9 +33,24 @@
                                             DoTS/DotsBuild-Installation" >
 
     <ant target="defaultProjectInstall"/>
-
   </target>  
    
+
+  <!-- oooooooooooooooooo  Installation Postprocess  ooooooooooooooooooooo -->
+
+  <target name="DoTS-Installation-postprocess">
+    <echo message="Postprocessing the DoTS installation"/>
+
+    <replace dir="${targetDir}/bin" 
+             propertyFile="${targetDir}/config/replacements.prop" > 
+      <include name="**/*" />
+      <replacefilter token="@perl@" property="perl"/>
+    </replace> 
+
+  </target>
+
+
+  <!-- ooooooooooooooooooooooo  Install Components  ooooooooooooooooooooooo -->
 
   <target name="DoTS/DotsBuild-Installation" depends="ProjectTree">
     <ant target="defaultComponentInstall">

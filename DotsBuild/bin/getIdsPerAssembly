@@ -1,4 +1,4 @@
-#!/usr/bin/perl 
+#!@perlLocation@ 
 
 ## dump a list of accessions for each dots mrna with bit to identify if mRNA
 ##

@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!@perlLocation@
 
 ## gets max (project_id) from project table, makes entry into project table and 
 ## inserts entries into ProjectLink table  
