@@ -1,3 +1,32 @@
+# email text to UCSC (genome@soe.ucsc.edu; Donna Karolchik):
+
+Subject: DoTS Genes custom tracks update (human DoTS 9 vs hg17 and mouse DoTS 9 vs mm5)
+
+Dear UCSC genome team,
+I am pleased to submit our latest human (DoTS 9 vs hg17) and mouse (DoTS 9 vs mm5)
+DoTS Gene analysis results to update the version currently on your site.
+
+Attached please find two html files (DotsUcscHum.htm for human and
+DotsUcscMus.htm for mouse) with snippets of code that can be directly
+plugged into the custom tracks page. We would appreciate it if you could
+make the update at your earliest convenience.
+  
+DoTS (Database Of Transcribed Sequences) is a human and mouse transcript index
+created from all publicly available transcript sequences. The input 
+sequences are clustered and assembled to form the DoTS Consensus 
+Transcripts that comprise the index. The DoTS Transcripts and DoTS Genes
+are extensively annotated and a significant number have been manually curated.
+The focus of the DoTS project is integrating the various types of data
+(e.g., EST sequences, genomic sequence, expression data, functional
+annotation) in a structured manner which facilitates sophisticated queries 
+that are otherwise not easy to perform. DoTS Genes are created by aligning 
+DoTS Transcripts to the genome and merging selected alignments into gene models.
+For more information, please visit the url: http://www.allgenes.org
+
+# email text to Ensembl (Tony Cox: avc@sanger.ac.uk)
+
+# Dots gene pipeline notes:
+
 Some of the Dots Gene pipeline steps are duplicated
 instead of imported from DotsBuild pipeline steps.
 This is because the "mgr"s each assume its own distinct buildDir.

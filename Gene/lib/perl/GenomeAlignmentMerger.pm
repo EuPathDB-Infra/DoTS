@@ -43,7 +43,7 @@ sub getCompositeGenomeFeatures {
     print "seed genome features with alignments\n";
     $self->_seed;
 
-    if ($self->{om}) {
+    if (defined $self->{om}) {
 	print "merge transitively alignments with span overlap\n";
 	$self->_doOverlapMerge;
     }
@@ -219,7 +219,7 @@ sub _doMerge {
 sub _detectMerge {
     my ($self, $seed1, $seed2, $merge_mode, $merge_param) = @_;
 
-    &confess("merge param is required") unless $merge_param;
+    &confess("merge param is required") unless defined $merge_param;
 
     my $coords1 = $seed1->{coords};
     my $gf1 = DoTS::Gene::GenomeFeature->new({ coords => $coords1 });

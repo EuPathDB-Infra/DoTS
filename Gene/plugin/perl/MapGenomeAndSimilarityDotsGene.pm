@@ -142,15 +142,40 @@ sub prepareForMapping {
     my ($self, $dbh, $gdtTab, $taxonId, $genomeId) = @_;
 
     $dbh->do("alter table $gdtTab add similarity_dots_gene_id NUMBER(10)") or print "";
-    
-    my $sql = "select na_sequence_id from $gdtTab "
+    my ($sql, $sth);
+
+    # get an autocommiting query handle
+    $dbh = $self->getDb()->getQueryHandle(1);
+=pod    
+    $sql = "select na_sequence_id from $gdtTab "
 	. "where taxon_id = $taxonId and genome_external_db_release_id = $genomeId";
     $self->log("get dt ids in $gdtTab for which to find similarity dots gene id: sql=$sql");
-    my $sth = $dbh->prepareAndExecute($sql);
+    $sth = $dbh->prepareAndExecute($sql);
     my %dt_ids;
     while (my ($id) = $sth->fetchrow_array) { $dt_ids{$id} = undef; }
     $self->log("found " . scalar(keys %dt_ids) . " unique dt ids");
+=cut
 
+    my $tmpTab = "DtDgTmp";
+    $sql = "create table $tmpTab as select rf.na_sequence_id, r.gene_id "
+         . "from DoTS.RnaFeature rf, DoTS.RnaInstance ri, DoTS.RNA r "
+         . "where rf.na_feature_id = ri.na_feature_id and ri.rna_id = r.rna_id";
+    $self->log("caching dt id vs sDG id mapping: sql=$sql");
+    $dbh->sqlexec($sql); 
+    $sql = "create index $tmpTab" . "_ind01 on $tmpTab" . "(na_sequence_id)";
+    $self->log("creating index: sql=$sql");
+    $dbh->sqlexec($sql);
+    $dbh->sqlexec("analyze table $tmpTab compute statistics");
+
+    $sql = "update $gdtTab gdt set gdt.similarity_dots_gene_id = "
+         . "(select tmp.gene_id from $tmpTab tmp where gdt.na_sequence_id = tmp.na_sequence_id) "
+         . "where taxon_id = $taxonId and genome_external_db_release_id = $genomeId";
+    $self->log("updating sDG id in $gdtTab: sql=$sql");
+    $dbh->sqlexec("$sql");
+
+    $self->log("deleting temp table $tmpTab");
+    $dbh->do("drop table $tmpTab");
+=pod
     my $c = 0;
     foreach my $dt_id (keys %dt_ids) {
 	$sql = "select r.gene_id from DoTS.RnaFeature rf, DoTS.RnaInstance ri, DoTS.RNA r "
@@ -173,6 +198,8 @@ sub prepareForMapping {
 	    $dbh->commit();
 	}
     }
+=cut
+
 }
 
 sub initMapping {

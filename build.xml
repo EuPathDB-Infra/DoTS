@@ -24,12 +24,12 @@
 
   <target name="DoTS-Installation" depends="GUS-Installation,
                                             DJob-Installation, 
-                                            DoTS/DotsBuild-Installation" >
+                                            DoTS/DotsBuild-Installation,
+                                            DoTS/Gene-Installation" >
 
     <ant target="defaultProjectInstall"/>
   </target>  
    
-
   <!-- oooooooooooooooooo  Installation Postprocess  ooooooooooooooooooooo -->
 
   <target name="DoTS-Installation-postprocess">
@@ -53,6 +53,12 @@
     </ant>
   </target>  
 
+  <target name="DoTS/Gene-Installation" depends="ProjectTree">
+    <ant target="defaultComponentInstall">
+      <property name="project" value="DoTS"/>
+      <property name="component" value="Gene"/>
+    </ant>
+  </target>
 
   <!-- oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo -->
   <!-- oooooooooooooooooooooooooo  Distributable  ooooooooooooooooooooooooo -->
