@@ -7,17 +7,20 @@ use Getopt::Long;
 use GUS::ObjRelP::DbiDatabase;
 use GUS::Model::Core::TableInfo;
 use GUS::Common::GusConfig;
+use DoTS::Gene::Util;
 
 $| = 1;
 
-my ($accListFile, $gdgAid, $gusConfigFile, $verbose);
+my ($accListFile, $taxonId, $genomeId, $gusConfigFile, $versionInfo, $verbose);
 &GetOptions("accListFile=s" => \$accListFile, 
             "gusConfigFile=s" => \$gusConfigFile, 
-            "gdgAnalysisId=i" => \$gdgAid,
+            "taxonId=i" => \$taxonId,
+            "genomeDbRlsId=i" => \$genomeId,
+            "versionInfo=s" => \$versionInfo,
 	    "verbose!" => \$verbose);
 
-die "usage: genbankAcc2Gdg --accListFile --gdgAnalysisId [--gusConfigFile]\n"
-    unless $accListFile && $gdgAid;
+die "usage: genbankAcc2Gdg --accListFile --taxonId --genomeDbRlsId [--versionInfo --gusConfigFile]\n"
+    unless $accListFile && $taxonId && $genomeId;
 
 my $gusconfig = GUS::Common::GusConfig->new($gusConfigFile);
 
@@ -30,8 +33,12 @@ my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
                                         $gusconfig->getOracleDefaultRollbackSegment());
 my $dbh = $db->getQueryHandle();
 
+my $gdgAid = DoTS::Gene::Util::getAnalysisId($dbh, $taxonId, $genomeId);
+
+print "# $versionInfo\n";
+print "# Accession\tDT\tDG\tChrom\tStart\tEnd\tStrand\n";
+
 # for each accession, do the mapping
-print "Accession\tDT\tDG\tChrom\tStart\tEnd\tStrand\n";
 my @accs;
 open AC, $accListFile or die "could not open $accListFile for read";
 while (my $acc = <AC>) {
