@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl
+#!/usr/bin/perl
 
 ##Note that am presenting as the number of "genes" (for now represent as  clusters
 ## of RNAs)  Simplest to create a tmp table to hold the mapping btwn assemblies
@@ -7,6 +7,7 @@
 ## Brian Brunk 11/28/00
 
 use strict;
+use lib "$ENV{GUS_HOME}/lib/perl";
 use Getopt::Long;
 use GUS::ObjRelP::DbiDatabase;
 use GUS::Common::GusConfig;

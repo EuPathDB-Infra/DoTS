@@ -6,6 +6,7 @@
 use strict;
 
 use Getopt::Long;
+use lib "$ENV{GUS_HOME}/lib/perl";
 use GUS::ObjRelP::DbiDatabase;
 use GUS::Common::GusConfig;
 

@@ -2,6 +2,7 @@
 
 use DBI;
 
+use lib "$ENV{GUS_HOME}/lib/perl";
 use DBD::Oracle;
 use GUS::Common::GusConfig;
 

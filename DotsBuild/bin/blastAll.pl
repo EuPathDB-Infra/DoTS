@@ -14,6 +14,7 @@
 $| = 1;
 
 use strict;
+use lib "$ENV{GUS_HOME}/lib/perl";
 use GUS::Common::Sequence;
 use Getopt::Long;
 

@@ -2,6 +2,7 @@
 
 use strict;
 
+use lib "$ENV{GUS_HOME}/lib/perl";
 use CBIL::Util::Utils;
 
 my $gbRel = shift @ARGV;
