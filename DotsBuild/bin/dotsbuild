@@ -989,7 +989,7 @@ sub insertNRDB {
   
   my $temp_password = $propertySet->getProp('nrdbTempPassword'); 
   
-  my $restart = $propertySet->getProp('nrdbRestart') ? '--restart' .  $propertySet->getProp('nrdbRestart' : '';
+  my $restart = $propertySet->getProp('nrdbRestart') ? ('--restart' .  $propertySet->getProp('nrdbRestart')) : '';
   
   my $nrdbReleaseId = $propertySet->getProp('nrdb_db_rls_id');
   
