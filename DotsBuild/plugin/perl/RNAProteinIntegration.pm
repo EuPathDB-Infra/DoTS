@@ -38,6 +38,10 @@ sub new {
 	 {o => 'taxon_id',
 	  t => 'int',
 	  h => 'the taxon_id of the assemblies to be used',
+         },
+	 {o => 'ext_db_rel',
+	  t => 'string',
+	  h => 'comma delimited list of external_database_release_ids for entries in dots.nrdbentry'
          }];
     
     $self->initialize({requiredDbVersion => {},
@@ -67,6 +71,8 @@ sub run {
     }
     
     $dbh = $ctx->{self_inv}->getQueryHandle();
+
+    my $dbrel = $ctx->{'cla'}->{'ext_db_rel'})
     
     my $time = `date`;
     chomp($time);
@@ -87,7 +93,7 @@ sub run {
 	my $prot;
 	next unless ($prot = $rna->getChild('GUS::Model::DoTS::Protein',1));
 	my $transaafeat;
-	next unless $transaafeat = &makeTransAAFeat($id, $dbh, $rnafeat);
+	next unless $transaafeat = &makeTransAAFeat($id, $dbh, $rnafeat, $dbrel);
 
 	my $protinst = $transaafeat->getChild('GUS::Model::DoTS::ProteinInstance', 1) ? $transaafeat->getChild('GUS::Model::DoTS::ProteinInstance') : &makeProteinInstance($transaafeat);
 
@@ -185,9 +191,9 @@ sub getRNA {
 #note that protein_id is the source_id from a GenBank entry and not the GUS Protein table id
 #updates the TranslatedAAFeature table if aa_sequence_id has changed
 sub makeTransAAFeat {
-  my ($id, $dbh, $rnafeat) = @_;
+  my ($id, $dbh, $rnafeat,$dbrel) = @_;
   my $st1 = $dbh->prepare("select protein_id from dots.transcript where name = 'CDS' and na_sequence_id = ?");
-  my $st2 = $dbh->prepare("select aa_sequence_id from dots.nrdbentry where source_id = ?");
+  my $st2 = $dbh->prepare("select aa_sequence_id from dots.nrdbentry where source_id = ? and external_database_release_id in ($dbrel)");
   my $is_predicted = 0;
   my $review_status_id = 0;
   $st1->execute($id);
