@@ -75,7 +75,7 @@ sub run {
   $sql .= " and na_sequence_id not in (select na_sequence_id from dots.assemblyanatomypercent where taxon_id = $taxonId)" if $self->getArg('restart');
   my $stmt = $dbh->prepareAndExecute($self->getArg('idSQL'));
   my $count;
-  while (my $dt = $stmt->fetchrow_array()) {
+  while (my ($dt) = $stmt->fetchrow_array()) {
     die "Error: na_sequence_id '$dt' returned in the result set is not an integer" unless $dt =~ /\d+/;
     $count++;
     print STDERR "Updated $count rows\n" if ($count % 10000) == 0;
@@ -137,7 +137,7 @@ sub processDT {
   my ($self, $dt, $nodeHash,$taxonId, $root, $dbh) = @_;
 
   # zero out previous DT's junk
-  $root->clearDTValues($root);
+  $root->clearDTValues();
 
   # load this DT's values into the existing anatomy tree
   # return the sum of the effective counts and the sum of the raw counts

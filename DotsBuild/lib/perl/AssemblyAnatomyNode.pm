@@ -45,7 +45,7 @@ sub percolateAndWrite {
 
   foreach my $kid (@{$self->{kids}}) {
     ($kid_raw_percolated, $kid_effective_percolated)
-      = $kid->percolateAndWrite();
+      = $kid->percolateAndWrite($dtId, $sumEffective, $sumRaw, $taxonId);
 
     $raw_percolated += $kid_raw_percolated;
     $effective_percolated += $kid_effective_percolated;
