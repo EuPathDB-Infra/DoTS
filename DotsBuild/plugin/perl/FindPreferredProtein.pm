@@ -193,11 +193,3 @@ sub updateProteinInstance {
 
 1;
 
-__END__
-
-=pod
-=head1 Description
-B<mRNAandProtein> - a plug-in that updates dots.ProteinInstance table.
-
-=head1 Purpose
-B<mRNAandProtein> is a 'plug-in' GUS application that makes and integrates RNAFeature, RNAInstance, ProteinInstance, and TranslatedAAFeature entries for each mRNA.
