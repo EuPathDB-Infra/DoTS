@@ -75,7 +75,7 @@ my $count = 0;
 my @row;
 
 foreach my $dt (keys %RNA) {
-  my $idSQL = "select 'DT.$dt,length of predicted protein sequence = '||aas.length,aas.sequence from dots.protein p, dots.translatedaafeature taf, dots.proteininstance pi,dots.aasequenceimp aas where p.rna_id = $RNA{$dt} and p.protein_id = pi.protein_id and pi.is_reference = 1 and pi.aa_feature_id = taf.aa_feature_id and taf.aa_sequence_id = aas.aa_sequence_id";
+  my $idSQL = "select 'DT.$dt length of predicted protein sequence ='||aas.length,aas.sequence from dots.protein p, dots.translatedaafeature taf, dots.proteininstance pi,dots.aasequenceimp aas where p.rna_id = $RNA{$dt} and p.protein_id = pi.protein_id and pi.is_reference = 1 and pi.aa_feature_id = taf.aa_feature_id and taf.aa_sequence_id = aas.aa_sequence_id";
 
   my $idStmt = $dbh->prepareAndExecute($idSQL);
 
@@ -83,10 +83,8 @@ foreach my $dt (keys %RNA) {
 
   $count++;
   print STDERR "Getting id for $count\n" if $count % 1000 == 0;
+  &printSequence();
 }
-
-&printSequence();
-
 
 sub printSequence{
   #	print STDERR "$gene_id,$na_id,$description,$number,$taxon,$assembly_id,$length,$seq_ver\n";
