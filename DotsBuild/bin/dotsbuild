@@ -109,7 +109,8 @@ my @properties =
  ["fileOfRepeats", "","subdirectory and library(file) of repeats, e.g. unknown_release/vector_humMitoRibo.lib"],
  ["refseqRel", "","RefSeq release, e.g 2001-01-08"],
  ["refseq_rel_id", "","external_database_release_id for the RefSeq release"],
- ["refseqFile", "","RefSeq file. e.g. mouse.gbff.gz"]
+ ["refseqFile", "","RefSeq file. e.g. mouse.gbff.gz"],
+ ["dbESTRestart", "","number (dbest_id_est from dots.est) to restart parsedbEST plugin on, get from log"]
  ); 
 
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
@@ -639,7 +640,9 @@ sub parseRefSeq {
 
 sub parsedbEST {
 
-  my $args = "--log $pipelineDir/logs/dbest.log";
+  my $restart = $propertySet->getProp('dbESTRestart');
+
+  my $args = "--log $pipelineDir/logs/dbest.log --span 500 --restart_number $restart";
   
   $mgr->runPlugin("loadDbEst", "GUS::Common::Plugin::dbEST", $args, 
 		  "Loading dbEST files into GUS", 'loadDbEst');
