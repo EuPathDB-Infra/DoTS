@@ -632,7 +632,7 @@ sub parseRefSeq {
     
   my $args = "--gbRel $refseqRel --file $dirAndFile --log $log --db_rel_id $refseq_rel_id";
     
-  my $signal = "refseq_${file}";
+  my $signal = "refseq_${refseqFile}";
     
   $mgr->runPlugin($signal, "GUS::Common::Plugin::GBParser", $args, "Loading RefSeq files into GUS");
 }
