@@ -110,6 +110,8 @@ sub createDotsPipelineDir {
 
 sub createGenomeDir {
   my ($mgr) = @_;
+  my $signal = "createGenomeDir";
+  return if $mgr->startStep("Creating genome dir", $signal);
 
   my $propertySet = $mgr->{propertySet};
   my $buildName = $mgr->{buildName};
@@ -128,6 +130,7 @@ sub createGenomeDir {
 		   $nodePath, $gaTaskSize, $gaOptions, $gaPath, $extGDir, $srvGDir);
 
   $mgr->runCmd("chmod -R g+w $dotsBuildDir/$buildName/");
+  $mgr->endStep($signal);
 }
 
 sub makeAssemblyDir {
@@ -2563,6 +2566,32 @@ sub markBadSeqs {
 		  $args,
 		  "Marking bad assembly table sequences");
 }
+
+sub downloadHInvitationalFile {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "downloadHinvitational";
+
+  return if $mgr->startStep("Download H-inviational file", $signal, 'downloadHinvitational');
+
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+  my $date = $propertySet->getProp('buildDate');
+
+  my $downloadSubDir = "$externalDbDir/h-invitational/$date";
+
+  my $logfile = "$mgr->{pipelineDir}/logs/${signal}.log";
+
+  $mgr->runCmd("mkdir -p $downloadSubDir") unless (-e $downloadSubDir);
+
+  my $cmd = "wget -t5 -o $logfile -m -np -nd -nH  -A \"acc2hinv_id.txt.gz\" -P $downloadSubDir ftp://hinv.ddbj.nig.ac.jp/";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
+
+  
 sub makeProjectLink {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
