@@ -32,7 +32,6 @@ sub new {
       t => 'string',
       h => 'regular expression for pulling out assembly_sequence_id',
      },
-   }
    ];
 
   $self->initialize({requiredDbVersion => {},
