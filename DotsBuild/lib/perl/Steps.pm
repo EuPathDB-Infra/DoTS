@@ -121,7 +121,8 @@ sub createGenomeDir {
   my $gaTaskSize = $propertySet->getProp('genome.taskSize');
   my $gaPath = $propertySet->getProp('genome.path');
   my $gaOptions = $propertySet->getProp('genome.options');
-  my $genomeVer = 'goldenpath/' . $propertySet->getProp('genomeVersion');
+  my $genomeVer = $propertySet->getProp('genomeDir') . '/'
+                  . $propertySet->getProp('genomeVersion');
   my $extGDir = $propertySet->getProp('externalDbDir') . '/' . $genomeVer;
   my $srvGDir = $propertySet->getProp('serverExternalDbDir') . '/'. $genomeVer;
 
@@ -262,10 +263,11 @@ sub downloadGenome {
   return if $mgr->startStep("Downloading genome", $signal, 'downloadGenome');
 
   my $externalDbDir = $propertySet->getProp('externalDbDir');
+  my $genomeDir = $propertySet->getProp('genomeDir');
   my $genomeVer = $propertySet->getProp('genomeVersion');
 
-  my $downloadSubDir = "$externalDbDir/goldenpath/$genomeVer";
-  my $downloadGapDir = "$externalDbDir/goldenpath/$genomeVer" . 'gaps';
+  my $downloadSubDir = "$externalDbDir/$genomeDir/$genomeVer";
+  my $downloadGapDir = "$externalDbDir/$genomeDir/$genomeVer" . 'gaps';
 
   my $logfile = "$mgr->{pipelineDir}/logs/downloadGenome.log";
 
@@ -273,7 +275,7 @@ sub downloadGenome {
   $mgr->runCmd("mkdir -p $downloadGapDir");
 
   my $cmd = "wget -t5 -o $logfile -m -np -nd -nH --cut-dirs=1 -P $downloadSubDir "
-	. "http://genome.ucsc.edu/goldenPath/$genomeVer/bigZips/chromFa.zip";
+	. "http://genome.ucsc.edu/$genomeDir/$genomeVer/bigZips/chromFa.zip";
   $mgr->runCmd($cmd);
   $mgr->runCmd("unzip $downloadSubDir/chromAgp.zip -d $downloadSubDir");
   $mgr->runCmd("rm $downloadSubDir/chromFa.zip");
@@ -282,7 +284,7 @@ sub downloadGenome {
   my @chrs = $gd->getChromosomes;
   foreach my $chr (@chrs) {
     $cmd = "wget -t5 -o $logfile -m -np -nd -nH --cut-dirs=1 -P $downloadGapDir "
-      . "http://genome.ucsc.edu/goldenPath/$genomeVer/database/chr${chr}_gap.txt.gz";
+      . "http://genome.ucsc.edu/$genomeDir/$genomeVer/database/chr${chr}_gap.txt.gz";
     $mgr->runCmd($cmd);
   }
 
@@ -491,8 +493,9 @@ sub copyGenomeToCluster {
   my $signal = "genome2cluster";
 
   my $gVer = $propertySet->getProp('genomeVersion');
-  my $fromDir = $propertySet->getProp('externalDbDir') . '/goldenpath';
-  my $serverPath = $propertySet->getProp('serverExternalDbDir') . '/goldenpath';
+  my $gDir = $propertySet->getProp('genomeDir');
+  my $fromDir = $propertySet->getProp('externalDbDir') . '/$gDir';
+  my $serverPath = $propertySet->getProp('serverExternalDbDir') . '/gDir';
   return if $mgr->startStep("Copying $fromDir/$gVer to $serverPath on cluster",
 			      $signal, 'copyGenomeToCluster');
 
@@ -539,12 +542,13 @@ sub insertGenome {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
   my $signal = "insertGenome";
-  return if $mgr->startStep("Inserting genome sequences into GUS", $signal, 'downloadGenome');
+  return if $mgr->startStep("Inserting genome sequences into GUS", $signal, 'insertGenome');
   my $externalDbDir = $propertySet->getProp('externalDbDir');
   my $genomeVer = $propertySet->getProp('genomeVersion');
+  my $genomeDir = $propertySet->getProp('genomeDir');
   my $dbi_str = $propertySet->getProp('dbi_str');
-  my $genomeDir = "$externalDbDir/goldenpath/$genomeVer";
-  my $gapDir = "$externalDbDir/goldenpath/$genomeVer" . 'gaps';
+  my $genomeDir = "$externalDbDir/$genomeDir/$genomeVer";
+  my $gapDir = "$externalDbDir/$genomeDir/$genomeVer" . 'gaps';
   my $temp_login = $propertySet->getProp('tempLogin');  
   my $temp_password = $propertySet->getProp('tempPassword'); 
   my $gd = CBIL::Util::GenomeDir->new($genomeDir);
@@ -555,17 +559,17 @@ sub insertGenome {
 
   my $args = "--comment \"add this ext db rel for $genomeVer\" --filename $dbrXml";
   $mgr->runPlugin("makeGenomeReleaseId", "GUS::Common::Plugin::UpdateGusFromXML",
-		    $args, "Making genome release", 'downloadGenome');
+		    $args, "Making genome release", 'insertGenome');
 
   $args = "--comment \"load genomic seqs for $genomeVer\" "
 	. "--genomeDir $genomeDir --genomeVersion $genomeVer";
   $mgr->runPlugin("insertGenomeSequences", "GUS::Common::Plugin::UpdateNASequences",
-		  $args, "Loading genomic sequences", 'downloadGenome');
+		  $args, "Loading genomic sequences", 'insertGenome');
 
   $args = "--tempLogin \"$temp_login\" --tempPassword \"$temp_password\" "
     . "--dbiStr \"$dbi_str\" --gapDir $gapDir";
   $mgr->runPlugin("loadGenomeGaps", "GUS::Common::Plugin::LoadGenomeGaps",
-		  $args, "Loading genome gaps", 'downloadGenome');
+		  $args, "Loading genome gaps", 'insertGenome');
 
   $mgr->endStep($signal);
 }
@@ -3555,9 +3559,9 @@ sub refreshMaterializedViews {
   return if $mgr->startStep("Refresh MaterializedViews", $signal);
   my $materializedViews = $propertySet->getProp('materializedViews');
   my @views = split (/\,/,$materializedViews);
-  foreach $schemaView (@views) {
+  foreach my $schemaView (@views) {
     my ($schema,$view) = split (/\:/,$schemaView);
-    my args = "--materializedView $view --schema $schema --verbose";
+    my $args = "--materializedView $view --schema $schema --verbose";
     my $cmd = "refreshMaterializedView $args 2>> $logFile";
     $mgr->runCmd($cmd);
   }
