@@ -98,7 +98,7 @@ sub createDotsPipelineDir {
   $mgr->runCmd("chmod -R g+w $dotsBuildDir/$buildName");
 }
 
-sub createGenomeDir($mgr) {
+sub createGenomeDir {
   my ($mgr) = @_;
 
   my $propertySet = $mgr->{propertySet};
@@ -147,9 +147,7 @@ sub downloadGenbank {
   my $rejectFiles = $propertySet->getProp('gbRejectFiles');
   my $acceptFiles = $propertySet->getProp('gbAcceptFiles');
 
-  my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=1 -R \"$rejectFiles\" -A \"$acceptFiles\" -P $downloadSubDir ftp://ftp.ncbi.nih.gov/genbank/";
-
-  $mgr->runCmd($cmd);
+  system ("wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=1 -R \"$rejectFiles\" -A \"$acceptFiles\" -P $downloadSubDir ftp://ftp.ncbi.nih.gov/genbank/");
 
   $mgr->endStep($signal);
 }
@@ -175,11 +173,9 @@ sub downloadRefSeq {
   my $subDir = $propertySet->getProp('speciesNickname') eq 'hum' ? 'H_sapiens' : 'M_musculus';
 
   my $ftpsite = "ftp://ftp.ncbi.nih.gov/refseq/$subDir/mRNA_Prot/";
-  my $ftpfile = "hs.gbff.gz";
+  my $ftpfile = "*.gbff.gz";
 
-  my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=3 -A \"$ftpfile\" -P $downloadSubDir $ftpsite";
-
-  $mgr->runCmd($cmd);
+  system ("wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=3 -A \"$ftpfile\" -P $downloadSubDir $ftpsite");
 
   $mgr->endStep($signal);
 }
@@ -202,9 +198,7 @@ sub downloadTaxon {
 
   $mgr->runCmd("mkdir -p $downloadSubDir");
 
-  my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=2 -A \"gi_taxid_nucl.dmp.gz,gi_taxid_prot.dmp.gz,taxdump.tar.gz\" -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/pub/taxonomy/";
-
-  $mgr->runCmd($cmd);
+  system ("wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=2 -A \"gi_taxid_nucl.dmp.gz,gi_taxid_prot.dmp.gz,taxdump.tar.gz\" -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/pub/taxonomy/");
 
   $mgr->runCmd("gunzip $downloadSubDir/taxdump.tar.gz");
 
@@ -236,9 +230,7 @@ sub downloadNRDB {
 
   $mgr->runCmd("mkdir -p $downloadSubDir");
 
-  my $cmd = "wget -t5 -b -m -np -nd -nH -o $logfile --cut-dirs=4 -A \"nr.gz\"  -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/blast/db/FASTA/";
-
-  $mgr->runCmd($cmd);
+  system ("wget -t5 -b -m -np -nd -nH -o $logfile --cut-dirs=4 -A \"nr.gz\"  -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/blast/db/FASTA/");
 
   $mgr->runCmd("gunzip $downloadSubDir/nr.gz");
 
@@ -266,7 +258,7 @@ sub downloadGenome {
 
   my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=1 -P $downloadSubDir "
 	. "http://genome.ucsc.edu/goldenPath/$genomeVer/bigZips/chromFa.zip";
-  $mgr->runCmd($cmd);
+  system ($cmd);
   $mgr->runCmd("unzip $downloadSubDir/chromAgp.zip -d $downloadSubDir");
   $mgr->runCmd("rm $downloadSubDir/chromFa.zip");
 
@@ -275,7 +267,7 @@ sub downloadGenome {
   foreach my $chr (@chrs) {
     $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=1 -P $downloadGapDir "
       . "http://genome.ucsc.edu/goldenPath/$genomeVer/database/chr${chr}_gap.txt.gz";
-    $mgr->runCmd($cmd);
+    system ($cmd);
   }
   $mgr->runCmd("gunzip $downloadGapDir/*.gz -d $downloadGapDir");
  
