@@ -4,6 +4,7 @@ package DoTS::Gene::Plugin::MoveGenomeDotsGeneToAllgenes;
 use strict 'vars';
 
 use CBIL::Util::PropertySet;
+use DoTS::Gene::Util;
 
 use GUS::PluginMgr::Plugin;
 
@@ -68,7 +69,14 @@ FAILURE_CASES
 		     constraintFunc=> undef,
 		     reqd  => 1,
 		     isList => 0 
-		     })
+		     }),
+
+     stringArg({name => 'copy_table_suffix',
+		descr => 'suffix of names for tables to keep a local copy of result, relieve next build from archiving',
+		constraintFunc=> undef,
+		isList => 0, 
+		reqd => 0,
+		})
 	 ];
 
     $self->initialize({requiredDbVersion => {},
@@ -95,8 +103,15 @@ sub run {
     my $genomeId = $self->getArg('genome_db_rls_id');
     my $gdgTab = $tempLogin . '.' . $self->getArg('genome_dots_gene_cache');
     my $gdtTab = $tempLogin . '.' . $self->getArg('genome_dots_transcript_cache');
+    my $copyTabSuffix = $self->getArg('copy_table_suffix');
+
+    if ($copyTabSuffix) {
+	$self->log("making a copy of results to relieve next build from archiving");
+	$self->makeCopy($dbh, $gdgTab, 'gDG', $gdtTab, 'gDT', $copyTabSuffix);
+    }
 
     $self->moveToAllgenes($dbh, $tempLogin, $taxonId, $genomeId, $gdgTab, $gdtTab);
+
     return "finished moving $gdgTab and $gdtTab into allgenes";
 }
 
@@ -106,10 +121,29 @@ sub run {
 #
 #----------------
 
+sub makeCopy {
+    my ($self, $dbh, $gDGtab, $gDGpref, $gDTtab, $gDTpref, $copyTabSuf) = @_;
+
+    my $taxonId = $self->getArg('taxon_id');
+    my $genomeId = $self->getArg('genome_db_rls_id');
+
+    my $sql = "create table $gDGpref$copyTabSuf as "
+    	. "(select * from $gDGtab where $taxonId = $taxonId"
+	. " and genome_external_db_release_id = $genomeId)";
+    $self->log("making a copy of gene result: sql=$sql");
+    $dbh->sqlexec($sql);
+
+    my $sql = "create table $gDTpref$copyTabSuf as "
+    	. "(select * from $gDTtab where taxon_id = $taxonId"
+	. " and genome_external_db_release_id = $genomeId)";
+    $self->log("making a copy of transcript result: sql=$sql");
+    $dbh->sqlexec($sql);
+}
+
 sub moveToAllgenes {
     my ($self, $dbh, $tempLogin, $taxonId, $genomeId, $gdgTab, $gdtTab) = @_;
 
-    my $aid = $self->getAnalysisId($dbh, $taxonId, $genomeId);
+    my $aid = &DoTS::Gene::Util::getAnalysisId($dbh, $taxonId, $genomeId);
 
     $self->deleteOldResults($dbh, $tempLogin, $aid);
 
@@ -174,22 +208,6 @@ sub deleteOldResults {
     $sql = "delete Allgenes.AlignedGene where aligned_gene_analysis_id = $aid";
     $self->log("deleting old genes: sql=$sql");
     $dbh->sqlexec($sql);
-}
-
-sub getAnalysisId {
-    my ($self, $dbh, $taxonId, $genomeId) = @_;
-
-    my $sql = "select aligned_gene_analysis_id from Allgenes.AlignedGeneAnalysis "
-	. "where parameters like '%--t $taxonId --dbr %' "
-	. "order by aligned_gene_analysis_id desc";
-    my $sth = $dbh->prepareAndExecute($sql);
-    my @aids = ();
-    if (my $aid = $sth->fetchrow_array) { push @aids, $aid; }
-    my $c = scalar(@aids);
-    $self->error("expecting one analysis id but found $c") unless $c == 1;
-    $self->log("aligned gene analysis id is $aids[0]");
-
-    return $aids[0];
 }
 
 sub _getNotes {

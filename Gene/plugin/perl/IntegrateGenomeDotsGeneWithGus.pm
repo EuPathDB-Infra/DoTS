@@ -92,7 +92,7 @@ FAILURE_CASES
 		     isList => 0
 		     }),
 
-	 integerArg({name => 'is_restart',
+	 booleanArg({name => 'is_restart',
 		     descr => 'whether this is a restart (no effect if only_delete is set)',
 		     constraintFunc=> undef,
 		     reqd  => 0,
@@ -144,10 +144,10 @@ sub run {
     my $onlyDelete = $self->getArg('only_delete');
     my $onlyInsert = $self->getArg('only_insert');
 
-    my ($gis, $gfs, $gdgs) = $self->getExistGiGfGdg($dbh);
+    my ($gis, $gfs, $gdgs) = $self->getExistGiGfGdg($dbh, $genomeId);
     unless ($isRestart || $onlyInsert) {
-	my $efs = $self->getExistEfOrRf($dbh, 'DoTS.ExonFeature');
-	my $rfs = $self->getExistEfOrRf($dbh, 'DoTS.RnaFeature');
+	my $efs = $self->getExistEfOrRf($dbh, 'DoTS.ExonFeature', $genomeId);
+	my $rfs = $self->getExistEfOrRf($dbh, 'DoTS.RnaFeature', $genomeId);
 	$self->cleanOldResults($dbh, $gis, $gfs, $efs, $rfs);
     }
 
@@ -166,11 +166,13 @@ sub run {
 #----------------
 
 sub getExistGiGfGdg {
-    my ($self, $dbh) = @_;
+    my ($self, $dbh, $genomeId) = @_;
 
     my $sql = "select gi.gene_instance_id, gf.na_feature_id, gf.name"
 	. " from DoTS.GeneFeature gf, DoTS.GeneInstance gi"
-	. " where gf.na_feature_id = gi.na_feature_id and gi.gene_instance_category_id = 1";
+	. " where gf.na_feature_id = gi.na_feature_id and gi.gene_instance_category_id = 1"
+	. " and external_database_release_id = $genomeId";
+    $self->log("finding existing GeneInstance and GeneFeature for genome dots gene entries");
     my $sth = $dbh->prepareAndExecute($sql);
     my ($gis, $gfs, $gdgs) = ([], [], {});
     while (my ($gi, $gf, $nam) = $sth->fetchrow_array) { 
@@ -183,13 +185,14 @@ sub getExistGiGfGdg {
 }
 
 sub getExistEfOrRf {
-    my ($self, $dbh, $tab) = @_;
+    my ($self, $dbh, $tab, $genomeId) = @_;
 
     my $sql = "select f.na_feature_id"
 	. " from $tab f, DoTS.GeneFeature gf, DoTS.GeneInstance gi"
 	. " where f.parent_id = gf.na_feature_id"
 	. " and gf.na_feature_id = gi.na_feature_id"
-	. " and gi.gene_instance_category_id = 1";
+	. " and gi.gene_instance_category_id = 1"
+	. " and gf.external_database_release_id = $genomeId";
     my $sth = $dbh->prepareAndExecute($sql);
     my $res = [];
     while (my ($f) = $sth->fetchrow_array) { 
@@ -257,13 +260,20 @@ sub moveToGus {
 	my $r1 = $rows[0];
 
 	my $gene = $fake_gene;
-	if ($r1->{gene_id}) {
-	    $gene = GUS::Model::DoTS::Gene->new({'gene_id'=>$r1->{gene_id}}); 
+	my $geneId = $r1->{gene_id};
+	if ($geneId) {
+	    $gene = GUS::Model::DoTS::Gene->new({'gene_id'=>$geneId });
+	    unless ($gene->retrieveFromDB()) {
+		$self->log("WARNING: geneId $geneId no longer in DoTS.Gene");
+		# for now, create gene instance pointing to place holder
+		$gene = $fake_gene;
+	    }
 	}
 	my $gf = GUS::Model::DoTS::GeneFeature->new();
 	$gf->setName('gDG.' . $r1->{genome_dots_gene_id});
 	$gf->setNumberOfExons($r1->{number_of_exons});
 	$gf->setScore($r1->{confidence_score});
+	$gf->setExternalDatabaseReleaseId($genomeId);
 	my $cid = $chrIds->{$r1->{chromosome}};
 	die "no chrom id found for chr" . $r1->{chromosome} unless $cid;
 	$gf->setNaSequenceId($cid);
@@ -321,6 +331,7 @@ sub moveToGus {
 	    $rf->setParent($gf);
 	    $rf->setName("BLAT.$blat");
 	    $rf->setNaSequenceId($dt);
+	    $rf->setExternalDatabaseReleaseId($genomeId);
 	    # TODO: make NALocation for coords within dt
 	    # TODO: make RNAInstance, associate with RNAInstanceCategory & RNA
 	    # TODO: make RNAFeatureExon that associate exons with RNAs
@@ -335,6 +346,7 @@ sub moveToGus {
 
 	$self->log("integrated $tally of $total gDGs") unless $tally % 200;
     }
+    $self->log("integrated $tally of $total gDGs");
 }
 
 sub getGeneInstanceCategory {

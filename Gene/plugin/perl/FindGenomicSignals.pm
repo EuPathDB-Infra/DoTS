@@ -141,7 +141,7 @@ sub run {
       } else {
 	  print "# chromosome id $cid:  processing\n";
       }
-      my $bids = &getBlatIds($dbh, $cid, $t_taxon_id, $t_table_id, $q_taxon_id, $q_table_id, $tempLogin);
+      my $bids = $self->getBlatIds($dbh, $cid, $t_taxon_id, $t_table_id, $q_taxon_id, $q_table_id, $tempLogin);
 
       # HACK: ORACLE run out of memory periodically, entailing restarts.
       # redo the dbh for every chrom to see what happens
@@ -177,6 +177,7 @@ sub run {
       push @done_chrs, $cid;
       print "sleeping for 1 minutes\n" unless $chrom_names->{$cid} =~ /random/i;
       sleep 60 unless $chrom_names->{$cid} =~ /random/i;
+      $dbh->commit();
   }
   print "# ALL DONE: processed $c blat alignment signal entries\n\n";
 }
@@ -199,9 +200,9 @@ sub saveSignals {
 }
 
 sub getBlatIds {
-  my ($dbh, $cid, $t_taxon_id, $t_table_id, $q_taxon_id, $q_table_id, $tmpLogin) = @_;
+    my ($self, $dbh, $cid, $t_taxon_id, $t_table_id, $q_taxon_id, $q_table_id, $tmpLogin) = @_;
 
-  my $sql =<<BA_SQL;
+    my $sql =<<BA_SQL;
 SELECT  blat_alignment_id
 FROM DoTS.BlatAlignment
 WHERE target_na_sequence_id = $cid
@@ -213,11 +214,13 @@ AND blat_alignment_id not in
 (select blat_alignment_id from ${tmpLogin}.BlatAlignmentSignals
  where target_na_sequence_id = $cid)
 BA_SQL
-  my $sth = $dbh->prepareAndExecute($sql);
-  my @bids;
-  while (my ($bid) = $sth->fetchrow_array) { push @bids, $bid; }
-  $sth->finish;
-  \@bids;
+
+    $self->log("running $sql ...");
+    my $sth = $dbh->prepareAndExecute($sql);
+    my @bids;
+    while (my ($bid) = $sth->fetchrow_array) { push @bids, $bid; }
+    $sth->finish;
+    \@bids;
 }
 
 sub cleanOrCreateTempTable {
