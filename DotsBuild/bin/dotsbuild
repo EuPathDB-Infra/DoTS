@@ -541,15 +541,17 @@ sub downloadNRDB {
 }
 
 sub insertTaxon {
+
+    my $downloadDir = $propertySet->getProp('downloadDir');
     
-    my $names = "/usr/local/db/local/taxonomy/names.dmp";
-    my $nodes = "/usr/local/db/local/taxonomy/nodes.dmp";
-    my $gencode = "/usr/local/db/local/taxonomy/gencode.dmp";
+    my $names = "$downloadDir/taxonomy/names.dmp";
+    my $nodes = "$downloadDir/taxonomy/nodes.dmp";
+    my $gencode = "$downloadDir/taxonomy/gencode.dmp";
     my $restart = $propertySet->getProp('insertTaxonRestart');
 
     my $args = "--names $names --nodes $nodes --gencode $gencode --restart $restart";
 
-    $mgr->runPlugin("loadTaxon", "LoadTaxon", $args,
+    $mgr->runPlugin("loadTaxon", "GUS::Common::Plugin::LoadTaxon", $args,
 	       "Loading Taxon tables");
 }
 
@@ -573,7 +575,7 @@ sub makeAssemSeqs {
 
     my $args = "--taxon_id=$taxonId";
 
-    $mgr->runPlugin("makeAssemSeqs", "MakeAssemblySequences", $args,
+    $mgr->runPlugin("makeAssemSeqs", "DoTS::DotsBuild::Plugin::MakeAssemblySequences", $args,
 		    "Making assembly table sequences");
 }
 
@@ -584,7 +586,7 @@ sub extractAssemSeqs {
     my $outputFile = "$pipelineDir/seqfiles/assemSeqs.fsa"; 
     my $args = "--taxon_id=$taxonId --outputfile $outputFile --extractonly";
 
-    $mgr->runPlugin("extractAssemSeqs", "ExtractAndBlockAssemblySequences", 
+    $mgr->runPlugin("extractAssemSeqs", "DoTS::DotsBuild::Plugin::ExtractAndBlockAssemblySequences", 
 		    $args, "Extracting assembly table sequences");
 
     # a HACK until we fix the plugin (note: its not protected by a signal)
@@ -830,7 +832,7 @@ sub loadRNAClusters {
     my $file = "$pipelineDir/cluster/gene/cluster.out.descending";
     my $args = "--sort_desc --clusterfile $file";
 
-    $mgr->runPlugin("loadRNAClusters", "MakeRNAClustersForAssemblies", $args,
+    $mgr->runPlugin("loadRNAClusters", "DoTS::DotsBuild::Plugin::MakeRNAClustersForAssemblies", $args,
 	       "Loading RNA Clusters");
 }
 
@@ -851,7 +853,7 @@ sub insertNRDB {
 
     my $args = "--verbose --temp_login $temp_login --temp_password $temp_password --restart --gitax $gitax --nrdb $nrdb --maketemp --plugin --delete";
 
-    $mgr->runPlugin("loadNRDB", "LoadNRDB", $args, "Loading NRDB", 'downloadNRDB');
+    $mgr->runPlugin("GUS::Common::Plugin::loadNRDB", "LoadNRDB", $args, "Loading NRDB", 'downloadNRDB');
 }	
 
  
@@ -945,7 +947,7 @@ sub insertCDD {
     
     my $loadArgs = "--verbose --table_name 'MotifAASequence' --sequencefile '/usr/local/db/local/cdd/LOAD' --external_db_id $loadDB --regex_source_id \"$regex_src_id\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
 
-    $mgr->runPlugin("insertLoad", "InsertNewExternalSequences", $loadArgs,
+    $mgr->runPlugin("insertLoad", "GUS::Common::Plugin::InsertNewExternalSequences", $loadArgs,
 		   "Inserting Load", 'downloadGOStuff');
 
     my $pfamDB = $propertySet->getProp('pfam_db_id');
@@ -957,7 +959,7 @@ sub insertCDD {
     
     my $pfamArgs = "--verbose --table_name 'MotifAASequence' --sequencefile '/usr/local/db/local/cdd/PFAM' --external_db_id $pfamDB --regex_source_id \"$regex_src_id\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
     
-    $mgr->runPlugin("insertPfam", "InsertNewExternalSequences", $pfamArgs,
+    $mgr->runPlugin("insertPfam", "GUS::Common::Plugin::InsertNewExternalSequences", $pfamArgs,
 		   "Inserting Pfam", 'downloadGOStuff');
     
     my $smartDB = $propertySet->getProp('smart_db_id');
@@ -969,7 +971,7 @@ sub insertCDD {
     
     my $smartArgs = "--verbose --table_name 'MotifAASequence' --sequencefile '/usr/local/db/local/cdd/SMART' --external_db_id $smartDB  --regex_source_id \"$regex_src_id\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
     
-    $mgr->runPlugin("insertSmart", "InsertNewExternalSequences", $smartArgs,
+    $mgr->runPlugin("insertSmart", "GUS::Common::Plugin::InsertNewExternalSequences", $smartArgs,
 	       "Inserting Smart", 'downloadGOStuff');
 
 }
@@ -1024,7 +1026,7 @@ sub insertProdom {
 
     my $args = "--verbose --table_name MotifAASequence --sequencefile $prodomFile --external_db_id $prodomDB --regex_source_id \"$regex_src_id\"  --regex_contained_seqs \"$regex_contained_seqs\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
 
-    $mgr->runPlugin("insertProdom", "InsertNewExternalSequences", $args,
+    $mgr->runPlugin("insertProdom", "GUS::Common::Plugin::InsertNewExternalSequences", $args,
 		   "Inserting Prodom", 'downloadGOStuff');
 
 }
@@ -1107,7 +1109,7 @@ sub deleteOldSimilarities {
 
     my $args = "--idSQL \"$sql\" --doNotVersion";
 
-    $mgr->runPlugin("deleteProteinSims", "DeleteSimilarities", $args, 
+    $mgr->runPlugin("deleteProteinSims", "GUS::Common::Plugin::DeleteSimilarities", $args, 
 	       "Deleting old protein similarities");
 }
 
@@ -1121,7 +1123,7 @@ sub insertProteinSimilarities {
 
     my $args = "--files $file --verbose --restart $restart --query_table Assembly --subject_table $subjectTable --log_frequency 10 --limit_sub 50 --limit_hsp 10";
 
-    $mgr->runPlugin("loadSims_$name", "LoadBlastSimilaritiesPK", $args,
+    $mgr->runPlugin("loadSims_$name", "GUS::Common::Plugin::LoadBlastSimilaritiesPK", $args,
 	       "Loading $name similarities");
 }
 
@@ -1165,7 +1167,7 @@ sub assignSequenceDescription {
 
     my $args = "--update_rna_descriptions --copy_manual_descriptions --taxon_id $taxonId --table Assembly --query_table Assembly --doNotVersion --dots_mgi_file $dotsMGIfile --restart \"$restart\" --idSQL \"$sql\"";
 
-    $mgr->runPlugin("assignSeqDescrip", "AssignSequenceDescription", $args, 
+    $mgr->runPlugin("assignSeqDescrip", "DoTS::DotsBuild::Plugin::AssignSequenceDescription", $args, 
 	       "Assigning sequence descriptions from MGI"); 
 }
 
@@ -1196,7 +1198,7 @@ sub makeIndexWords {
 
     my $args = "--attribute description --table Assembly --idSQL \"$sql\"";
 
-    $mgr->runPlugin("makeIndexWords", "MakeIndexWordLink", $args, 
+    $mgr->runPlugin("makeIndexWords", "GUS::Common::Plugin::MakeIndexWordLink", $args, 
 	       "Indexes assembly description words and adds entries to IndexWordLink");
 }
  
@@ -1226,7 +1228,7 @@ sub makeNRDBIndexWordLink {
 
 	my $args = "--attribute description --table ExternalAASequence --idSQL \"$sql\"";
 
-	$mgr->runPlugin("makeNRDBIndexWordLink", "MakeIndexWordLink", $args, 
+	$mgr->runPlugin("makeNRDBIndexWordLink", "GUS::Common::Plugin::MakeIndexWordLink", $args, 
 	       "Making nrdb index word links", 'downloadNRDB');
 }
  
@@ -1238,7 +1240,7 @@ sub indexSimilarityWords {
     
     my $args = "--similarity_table MotifAASequence --target_table Assembly --idSQL \"$sql\"";
 
-    $mgr->runPlugin("indexSimilarityWords", "MakeIndexWordSimLink", $args, 
+    $mgr->runPlugin("indexSimilarityWords", "GUS::Common::Plugin::MakeIndexWordSimLink", $args, 
 	       "Indexing words in similarity descriptions");
 }
 
@@ -1250,7 +1252,7 @@ sub indexNRDBWords {
     
     my $args = "--similarity_table ExternalAASequence --target_table Assembly --idSQL \"$sql\"";
 
-    $mgr->runPlugin("indexNRDBWords", "MakeIndexWordSimLink", $args, 
+    $mgr->runPlugin("indexNRDBWords", "GUS::Common::Plugin::MakeIndexWordSimLink", $args, 
 	       "Indexing words in NRDB descriptions");
 }
 
@@ -1475,7 +1477,7 @@ sub markBadSeqs {
 
     my $args = "--filename $file --processed_category repeat --regex_id \"$regex\"";
 
-    $mgr->runPlugin("markBadSeqs", "MarkAssemblySequencesBad", $args, 
+    $mgr->runPlugin("markBadSeqs", "DoTS::DotsBuild::Plugin::MarkAssemblySequencesBad", $args, 
 		    "Marking bad assembly table sequences");
 }
 
@@ -1530,7 +1532,7 @@ sub insertEPCR {
 
     my $args = "--maptable GeneMap --idcol string1 --file $epcrFile --dir $pipelineDir/plugins/$signal --log $logFile --maptableid 366 --seqsubclassview Assembly";
 
-    $mgr->runPlugin($signal, "LoadEPCR", $args, "Inserting EPCR");
+    $mgr->runPlugin($signal, "DoTS::DotsBuild::Plugin::LoadEPCR", $args, "Inserting EPCR");
 }
 
 sub downloadGOAssoc{
@@ -1667,7 +1669,7 @@ sub applyGORules{
 
     my $args = " --verbose --mode add  --rule-sql-filter \"$sql\" --guide ${species}dots --qs-type na --go-ver \"$likeGOVer\" --pv-ratio .80 --pv-threshold 1e-30 --ss-xdb $xdb --ignore-expred $ignore_existing  --sql-filter \"$sqlFilter\"";
 
-    $mgr->runPlugin("applyGORules", "MakeGoPredictions", $args, 
+    $mgr->runPlugin("applyGORules", "GUS::GOPredict::Plugin::MakeGoPredictions", $args, 
 		    "Applying GO Rules"); 
 
 }
@@ -1685,7 +1687,7 @@ sub deleteProteinGOPredictions {
 
     my $args = "--idSQL \"$sql\" --table_name 'ProteinGOFunction' --primary_key 'protein_go_function_id'";
 
-    $mgr->runPlugin("deleteProteinGOPredictions", "DeleteGoPredictions", 
+    $mgr->runPlugin("deleteProteinGOPredictions", "GUS::GOPredict::Plugin::DeleteGoPredictions", 
 	
 	    $args, "Deleting Protein GO predictions"); 
 
@@ -1710,7 +1712,7 @@ sub copyGOPredictions {
 
     my $args = "--idSQL \"$idSQL\" --idExclSQL \"$idExclSQL\" --verbose";
 
-    $mgr->runPlugin("copyGOPredictions", "CopyAASeqGoFuncToProtGoFunc", $args, 
+    $mgr->runPlugin("copyGOPredictions", "GUS::GOPredict::Plugin::CopyAASeqGoFuncToProtGoFunc", $args, 
 		    "Copying GO predictions from AA to Protein"); 
 }
 
@@ -1741,7 +1743,7 @@ sub insertAnatomyPercent {
 
     my $args = "--idSQL \"$idSQL\" --taxonId $taxonId";
 
-    $mgr->runPlugin("insertAnatomyPercent", "AssignLibraryDistributionToAssemblies", $args, "mapping assemblies onto anatomy_id in AssemblyAnatomypercent");
+    $mgr->runPlugin("insertAnatomyPercent", "DoTS::DotsBuild::Plugin::AssignLibraryDistributionToAssemblies", $args, "mapping assemblies onto anatomy_id in AssemblyAnatomypercent");
 
 } 
 
@@ -1758,7 +1760,7 @@ sub makeFrameFinder {
 
     my $args = "--wordfile $wordfile --restart $restart --idSQL \"$idSQL\" ";
 
-    $mgr->runPlugin("makeFramefinder", "FrameFinder", $args, "running FrameFinder plugin"); 
+    $mgr->runPlugin("makeFramefinder", "DoTS::DotsBuild::Plugin::FrameFinder", $args, "running FrameFinder plugin"); 
 
 }
 
@@ -1878,7 +1880,7 @@ sub loadGeneTrapAssembly {
 	my $database_name = $external_databases{$db_id};
 	$blastDir = "$pipelineDir/genetrap/$database_name";
 	my $args = "--extDbId $db_id --blastDir $blastDir";
-	$mgr->runPlugin("load${database_name}GeneTrapBlast", "CalculateGeneTrapLinks", $args, "loading blast results for $database_name gene trap tags");
+	$mgr->runPlugin("load${database_name}GeneTrapBlast", "DoTS::DotsBuild::Plugin::CalculateGeneTrapLinks", $args, "loading blast results for $database_name gene trap tags");
     } 
 }
 
@@ -1888,7 +1890,7 @@ sub assemblyProteinIntegration {
 
     my $args = "--taxon_id $taxonId";
 
-    $mgr->runPlugin("integrateAssemblyProtein", "AssemblyProteinInstance", $args, "integrating assemblies and proteins"); 
+    $mgr->runPlugin("integrateAssemblyProtein", "DoTS::DotsBuild::Plugin::AssemblyProteinInstance", $args, "integrating assemblies and proteins"); 
 }
 
 sub RNAProteinIntegration {
@@ -1897,7 +1899,7 @@ sub RNAProteinIntegration {
 
     my $args = "--taxon_id $taxonId";
 
-    $mgr->runPlugin("integrateRNAProtein", "RNAProteinIntegration", $args, "integrating RNA and proteins");
+    $mgr->runPlugin("integrateRNAProtein", "DoTS::DotsBuild::Plugin::RNAProteinIntegration", $args, "integrating RNA and proteins");
 } 
 
 sub makeStatisticsPage {
@@ -1958,14 +1960,14 @@ sub loadMGIToDoTS {
 
     my $args = "--mappingfiles '$pipelineDir/misc/DoTS_2_MGI' --pattern '\d+' --db_id 4893";
 
-    $mgr->runPlugin("loadMGIMapping", "InsertDbRefAndDbRefNASequence", $args, "loading MGI to DoTS mapping",'loadMGI');
+    $mgr->runPlugin("loadMGIMapping", "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence", $args, "loading MGI to DoTS mapping",'loadMGI');
 }
 
 sub loadMGIInfo {
 
     my $args = "--inputfile /usr/local/db/local/mgi/MRK_List2.sql.rpt";
 
-    $mgr->runPlugin("loadMGIInfo", "LoadMGIInfo", $args, "Loading MGI Info",'loadMGI' );
+    $mgr->runPlugin("loadMGIInfo", "DoTS::DotsBuild::Plugin::LoadMGIInfo", $args, "Loading MGI Info",'loadMGI' );
     
 }
 
@@ -1989,7 +1991,7 @@ sub loadGeneCardsToDoTS {
 
     my $args = "--mappingfiles '$pipelineDir/misc/DoTS_2_GeneCards' --pattern '\S+' --db_id 4892";
 
-    $mgr->runPlugin("loadGeneCardsMapping", "InsertDbRefAndDbRefNASequence", $args, "loading GeneCards to DoTS mapping",'loadGeneCards');
+    $mgr->runPlugin("loadGeneCardsMapping", "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence", $args, "loading GeneCards to DoTS mapping",'loadGeneCards');
 }
 
 #sub to dump framefinder translations for download site
@@ -2019,7 +2021,7 @@ sub loadGEAToDoTS {
 
     my $args = "--mappingfiles '$pipelineDir/misc/DoTS_2_LL' --pattern '\d+'  --db_id 6095";
 
-    $mgr->runPlugin("loadGEAMapping", "InsertDbRefAndDbRefNASequence", $args, "loading GEA to DoTS mapping",'loadMGIAndGeneCards');
+    $mgr->runPlugin("loadGEAMapping", "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence", $args, "loading GEA to DoTS mapping",'loadMGIAndGeneCards');
 }
 
 sub makeProjectLink {
