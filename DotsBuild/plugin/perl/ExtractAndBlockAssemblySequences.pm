@@ -220,7 +220,7 @@ sub processBlockedSequence{
     if (length($tmpSeq) < 50) {
 	$M->log ("Sequence $ass_seq_id too short (".length($tmpSeq).") following blocking\n") if $debug;
 	##update AssSeq..
-	my $ass = $ctx->{'self_inv'}->getFromDbCache('AssemblySequence',$ass_seq_id);
+	my $ass = $M->{'self_inv'}->getFromDbCache('AssemblySequence',$ass_seq_id);
 	if (!$ass) {
 	    $M->log ("ERROR: $ass_seq_id not in cache...retrieving from Database\n");
 	    $ass = GUS::Model::DoTS::AssemblySequence->

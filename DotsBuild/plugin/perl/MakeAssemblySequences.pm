@@ -1,6 +1,3 @@
-############################################################
-## Change Package name....
-############################################################
 package DoTS::DotsBuild::Plugin::MakeAssemblySequences;
 
 use strict;
@@ -83,7 +80,7 @@ sub Run {
     }
     $M->log ("Running cross_match with $library\n");
     
-    $ctx->{'self_inv'}->setMaximumNumberOfObjects(100000);
+    $M->{'self_inv'}->setMaximumNumberOfObjects(100000);
     
     $dbh = $M->getQueryHandle();
     
