@@ -100,7 +100,6 @@ my @properties =
  ["genome.path",      "",  "path on node of genome-align executable"],
  ["genome.taskSize",  "",  "number of seqs to process per genome-align subtask"],
  ["genomeVersion",      "",  "Golden Path genome assembly version, eg hg16, mm4"],
- ["ggtc_db_rls_id", "","the external_database_release_id for the GGTC"],
  ["GOrootId",   "",  "only until GUS 3.0, eg, 59235"],
  ["GOversion",   "",  "version of GO, eg, 2.155"],
  ["gusConfigFile",           "",  ""],
@@ -441,12 +440,6 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &loadMGIInfo($mgr);
 
-&deleteGeneCardsToDots($mgr);
-
-&parseGeneCardsToDoTS($mgr);
-
-&loadGeneCardsToDoTS($mgr);
-
 &deleteMGC($mgr);
 
 &parseMGC($mgr);
@@ -455,12 +448,6 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &loadMGCInfo($mgr);
 
-&deleteFantom($mgr);
-
-&parseFantom($mgr);
-
-&loadFantomToNaSeq($mgr);
-
 &deleteGEAToDoTS($mgr);
 
 &parseGEA($mgr);
@@ -468,6 +455,12 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 &loadGEA($mgr);
 
 &makeProjectLink($mgr);
+
+&deleteFantom($mgr);
+
+&parseFantom($mgr);
+
+&loadFantomToNaSeq($mgr);
 
 &updateProteinAssemblyTable($mgr);
 
@@ -479,14 +472,20 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &updateAssemblyTMDomainSummaryTable($mgr);
 
-&updatePromoterRegionTable($mgr);
-
 &updatePancreasAssembliesTable($mgr);
 
 &createPredTranslDetailsFile($mgr);
 
+&makeStatisticsPage($mgr);
+
 &createManuallyReviewedDoTSFile($mgr);
 
-&makeStatisticsPage($mgr);
+&updatePromoterRegionTable($mgr);
+
+&deleteGeneCardsToDots($mgr);
+
+&parseGeneCardsToDoTS($mgr);
+
+&loadGeneCardsToDoTS($mgr);
 
 $mgr->goodbye("Pipeline complete!\n");
