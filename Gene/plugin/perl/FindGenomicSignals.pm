@@ -145,7 +145,7 @@ sub run {
 
       # HACK: ORACLE run out of memory periodically, entailing restarts.
       # redo the dbh for every chrom to see what happens
-      $dbh = $self->getDb->makeNewHandle();
+      $dbh = $self->getDb->makeNewHandle(); $dbh->{'LongReadLen'} = 4000000;
 
       my ($sql, $sth);
       foreach my $bid (@$bids) {
@@ -171,12 +171,13 @@ sub run {
 
 	  unless (++$c % 200) {
 	      print "# found $c informative blat alignment signals entries\n";
+	      $dbh->commit();
 	  }
       }
       $sth->finish if defined $sth;
       push @done_chrs, $cid;
-      print "sleeping for 5 minutes\n";
-      sleep 300 unless $chrom_names->{$cid} =~ /random/i;
+      print "sleeping for 1 minutes\n" unless $chrom_names->{$cid} =~ /random/i;
+      sleep 60 unless $chrom_names->{$cid} =~ /random/i;
   }
   print "# ALL DONE: processed $c blat alignment signal entries\n\n";
 }
@@ -495,8 +496,6 @@ sub getGenomicFlankSeqs {
 
 sub getGenomicSeq {
     my ($dbh, $chr_id, $s, $len) = @_;
-
-    $dbh->{'LongReadLen'} = 4000000;
 
     my $sql = "select substr(sequence, $s, $len) "
 	    . "from DoTS.VirtualSequence "
