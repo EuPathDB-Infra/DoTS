@@ -71,8 +71,9 @@ sub run {
 
 sub setIs_Reference {
   my ($self,$dbh) = @_;
+  my $taxon = $self->getArgs()->{'taxon_id'};
 
-  my $updateSQL = "update dots.proteininstance set is_reference = 1 where protein_instance_id in (select /*+ RULE */ p.protein_instance_id from dots.proteininstance p, dots.translatedaafeature tf, dots.rnafeature rf, dots.assembly a where a.contains_mrna = 0 and a.na_sequence_id = rf.na_sequence_id and rf.na_feature_id = tf.na_feature_id and tf.aa_feature_id = p.aa_feature_id)";
+  my $updateSQL = "update dots.proteininstance set is_reference = 1 where protein_instance_id in (select /*+ RULE */ p.protein_instance_id from dots.proteininstance p, dots.translatedaafeature tf, dots.rnafeature rf, dots.assembly a where a.taxon_id = $taxon and a.contains_mrna = 0 and a.na_sequence_id = rf.na_sequence_id and rf.na_feature_id = tf.na_feature_id and tf.aa_feature_id = p.aa_feature_id)";
 
   $self->log ("Updating is_reference for assemblies with no mRNA\n");
 
