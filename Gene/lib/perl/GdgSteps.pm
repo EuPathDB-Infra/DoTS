@@ -671,7 +671,8 @@ sub dumpGeneSeqs {
   my$outFile = "$pipelineDir/releasefiles/$sp/"
       . $mgr->{releaseFilePrefix} . $mgr->{releaseFileSuffix} . '.' . lc($type) . '.fa' ;
 
-  my $cmd = "dumpGeneSeqs $taxonId $genomeId $gusConfigFile 1 1 1 1 $outFile 2>>  $logFile";
+  my $cmd = "dumpGeneSeqs $taxonId $genomeId $gusConfigFile 1 1 1 1 "
+    . ($type =~ /^coding/i ? 1 : 0) . " $outFile 2>>  $logFile";
 
   $mgr->runCmd($cmd);
 
