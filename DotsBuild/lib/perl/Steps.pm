@@ -279,8 +279,6 @@ sub parsedbEST {
 
   my $taxonIdList = &getTaxonIdList($mgr);
 
-  chomp $taxonIdList;
-
   my $args = "--log $mgr->{pipelineDir}/logs/dbest.log --fullupdate --span 500 --project 'dbEST Parser' --taxon_id_list '$taxonIdList' --restart_number $restart";
 
   $mgr->runPlugin("loadDbEst", "GUS::Common::Plugin::dbEST", $args,
@@ -998,7 +996,7 @@ sub copyProteinDBsToLiniac {
   my $liniacServer = $propertySet->getProp('liniacServer');
 
   my $signal = "proteinDBs2Liniac";
-  return if $mgr->startStep("Copying NRDB, CDD and Prodom to $serverPath/$mgr->{buildName}/seqfiles on $liniacServer", $signal);
+  return if $mgr->startStep("Copying NRDB, CDD and Prodom to $serverPath/$mgr->{buildName}/seqfiles on $liniacServer", $signal, 'copyProteinDbs');
 
   my $release = "release" . $propertySet->getProp('dotsRelease');
   my $speciesNickname = $propertySet->getProp('speciesNickname');
@@ -1550,6 +1548,7 @@ sub getTaxonIdList {
   my $taxonId = $propertySet->getProp('taxonId');
   if ($propertySet->getProp('includeSubspecies') eq "yes") {
     $returnValue = $mgr->runCmd("getSubTaxa --taxon_id $taxonId");
+    chomp $returnValue;
   } else {
     $returnValue = $taxonId;
   }
