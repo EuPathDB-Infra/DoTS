@@ -147,11 +147,3 @@ sub insertProjectLink {
     }
 }
 
-	
-
-	
-
-	
-
- 
-loadSims_
