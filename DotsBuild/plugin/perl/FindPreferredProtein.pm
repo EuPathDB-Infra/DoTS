@@ -14,7 +14,7 @@ sub new {
     my $self = {};
     bless($self,$class);
     
-    my $usage = 'Plug_in to determine the preferred assembly translation, GenBank assigned protein sequence for a contained mRNA preferred to a FrameFinder translation. GenBank assigned proteins chosen in order: RefSeq mRNA translation>SwissProt sequence>greatest length. Result stored as is_preferrred = 1 in dots.ProteinInstance';
+    my $usage = 'Plug_in to determine the preferred assembly translation, GenBank assigned protein sequence for a contained mRNA preferred to a FrameFinder translation.';
     
     my $easycsp =
 	[{o => 'taxon_id',
