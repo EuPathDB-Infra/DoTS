@@ -2821,10 +2821,8 @@ sub loadLocusLinkToDoTS {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
 
-  my $signal = "loadLocusLinkToDoTS";
-
-  return if $mgr->startStep("Inserting LocusLink to DoTS entries from file", $signal);
   my $pipelineDir = $mgr->{pipelineDir};
+
   my $species = $propertySet->getProp('speciesNickname');
 
   my $file = "$pipelineDir/misc/${species}LL2DoTS";
@@ -2842,7 +2840,25 @@ sub loadLocusLinkToDoTS {
   $mgr->runPlugin("loadLLmapping", "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence", $args, "loading LL to DoTS mapping");
 }
 
-  
+sub loadLocusLinkInfo {
+  my ($mgr)= @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+
+  my $date = $propertySet->getProp('buildDate');
+
+  my $infoFile = "$externalDbDir/locuslink/$date/LL.out.gz";
+
+  my $externalDbRel = $propertySet->getProp('locuslink_db_rls_id');
+
+  my $tax_id = $propertySet->getProp('ncbiTaxId');
+
+  my $args = "--infoFile $infoFile --ncbiTaxId $tax_id --externalDbRel $externalDbRel";
+
+  $mgr->runPlugin("loadLLInfo", "DoTS::DotsBuild::Plugin::LoadLocusLinkInfo", $args, "loading LL information");
+}
+
 sub downloadMGIInfo {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
