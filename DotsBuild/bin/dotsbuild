@@ -832,7 +832,7 @@ sub runAssemblePlugin {
 
     my $reass = $reassemble eq "yes"? "--reassemble" : "";
     my $args = "--clusterfile $file.$suffix $assembleOld $reass --taxon_id $taxonId";
-    my $pluginCmd = "ga --commit $args --comment '$args' UpdateDotsAssembliesWithCap4";
+    my $pluginCmd = "ga DoTS::DotsBuild::Plugin::UpdateDotsAssembliesWithCap4 --commit $args --comment '$args'";
 
     my $logfile = "$pipelineDir/logs/${name}Assemble.$suffix.log";
     
