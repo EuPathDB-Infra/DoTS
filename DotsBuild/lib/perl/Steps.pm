@@ -641,7 +641,7 @@ sub clusterByGenome {
     my $gb_db_rel_id = $propertySet->getProp('gb_db_rel_id');
 
     my $outputFile = "$pipelineDir/cluster/$name/cluster.out";
-    my $logFile = "$pipelineDir/logs/$signal.log";
+    my $logFile = "$pipelineDir/logs/${name}Cluster.log";
 
     my $args = "--stage $name --taxon_id $taxonId --query_db_rel_id $gb_db_rel_id "
 	. "--target_db_rel_id $extDbRelId --out $outputFile --sort 1";
@@ -2547,7 +2547,7 @@ sub prepareBlastSiteFiles {
 sub markBadSeqs {
   my ($mgr) = @_;
 
-  my $file = "$mgr->{pipelineDir}/repeatmask/assemSeqs/blocked.err";
+  my $file = "$mgr->{pipelineDir}/repeatmask/assemSeqs/master/mainresult/blocked.err";
 
   my $regex = "\\>(\\d+)";
 
