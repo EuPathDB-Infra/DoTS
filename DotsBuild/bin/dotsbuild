@@ -1393,7 +1393,7 @@ sub deleteIndexWords {
 
     my $sql = "select index_word_link_id from dots.indexwordlink l,dots.assembly a where a.taxon_id = $taxonId and a.na_sequence_id = l.target_id and l.target_table_id = 56";
 
-    my $cmd = "deleteEntries.pl --gusConfigFile $gusConfigFile --table DoTS.IndexWordLink --idSQL \"$sql\" --verbose 2>> $logFile";
+    my $cmd = "deleteEntries.pl --table DoTS::IndexWordLink --idSQL \"$sql\" --verbose 2>> $logFile";
 
     $mgr->runCmd($cmd);
 
@@ -1428,7 +1428,7 @@ sub deleteNRDBIndexWords {
 
   my $sql = "select index_word_link_id from dots.indexwordlink l,dots.externalaasequence e where e.aa_sequence_id = l.target_id and l.target_table_id = 83 and e.external_database_release_id = $nrdbReleaseId  and e.modification_date > '$buildDate'";
 
-  my $cmd = "deleteEntries.pl --table DoTS.IndexWordLink --idSQL \"$sql\" --verbose 2>> $logFile";
+  my $cmd = "deleteEntries.pl --table DoTS::IndexWordLink --idSQL \"$sql\" --verbose 2>> $logFile";
 
   $mgr->runCmd($cmd);
 
@@ -2006,7 +2006,7 @@ sub deleteAnatomyPercent {
 
     my $sql = "select assembly_anatomy_percent_id from dots.assemblyanatomypercent where na_sequence_id in (select  na_sequence_id from dots.assembly where taxon_id = $taxonId)";
 
-    my $cmd = "deleteEntries.pl --table DoTS.AssemblyAnatomyPercent --gusConfigFile $gusConfigFile --idSQL \"$sql\" --verbose 2>> $logFile";
+    my $cmd = "deleteEntries.pl --table DoTS::AssemblyAnatomyPercent --idSQL \"$sql\" --verbose 2>> $logFile";
     
     $mgr->runCmd($cmd);
 
@@ -2019,7 +2019,7 @@ sub insertAnatomyPercent {
 
     my $idSQL = "select na_sequence_id from dots.Assembly where taxon_id = $taxonId";
 
-    my $args = "--idSQL \"$idSQL\" --taxonId $taxonId";
+    my $args = "--idSQL \"$idSQL\" --taxon_id $taxonId";
 
     $mgr->runPlugin("insertAnatomyPercent", 
 		    "DoTS::DotsBuild::Plugin::AssignLibraryDistributionToAssemblies", 
