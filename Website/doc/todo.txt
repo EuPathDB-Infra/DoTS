@@ -1,0 +1,42 @@
+DoTS todo
+
+website
+  - news: tracks at ensembl and ucsc
+  - DG query
+    - replace "genes" tab with "query"
+  - genomic location query
+  - complete the upgrade to GUS 3.0
+  - move to release 6 of dots
+  - revise home page text (and elsewhere) to emphasize DoTS instead of allgenes
+  - mapping to GeneNet
+  - batch submission
+     - email notification??
+  - history mode upgrade (jonathan?)
+  - report generating
+     - develop interface to control modular report generator 
+     - include sequence in report (based on landmark)
+     - include protein sequence too.
+  - Gene list
+  - map RAD to DoTS?
+
+build
+  - finish build 6
+  - do a quick build 7 WITH NO CHANGES to show that we can do it quickly?
+  - move to DIANA from framefinder for build 8?
+
+- poster
+  - tutorial (using use cases)
+  - improve this and put it on site
+
+- dots grant
+  - log scan
+  - literature search
+  - ...
+
+- DoTS build and website paper
+
+- move project into new CVS structure
+
+- develop new clustering algorithm (new graph approach + genome)
+
+- model alternative splices?
