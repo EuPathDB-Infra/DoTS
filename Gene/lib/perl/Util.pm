@@ -51,12 +51,35 @@ sub getChromIdAndLen {
   ($chr_id,$len);
 }
 
+sub getChromToId {
+  my @chroms = &getChromsInfo(@_);
+
+  my $res = {};
+  foreach (@chroms) {
+      my ($c, $cid) = ($_->{chr}, $_->{chr_id});
+      $res->{$c} = $cid;
+  }
+  return $res;
+}
+
+sub getIdToChrom {
+  my @chroms = &getChromsInfo(@_);
+
+  my $res = {};
+  foreach (@chroms) {
+      my ($c, $cid) = ($_->{chr}, $_->{chr_id});
+      $res->{$cid} = $c;
+  }
+  return $res;
+}
+
+
 sub getChromsInfo {
   my ($dbh, $ext_db_rel_id, $skipChrs) = @_;
 
   my $sql = "select na_sequence_id, chromosome, length(sequence) from DoTS.VirtualSequence "
     . "where external_database_release_id = $ext_db_rel_id";
-  if (scalar(@$skipChrs) > 0) {   
+  if ($skipChrs && scalar(@$skipChrs) > 0) {   
     $sql .= " and chromosome not in (" . join(', ', map { "'" . $_ . "'" } @$skipChrs). ")";
   }
 
@@ -94,11 +117,32 @@ sub getCoordSelectAndSkip {
 	$end = $chr_len unless $end && $end < $chr_len;
 	return ([{ chr_id=> $chr_id, chr => $chr, start => $start, end => $end }], []);
     } else {
-	my $skipChrs = $opt->{skip_chrs}; $skipChrs =~ s/chr//gi;
+	my $skipChrs = $opt->{skip_chrs};
+	if(ref($skipChrs) eq 'ARRAY') { $skipChrs = join(',', @$skipChrs); }
+        $skipChrs =~ s/chr//gi;
 	my @skipChrs = split(/,/, $skipChrs);
-	my @chroms = &getChromsInfo($dbh, $genomeId, \@$skipChrs);
+	my @chroms = &getChromsInfo($dbh, $genomeId, \@skipChrs);
 	return (\@chroms, \@skipChrs);
     }
+}
+
+sub delete {
+    my ($dbh, $tab, $idCol, $ids, $batchSize) = @_;
+
+    $batchSize = 1000 unless $batchSize;
+    my @ids = @{ $ids };
+
+    my $tot = scalar(@ids);
+    my $ct = 0;
+    for(my $i=0;$i<$tot;$i += $batchSize){
+	my $j = ($i + $batchSize - 1 < $tot ? $i + $batchSize - 1 : $tot - 1);
+	$ct += $dbh->do("delete from $tab where $idCol in (".join(', ',@ids[$i..$j]).")");
+	$dbh->commit();
+    }
+    if ($ct != $tot) { 
+	print STDERR "WARNING: only deleted $ct entries from $tab for $tot $idCol\n";
+    }
+    return $ct;
 }
 
 1;
