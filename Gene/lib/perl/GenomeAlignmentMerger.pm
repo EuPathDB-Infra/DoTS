@@ -9,14 +9,13 @@ use CBIL::Util::Disp;
 # constructor
 #
 sub new {
-    my($class, $sorted_alignments, $merge_criteria, $dbh) = @_;
+    my($class, $db, $sorted_alignments, $merge_criteria) = @_;
 
     my $om = $merge_criteria->{overlap_merge};
     my $cm = $merge_criteria->{clonelink_merge};
     my $epc = $merge_criteria->{est_pair_cache};
     my $pm = $merge_criteria->{proximity_merge};
-    die "dbh/EstPairCache not provided" if $cm && !($epc && $dbh);
-    my $self = { sa => $sorted_alignments, dbh => $dbh,
+    my $self = { sa => $sorted_alignments, db => $db,
 		 om => $om, cm => $cm, epc => $epc, pm => $pm };
 
     $self->{cachePlus} = [];
@@ -60,6 +59,7 @@ sub getCompositeGenomeFeatures {
 
     print "combine merged groups into CompositeGenomeFeatures\n";
     $res = $self->_pack;
+    print "Total number of CompositeGenomeFeatures in the region: " . scalar(@$res) . "\n";
 
     $self->{merged} = $res;
     return $self->{merged};
@@ -71,17 +71,22 @@ sub _seed {
     my $self = shift;
 
     my $srt_aln = $self->{sa};
+    my $i = 0;
     foreach my $aln (@$srt_aln) {
 	my $id = $aln->getBlatAlignmentId();
+	$aln->retrieveFromDB();
 	my $q_seq_id = $aln->getQueryNaSequenceId();
+	if (!$q_seq_id) { warn("query seq id not found for blat alignment $id, skip"); next; }
 	my @coords = $aln->getTargetCoordinates();
+	my $isRev = $aln->getIsReversed();
 
 	my $seed = { id => $id, coords => \@coords, alns => [$aln], qseqs => { $q_seq_id => 1 } };
-	if ($aln->getIsReversed()) {
+	if ($isRev) {
 	    push @{ $self->{cacheMinus} }, $seed;
 	} else {
 	    push @{ $self->{cachePlus} }, $seed;
 	}
+	$self->{db}->undefPointerCache() unless ++$i % 5000;
     }
 }
 
@@ -136,22 +141,29 @@ sub _doMerge {
     my $old_tot =  scalar(@$old_seeds);
 
     for (my $i=0; $i<$old_tot-1; $i++) {
-	my $os1 = $old_seeds->[$i]; next unless $os1; my $id1 = $os1->{id};
+	my $os1 = $old_seeds->[$i]; next unless $os1;
+	my $id1 = $os1->{id}; my $crd1 = $os1->{coords};
+
+	print "coord1: " . join(':', map { $_->[0] . '-' . $_->[1] } @{ $os1->{coords} }) . "\n" if $vl >= 3;
 
 	for (my $j=$i+1; $j<$old_tot; $j++) {
-	    $os1 = $old_seeds->[$i]; next unless $os1; $id1 = $os1->{id};
-	    my $os2 = $old_seeds->[$j]; next unless $os2; my $id2 = $os2->{id};
+	    my $os2 = $old_seeds->[$j]; next unless $os2;
+	    my $id2 = $os2->{id}; my $crd2 = $os2->{coords};
+
+	    print "coord2: " . join(':', map { $_->[0] . '-' . $_->[1] } @{ $os2->{coords} }) . "\n" if $vl >= 3;
 
 	    print "_doMerge::[$i, $j], seeds [$id1, $id2]\n" if $vl >= 3;
 
 	    my ($merge, $stop) = $self->_detectMerge($os1, $os2, $merge_mode, $merge_param);
 	    if($merge) {
-		$os1->{coords} =
-		    DoTS::Gene::CompositeGenomeFeature::mergeCoordinates($os1->{coords},
-									 $os2->{coords});
+		my $mc = DoTS::Gene::CompositeGenomeFeature::mergeCoordinateSets($crd1, $crd2);
+		$os1->{coords} = $mc;
+
+		print "merged: " . join(':', map { $_->[0] . '-' . $_->[1] } @{ $mc }) . "\n" if $vl >= 3;
+
 		push @{ $os1->{alns} }, @{ $os2->{alns} };
 		foreach (keys %{ $os2->{qseqs} }) { $os1->{qseqs}->{$_} = 1; }
-		$os2->[$j] = undef;
+		$old_seeds->[$j] = undef;
 		print "mered seed at index $j to $i\n" if $vl >= 2;
 	    }
 	    last if $stop;
@@ -193,7 +205,7 @@ sub _detectMerge {
 sub _getCloneLinks {
     my ($self, $seed1, $seed2)  = @_;
 
-    my $dbh = $self->{dbh};
+    my $dbh = $self->{db}->getQueryHandle();
     my $epc = $self->{epc};
 
     my $qseqs1 = $seed1->{qseqs};
@@ -218,17 +230,27 @@ sub _getCloneLinks {
     } else {
 	$inClause = join(',', @smallSeedQ);
     }
-    my $sql = "select seq_id_1, lib_clone from $epc"
-	. " where seq_id_1 != seq_id_2 and seq_id_2 in ($inClause)"
-	. " union"
-	. " select seq_id_2, lib_clone from $epc"
-	. " where seq_id_1 != seq_id_2 and seq_id_1 in ($inClause)";
+    my $sql = "select dt_id_2, lib_clone from $epc"
+	. " where dt_id_1 != dt_id_2 and dt_id_1 in ($inClause)";
     my $sth = $dbh->prepareAndExecute($sql);
 
+    my @cls_all;
+    while (my ($seqId, $lnk) = $sth->fetchrow_array) { push @cls_all, [$seqId, $lnk]; }
     my @cls;
-    while (my ($seqId, $lnk) = $sth->fetchrow_array) {
+    foreach (@cls_all) {
+	my ($seqId, $lnk) = @$_;
 	push @cls, $lnk if !$shared_qseqs{$seqId} && $bigSeedQ->{$seqId};
     }
+
+    my $vl = $self->getVerboseLevel();
+    if ($vl && scalar(@cls)) {
+	print "*** qseq in small seed: " . join(', ', @smallSeedQ) . "\n" if $vl >= 2;
+	print "*** qseq in big seed: " . join(', ', keys %$bigSeedQ) . "\n" if $vl >= 2;
+	print "*** qseq in both seeds: " . join(', ', keys %shared_qseqs) . "\n" if $vl >= 2;
+        print "*** links all: " . join(', ', map { $_->[1] } @cls_all) . "\n" if $vl >= 2;
+	print "*** links informative: " . join(', ', @cls) . "\n";
+    }
+
     @cls;
 }
 
@@ -248,7 +270,7 @@ sub _pack {
 sub _packOneStrand {
     my ($self, $strand) = @_;
 
-    my $gene_seeds = ($strand eq '+' ? $self->{cachePlus} : $self->{cachMinus});
+    my $gene_seeds = ($strand eq '+' ? $self->{cachePlus} : $self->{cacheMinus});
 
     my @res = ();
     foreach my $seed (@$gene_seeds) {
@@ -258,7 +280,8 @@ sub _packOneStrand {
 	if (scalar(@$alns) > 0) {
 	    my $genomeId = $alns->[0]->getTargetExternalDbReleaseId();
 	    my $chr = $alns->[0]->getChromosome();
-	    my $gf_args = { id=>$id, genome_id=>$genomeId, chr=>$chr, coords=>$coords };
+	    my $str = $alns->[0]->getStrand();
+	    my $gf_args = { id=>$id, genome_id=>$genomeId, chr=>$chr, strand=>$str, coords=>$coords };
 	    my @parts;
 	    foreach (@$alns) {
 		my $pid = $_->getBlatAlignmentId();
@@ -288,10 +311,12 @@ sub _combineOrderedGenomeFeatures {
     foreach my $g1 (@$pgfs) {
 	my $g1s = $g1->getChromStart;
 	my $g1e = $g1->getChromEnd;
+
 	for (; $j < $c; $j++) {
 	    my $g2 = $mgfs->[$j];
 	    my $g2s = $g2->getChromStart;
 	    my $g2e = $g2->getChromEnd;
+
 	    if ($g2s >= $g1s) {
 		push @res, $g1;
 		last;

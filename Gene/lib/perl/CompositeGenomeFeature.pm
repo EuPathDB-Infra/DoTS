@@ -1,6 +1,7 @@
 package DoTS::Gene::CompositeGenomeFeature;
 @ISA = qw( DoTS::Gene::GenomeFeature );
 
+use strict;
 use DoTS::Gene::GenomeFeature;
 
 sub new {
@@ -11,7 +12,7 @@ sub new {
 	$gf->{coords} = &mergeCoordinateSets(@coord_sets);
     }
 
-    my $self = super($gf);
+    my $self = DoTS::Gene::GenomeFeature->new($gf);
     $self->{cs} = $constituents;
 
     bless $self, $class;
@@ -21,7 +22,7 @@ sub new {
 sub mergeCoordinateSets {
     my @coord_sets = @_;
     my @coords;
-    foreach (@coord_sets) { push @coords, @$coords; }
+    foreach (@coord_sets) { push @coords, @$_; }
 
     my $sortedCoords = &_sortCoords(\@coords);
     &_flatSortedCoords($sortedCoords);    
@@ -39,7 +40,7 @@ sub getConstituents {
 	my $id = $c->{id};
 	my $coords = $c->{coords};
 	my $gf_args = { id=>$id, genome_id=>$genome_id, chr=>$chr, coords=>$coords };
-	my $gf = DoTS::Gene::GenomeFeature->new($gf_arg);
+	my $gf = DoTS::Gene::GenomeFeature->new($gf_args);
 	foreach my $nam (keys %$c) {
 	    if ($nam ne 'id' && $nam ne 'coords') {
 		$gf->setAnnotationProperty($nam, $c->{$nam});

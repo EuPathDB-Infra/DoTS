@@ -17,11 +17,12 @@ require Exporter;
 # constructor
 #
 sub new {
-    my($class, $dbh, $qSel, $tSel, $optQSel) = @_;
+    my($class, $db, $qSel, $tSel, $optQSel, $optTSel) = @_;
 
-    croak(__PACKAGE__ . "::new: query handle required") unless $dbh;
+    croak(__PACKAGE__ . "::new: query handle required") unless $db;
 
-    my $self = { dbh => $dbh, qsel => $qSel, tsel => $tSel, oqsel => $optQSel };
+    my $dbh = $db->getQueryHandle();
+    my $self = { db=>$db, dbh=>$dbh, qsel=>$qSel, tsel=>$tSel, oqsel=>$optQSel, otsel=>$optTSel };
 
     bless $self, $class;
     return $self;
@@ -41,38 +42,42 @@ sub getAlignments {
     my $res = $self->{alignments};
     return $res if defined $res;
 
-    my $sql = $self->getSelectSql($sort);
     my $dbh = $self->{dbh};
-    my $sth = $dbh->prepareAndExecute($sql);
+    my $cntSql = $self->getSelectSql($sort, 1);
+    print "running cntSql: $cntSql ...\n";
+    my $cntSth = $dbh->prepareAndExecute($cntSql);
+    my $cnt = $cntSth->fetchrow_array();
+    if ($cnt > 10000) {
+	print "increasing object cache size to $cnt + 1000 (>10000)\n";
+	$self->{db}->setMaximumNumberOfObjects($cnt + 1000);
+    }
 
+    my $sql = $self->getSelectSql($sort);
+    print "running sql: $sql ...\n";
+    my $sth = $dbh->prepareAndExecute($sql);
     $res = [];
     while(my $id = $sth->fetchrow_array) {
-	my $ba = GUS::Model::DoTS::BLATAlignment->new($id);
-	my $basc = $self->{oqsel}->{blat_signals_cache};
-	if ($basc) {
-	    my $isRev = $ba->getIsReversed();
-	    if (&isQueryReversed($dbh, $id, $basc)) {
-		$ba->setIsReversed(1-$isRev);
-	    }
-	}
-	push @$res, $ba;
+	push @$res, GUS::Model::DoTS::BLATAlignment->new({blat_alignment_id=>$id});
     }
+    print "tot alignments selected: " . scalar(@$res) . "\n";
 
     $self->{alignments} = $res;
     return $self->{alignments};
 }
 
 sub getSelectSql{
-    my ($self, $sort) = @_;
+    my ($self, $sort, $countOnly) = @_;
 
     my $qSel = $self->{qsel};
     my $tSel = $self->{tsel};
     my $oqSel = $self->{oqsel};
+    my $otSel = $self->{otsel};
 
-    my $sql = "select blat_alignment_id from DoTS.BlatAlignment";
+    my $sql = "select " . ($countOnly ? 'count(*)' : 'blat_alignment_id') . " from DoTS.BlatAlignment";
     my @sqlWs;
-    foreach (keys %$qSel) { push @sqlWs, "$_ = $qSel->{$_}"; }
-    foreach (keys %$tSel) { push @sqlWs, "$_ = $tSel->{$_}"; }
+    foreach my $k (keys %$qSel) { push @sqlWs, "$k = $qSel->{$k}"; }
+    foreach my $k (keys %$tSel) { push @sqlWs, "$k = $tSel->{$k}"; }
+
     my $sp = $oqSel->{splice_minimum};
     my $mrna = $oqSel->{contains_mrna};
     my $xs = $oqSel->{exclude_singleton};
@@ -89,6 +94,9 @@ sub getSelectSql{
 	push @sqlWs, "query_na_sequence_id in ($sub)";
     }
 
+    push @sqlWs, "target_start >= $otSel->{start}" if $otSel->{start};
+    push @sqlWs, "target_start < $otSel->{end}" if $otSel->{end};
+
     if (scalar(@sqlWs) > 0) {
 	$sql .= " where " . join(' and ',  @sqlWs);
     }
@@ -96,32 +104,6 @@ sub getSelectSql{
     $sql .= " order by target_start asc, target_end asc" if $sort;
 
     return $sql;
-}
-
-sub isQueryReversed {
-  my ($dbh, $bid, $blat_signals_cache, $aggressive) = @_;
-  my $sql =<<SQL
-SELECT count(*) FROM $blat_signals_cache
-WHERE blat_alignment_id = $bid
-AND ((splice_signal_score_opposite > splice_signal_score and
-      splice_signal_score_opposite > 1) or
-     (splice_signal_score_opposite > splice_signal_score and
-      polya_signal_score_opposite > polya_signal_score))
-SQL
-;
-  if ($aggressive) {
-    $sql =<<AGSQL
-SELECT count(*) FROM $blat_signals_cache
-WHERE blat_alignment_id = $bid
-AND (splice_signal_score_opposite > splice_signal_score or
-     (splice_signal_score_opposite <= splice_signal_score and
-      polya_signal_score_opposite > polya_signal_score));
-AGSQL
-;
-  }
-  my $sth = $dbh->prepareAndExecute($sql);
-  my ($c) = $sth->fetchrow_array;
-  $c;
 }
 
 1;

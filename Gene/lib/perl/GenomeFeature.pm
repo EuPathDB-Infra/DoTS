@@ -4,13 +4,15 @@ package DoTS::Gene::GenomeFeature;
 
 use strict;
 use DoTS::Gene::Util;
+use Carp;
 
 # constructor
 #
 sub new {
     my($class, $gf) = @_;
 
-    my $coords = $gf->{coords}; die "required coordinate set is not found" unless defined $coords;
+    my $coords = $gf->{coords};
+    confess "required coordinate set is not found" unless defined $coords;
     my $self = { id => $gf->{id}, genome_id => $gf->{genome_id},
 		 chr=> $gf->{chr}, strand => $gf->{strand} };
     my $feat = &createFeature($coords);
@@ -24,6 +26,7 @@ sub new {
     $self->{max_span_size} = $feat->{max_span_size};
     $self->{min_interspan_size} = $feat->{min_interspan_size};
     $self->{max_interspan_size} = $feat->{max_interspan_size};
+    $self->{number_of_spans} = $feat->{number_of_spans};
     die "# GeneFeature::new: bad coords: " . join(',', map { $_->[0] . '-' . $_->[1] } @$coords)
         unless $self->{total_span_size} && $self->{chrom_end};
     $self->{ap} = {};
@@ -46,6 +49,16 @@ sub getModel { $_[0]->{model}; }
 
 sub getSpanCoordinates { $_[0]->getModel; }
 
+sub getSpanStarts {
+    my $coords = $_[0]->getSpanCoordinates();
+    return map { $_->[0] } @$coords;
+}
+
+sub getSpanEnds {
+    my $coords = $_[0]->getSpanCoordinates();
+    return map { $_->[1] } @$coords;
+}
+
 sub getInterspanCoordinates {
   my $self = shift;
   my $spans = $self->getSpanCoordinates;
@@ -57,6 +70,16 @@ sub getInterspanCoordinates {
     push @interspans, [$is, $ie];
   }
   \@interspans;
+}
+
+sub getInterspanStarts {
+    my $coords = $_[0]->getInterspanCoordinates();
+    return map { $_->[0] } @$coords;
+}
+
+sub getInterspanEnds {
+    my $coords = $_[0]->getInterspanCoordinates();
+    return map { $_->[1] } @$coords;
 }
 
 sub getNumberOfSpans { $_[0]->{number_of_spans}; }
