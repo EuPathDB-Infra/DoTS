@@ -1,4 +1,4 @@
-#!@perl@ 
+#!@perl@
 
 use strict;
 use lib "$ENV{GUS_HOME}/lib/perl";
@@ -83,3 +83,5 @@ sub parseMGCFile {
     }
     return %mgc2naseqid;
 }
+
+
