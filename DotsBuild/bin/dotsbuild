@@ -139,7 +139,8 @@ my @properties =
  ["nrdbDate", "","approx date for NRDB file"],
  ["dbestDate", "","approx date for dbEST files"],
  ["prodomVersion", "","prodom version used for build"],
- ["cddFileDates", "","approx date for cdd files"]
+ ["cddFileDates", "","approx date for cdd files"],
+ ["repeatmask.dangleMax", "","option for trimDangling in repeatMasker"]
  ); 
 
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
@@ -401,6 +402,7 @@ sub createDotsPipelineDir {
     my $rmTaskSize = $props->getProp('repeatmask.taskSize');
     my $rmPath = $props->getProp('repeatmask.path');
     my $rmOptions = $props->getProp('repeatmask.options');
+    my $dangleMax = $props->getProp('repeatmask.dangleMax');
     my $bmTaskSize = $props->getProp('blastmatrix.taskSize');
     my $bsTaskSize = $props->getProp('blastsimilarity.taskSize');
     my $bsBparam = $props->getProp('blastsimilarity.Bparam');
@@ -422,13 +424,13 @@ sub createDotsPipelineDir {
     $mgr->runCmd("mkdir -p $dotsBuildDir/$buildName/cluster/gene");
 
     &makeRMDir("assemSeqs", $buildName, $dotsBuildDir, 
-	       $serverPath, $nodePath, $rmTaskSize, $rmOptions, $rmPath);
+	       $serverPath, $nodePath, $rmTaskSize, $rmOptions, $dangleMax, $rmPath);
     &makeRMDir("prevDots", $buildName, $dotsBuildDir,
-	       $serverPath,  $nodePath, $rmTaskSize, $rmOptions, $rmPath);
+	       $serverPath,  $nodePath, $rmTaskSize, $rmOptions, $dangleMax, $rmPath);
     &makeRMDir("intermedDots", $buildName, $dotsBuildDir,
-	       $serverPath,  $nodePath, $rmTaskSize, $rmOptions, $rmPath);
+	       $serverPath,  $nodePath, $rmTaskSize, $rmOptions, $dangleMax, $rmPath);
     &makeRMDir("finalDots", $buildName, $dotsBuildDir,
-	       $serverPath,  $nodePath, $rmTaskSize, $rmOptions, $rmPath);
+	       $serverPath,  $nodePath, $rmTaskSize, $rmOptions, $dangleMax, $rmPath);
 
     &makeMatrixDir("assemSeqs", "assemSeqs", $buildName, $dotsBuildDir, 
 		   $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
