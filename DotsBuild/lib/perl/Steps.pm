@@ -115,7 +115,6 @@ sub createGenomeDir {
 
   my $propertySet = $mgr->{propertySet};
   my $buildName = $mgr->{buildName};
-
   my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
   my $serverPath = $propertySet->getProp('serverPath');
   my $nodePath = $propertySet->getProp('nodePath');
@@ -123,10 +122,11 @@ sub createGenomeDir {
   my $gaPath = $propertySet->getProp('genome.path');
   my $gaOptions = $propertySet->getProp('genome.options');
   my $genomeVer = 'goldenpath/' . $propertySet->getProp('genomeVersion');
+  my $liniacServer = $propertySet->getProp('liniacServer');
   my $extGDir = $propertySet->getProp('externalDbDir') . '/' . $genomeVer;
   my $srvGDir = $propertySet->getProp('serverExternalDbDir') . '/'. $genomeVer;
 
-  &makeGenomeDir("assemSeqs", "genome", $buildName, $dotsBuildDir, $serverPath,
+  &makeGenomeDir("assemSeqs", "genome", $buildName, $dotsBuildDir, $serverPath,$liniacServer,
 		   $nodePath, $gaTaskSize, $gaOptions, $gaPath, $extGDir, $srvGDir);
 
   $mgr->runCmd("chmod -R g+w $dotsBuildDir/$buildName/");
