@@ -45,6 +45,7 @@ my @properties =
  ["genome_db_rls_date", "","the date of the release of this version of genome"],
  ["genome_db_rls_note", "","short release note for the release of this version of genome"],
  ["genome_download_url", "","the URL from where this version of genome can be downloaded"],
+ ["genome_gaps_download_url", "","the URL from where genome gaps for this version of genome can be downloaded"],
  ["genomeGapLogin", "","login for table space for genome gap tables"],
  ["genome.options",   "",  "options to genome-align executable"],
  ["genome.path",      "",  "path on node of genome-align executable"],
