@@ -25,8 +25,8 @@ sub createDotsPipelineDir {
   my $bsBparam = $propertySet->getProp('blastsimilarity.Bparam');
   my $bsVparam = $propertySet->getProp('blastsimilarity.Vparam');
   my $bsEparam = $propertySet->getProp('blastsimilarity.Eparam');
-  my $wuBlastBinPathLiniac = $propertySet->getProp('wuBlastBinPathLiniac');
-  my $ncbiBlastBinPathLiniac = $propertySet->getProp('ncbiBlastBinPathLiniac');
+  my $wuBlastBinPathCluster = $propertySet->getProp('wuBlastBinPathCluster');
+  my $ncbiBlastBinPathCluster = $propertySet->getProp('ncbiBlastBinPathCluster');
 
   return if (-e "$dotsBuildDir/$buildName/seqfiles");
 
@@ -54,51 +54,51 @@ sub createDotsPipelineDir {
 	     $serverPath,  $nodePath, $rmTaskSize, $rmOptions, $dangleMax, $rmPath);
 
   &makeMatrixDir("assemSeqs", "assemSeqs", $buildName, $dotsBuildDir,
-		 $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
+		 $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathCluster);
   &makeMatrixDir("prevDots", "assemSeqs", $buildName, $dotsBuildDir,
-		 $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
+		 $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathCluster);
   &makeMatrixDir("prevDots", "prevDots", $buildName, $dotsBuildDir,
-		 $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
+		 $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathCluster);
   &makeMatrixDir("unalignedAssemSeqs", "unalignedAssemSeqs", $buildName, $dotsBuildDir,
-		 $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
+		 $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathCluster);
   &makeMatrixDir("alignedDots", "unalignedAssemSeqs", $buildName, $dotsBuildDir,
-		 $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
+		 $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathCluster);
   &makeMatrixDir("alignedDots", "alignedDots", $buildName, $dotsBuildDir,
-		 $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
+		 $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathCluster);
   &makeMatrixDir("intermedDots", "intermedDots", $buildName, $dotsBuildDir,
-		 $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
+		 $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathCluster);
   &makeMatrixDir("finalDots", "finalDots", $buildName, $dotsBuildDir,
-		 $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
+		 $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathCluster);
 
   # These parm lists seem to have problems
   #  &makeSimilarityDir("finalDots", "$serverPath/$buildName/seqfiles","nrdb", $buildName, $dotsBuildDir,
   #		     $serverPath, $nodePath, $bsTaskSize,
-  #		     $wuBlastBinPathLiniac,
+  #		     $wuBlastBinPathCluster,
   #		     "nrdb.fsa", ,'finalDots.fsa','(\d+)', 'blastx',
   #		     "-wordmask=seg+xnu W=3 T=1000 B=$bsBparam V=$bsVparam E=$bsEparam");
   #  &makeSimilarityDir("finalDots", "$serverPath/$buildName/seqfiles", "prodom", $buildName, $dotsBuildDir,
   #		     $serverPath, $nodePath, $bsTaskSize,
-  #		     $wuBlastBinPathLiniac,
+  #		     $wuBlastBinPathCluster,
   #		     "prodom.fsa", ,'finalDots.fsa','(\S+)', 'blastx',
   #		     "-wordmask=seg+xnu W=3 T=1000 B=$bsBparam V=$bsVparam E=$bsEparam");
   #  &makeSimilarityDir("finalDots", "$serverPath/$buildName/seqfiles", "cdd", $buildName, $dotsBuildDir,
   #		     $serverPath, $nodePath, $bsTaskSize,
-  #		     $ncbiBlastBinPathLiniac,
+  #		     $ncbiBlastBinPathCluster,
   #		     "cdd/All",  ,'finalDots.fsa','\w+\|\w+\|\d+\s+(\w+)', 'rpsblast',
   #		     "-a 2 -e .1 -p F");
   &makeSimilarityDir("finalDots", "nrdb", $buildName, $dotsBuildDir,
 		     $serverPath, $nodePath, $bsTaskSize,
-		     $wuBlastBinPathLiniac,
+		     $wuBlastBinPathCluster,
 		     "nrdb.fsa", "$serverPath/$buildName/seqfiles", 'finalDots.fsa', '(\d+)', 'blastx',
 		     "-wordmask=seg+xnu W=3 T=1000 B=$bsBparam V=$bsVparam E=$bsEparam");
   &makeSimilarityDir("finalDots", "prodom", $buildName, $dotsBuildDir,
 		     $serverPath, $nodePath, $bsTaskSize,
-		     $wuBlastBinPathLiniac,
+		     $wuBlastBinPathCluster,
 		     "prodom.fsa", "$serverPath/$buildName/seqfiles", 'finalDots.fsa', '(\S+)', 'blastx',
 		     "-wordmask=seg+xnu W=3 T=1000 B=$bsBparam V=$bsVparam E=$bsEparam");
   &makeSimilarityDir("finalDots", "cdd", $buildName, $dotsBuildDir,
 		     $serverPath, $nodePath, $bsTaskSize,
-		     $ncbiBlastBinPathLiniac,
+		     $ncbiBlastBinPathCluster,
 		     "cdd/All", "$serverPath/$buildName/seqfiles", 'finalDots.fsa',
 		     '\w+\|\w+\|\d+\s+(\w+)', 'rpsblast', "-a 2 -e .1 -p F");
 
@@ -122,12 +122,11 @@ sub createGenomeDir {
   my $gaPath = $propertySet->getProp('genome.path');
   my $gaOptions = $propertySet->getProp('genome.options');
   my $genomeVer = 'goldenpath/' . $propertySet->getProp('genomeVersion');
-  my $liniacServer = $propertySet->getProp('liniacServer');
   my $extGDir = $propertySet->getProp('externalDbDir') . '/' . $genomeVer;
   my $srvGDir = $propertySet->getProp('serverExternalDbDir') . '/'. $genomeVer;
 
-  &makeGenomeDir("assemSeqs", "genome", $buildName, $dotsBuildDir, $serverPath,$liniacServer,
-		   $nodePath, $gaTaskSize, $gaOptions, $gaPath, $extGDir, $srvGDir);
+  &makeGenomeDir("assemSeqs", "genome", $buildName, $dotsBuildDir, $serverPath,
+		 $nodePath, $gaTaskSize, $gaOptions, $gaPath, $extGDir, $srvGDir);
 
   $mgr->runCmd("chmod -R g+w $dotsBuildDir/$buildName/");
   $mgr->endStep($signal);
@@ -486,47 +485,43 @@ sub extractDots {
   $mgr->endStep($signal);
 }
 
-sub copyGenomeToLiniac {
+sub copyGenomeToCluster {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet}; 
-  my $signal = "genome2liniac";
+  my $signal = "genome2cluster";
 
   my $gVer = $propertySet->getProp('genomeVersion');
   my $fromDir = $propertySet->getProp('externalDbDir') . '/goldenpath';
   my $serverPath = $propertySet->getProp('serverExternalDbDir') . '/goldenpath';
-  my $liniacServer = $propertySet->getProp('liniacServer');
-  my $liniacUser = $propertySet->getProp('liniacUser');
-  return if $mgr->startStep("Copying $fromDir/$gVer to $serverPath on $liniacServer",
-			      $signal, 'copyGenomeToLiniac');
+  return if $mgr->startStep("Copying $fromDir/$gVer to $serverPath on cluster",
+			      $signal, 'copyGenomeToCluster');
 
-  $mgr->copyToLiniac($fromDir, $gVer, $liniacServer, $serverPath, $liniacUser);
+  $mgr->{cluster}->copyTo($fromDir, $gVer, $serverPath);
 
   $mgr->endStep($signal);
 }
 
 
 
-sub copyPipelineDirToLiniac {
+sub copyPipelineDirToCluster {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
   my $nickName = $propertySet->getProp('speciesNickname');
   my $dotsRelease = "release".$propertySet->getProp('dotsRelease');
   my $serverPath = $propertySet->getProp('serverPath') . "/$dotsRelease";
-  my $liniacServer = $propertySet->getProp('liniacServer');
   my $fromDir =   $propertySet->getProp('dotsBuildDir') . "/$dotsRelease";
-  my $signal = "dir2liniac";
-  return if $mgr->startStep("Copying $fromDir to $serverPath on $liniacServer", $signal);
+  my $signal = "dir2cluster";
+  return if $mgr->startStep("Copying $fromDir to $serverPath on cluster", $signal);
 
-  $mgr->copyToLiniac($fromDir, $nickName, $liniacServer, $serverPath);
+  $mgr->{cluster}->copyTo($fromDir, $nickName, $serverPath);
 
   $mgr->endStep($signal);
 }
 
-sub startGenomicAlignmentOnLiniac {
+sub startGenomicAlignmentOnCluster {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
 
-  my $liniacServer = $propertySet->getProp('liniacServer');
   my $serverPath = $propertySet->getProp('serverPath');
   my $buildName = "release".$propertySet->getProp('dotsRelease')."/".$propertySet->getProp('speciesNickname');
   my $signal = "rungenomealign";
@@ -534,10 +529,10 @@ sub startGenomicAlignmentOnLiniac {
   return if $mgr->startStep("Starting genomic alignment", $signal);
 
   $mgr->endStep($signal);
-  my $liniacCmdMsg = "submitPipelineJob runGenomeAlign $serverPath/$buildName NUMBER_OF_NODES";
-  my $liniacLogMsg = "monitor $serverPath/$buildName/logs/*.log and xxxxx.xxxx.stdout";
+  my $clusterCmdMsg = "submitPipelineJob runGenomeAlign $serverPath/$buildName NUMBER_OF_NODES";
+  my $clusterLogMsg = "monitor $serverPath/$buildName/logs/*.log and xxxxx.xxxx.stdout";
 
-  $mgr->exitToLiniac($liniacCmdMsg, $liniacLogMsg, 1);
+  $mgr->exitToCluster($clusterCmdMsg, $clusterLogMsg, 1);
 }
 
 sub insertGenome {
@@ -575,29 +570,23 @@ sub insertGenome {
   $mgr->endStep($signal);
 }
 
-sub copyGenomeAssemSeqsFromLiniac {
+sub copyGenomeAssemSeqsFromCluster {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
   my $serverPath = $propertySet->getProp('serverPath');
-  my $liniacServer = $propertySet->getProp('liniacServer');
-  my $liniacUser = $propertySet->getProp('liniacUser');
   my $buildName = $mgr->{'buildName'};
   my $pipelineDir = $mgr->{'pipelineDir'};
-  my $signal = "genomeAssemSeqsFromLiniac";
-  return if $mgr->startStep("Copying genome alignment of assemSeqs from $liniacServer", $signal);
+  my $signal = "genomeAssemSeqsFromCluster";
+  return if $mgr->startStep("Copying genome alignment of assemSeqs from cluster", $signal);
     
-  $mgr->copyFromLiniac($liniacServer,
-		       "$serverPath/$buildName/genome/assemSeqs-genome/master/mainresult",
+  $mgr->{cluster}->copyFrom("$serverPath/$buildName/genome/assemSeqs-genome/master/mainresult",
 		       "per-chr",
-		       "$pipelineDir/genome/assemSeqs-genome",
-		       $liniacUser);
+		       "$pipelineDir/genome/assemSeqs-genome");
   
   $mgr->runCmd("mkdir -p $pipelineDir/repeatmask/assemSeqs/master/mainresult");
-  $mgr->copyFromLiniac($liniacServer,
-		       "$serverPath/$buildName/repeatmask/assemSeqs/master/mainresult",
+  $mgr->{cluster}->copyFrom("$serverPath/$buildName/repeatmask/assemSeqs/master/mainresult",
 		       "blocked.seq",
-		       "$pipelineDir/repeatmask/assemSeqs/master/mainresult",
-		       $liniacUser);
+		       "$pipelineDir/repeatmask/assemSeqs/master/mainresult");
     
   $mgr->endStep($signal);
 }
@@ -704,11 +693,10 @@ sub qualityStart {
 }
 
 
-sub startBlastMatricesOnLiniac {
+sub startBlastMatricesOnCluster {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
 
-  my $liniacServer = $propertySet->getProp('liniacServer');
   my $serverPath = $propertySet->getProp('serverPath');
   my $signal = "runmatrices";
   return if $mgr->startStep("Starting blast matrices", $signal);
@@ -720,26 +708,24 @@ sub startBlastMatricesOnLiniac {
     $script = "runAssemAssemMatrices";
   }
 
-  my $liniacCmdMsg = "submitPipelineJob $script $serverPath/$mgr->{buildName} NUMBER_OF_NODES";
-  my $liniacLogMsg = "monitor $serverPath/$mgr->{buildName}/logs/*.log and xxxxx.xxxx.stdout";
+  my $clusterCmdMsg = "submitPipelineJob $script $serverPath/$mgr->{buildName} NUMBER_OF_NODES";
+  my $clusterLogMsg = "monitor $serverPath/$mgr->{buildName}/logs/*.log and xxxxx.xxxx.stdout";
 
-  $mgr->exitToLiniac($liniacCmdMsg, $liniacLogMsg, 1);
+  $mgr->exitToCluster($clusterCmdMsg, $clusterLogMsg, 1);
 }
 
-sub copyBlastMatricesFromLiniac {
+sub copyBlastMatricesFromCluster {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
 
   my $serverPath = $propertySet->getProp('serverPath');
-  my $liniacServer = $propertySet->getProp('liniacServer');
 
-  my $signal = "matricesFromLiniac";
-  return if $mgr->startStep("Copying matrices from $liniacServer", $signal);
+  my $signal = "matricesFromCluster";
+  return if $mgr->startStep("Copying matrices from cluster", $signal);
 
-  $mgr->copyFromLiniac($liniacServer,
-                       "$serverPath/$mgr->{buildName}/repeatmask/assemSeqs/master/mainresult",
-                       "blocked.err",
-                       "$mgr->{pipelineDir}/repeatmask/assemSeqs");
+  $mgr->{cluster}->copyFrom("$serverPath/$mgr->{buildName}/repeatmask/assemSeqs/master/mainresult",
+			    "blocked.err",
+			    "$mgr->{pipelineDir}/repeatmask/assemSeqs");
 
   my @names = ("assemSeqs-assemSeqs", "prevDots-assemSeqs", "prevDots-prevDots");
   if ($propertySet->getProp('firstTime') eq 'yes') {
@@ -747,8 +733,7 @@ sub copyBlastMatricesFromLiniac {
   }
 
   foreach my $name (@names) {
-    $mgr->copyFromLiniac($liniacServer,
-			 "$serverPath/$mgr->{buildName}/matrix/$name/master/mainresult",
+    $mgr->{cluster}->copyFrom("$serverPath/$mgr->{buildName}/matrix/$name/master/mainresult",
 			 "blastMatrix.out.gz",
 			 "$mgr->{pipelineDir}/matrix/$name");
   }
@@ -933,50 +918,48 @@ sub deleteAssembliesWithNoAssemblySequences {
 sub matrix {
   my ($name, $mgr) = @_;
 
-  &copyDotsToLiniac($name, $mgr);
+  &copyDotsToCluster($name, $mgr);
 
-  &startDotsMatrixOnLiniac($name, $mgr);
+  &startDotsMatrixOnCluster($name, $mgr);
 
-  #&copyDotsMatrixFromLiniac($name, $mgr);
+  #&copyDotsMatrixFromCluster($name, $mgr);
 }
 
-sub copyDotsToLiniac {
+sub copyDotsToCluster {
   my ($name, $mgr) = @_;
   my $propertySet = $mgr->{propertySet};
 
   my $serverPath = $propertySet->getProp('serverPath');
-  my $liniacServer = $propertySet->getProp('liniacServer');
 
   my $seqfilesDir = "$mgr->{pipelineDir}/seqfiles";
   my $f = "${name}Dots.fsa";
 
-  my $signal = "${name}Dots2liniac";
-  return if $mgr->startStep("Copying $seqfilesDir/$f to $serverPath/$mgr->{buildName}/seqfiles on $liniacServer", $signal);
+  my $signal = "${name}Dots2cluster";
+  return if $mgr->startStep("Copying $seqfilesDir/$f to $serverPath/$mgr->{buildName}/seqfiles on cluster", $signal);
 
-  $mgr->copyToLiniac($seqfilesDir, $f, $liniacServer, "$serverPath/$mgr->{buildName}/seqfiles");
+  $mgr->{cluster}->copyTo($seqfilesDir, $f, "$serverPath/$mgr->{buildName}/seqfiles");
 
   $mgr->endStep($signal);
 }
 
-sub copySeqFileToLiniac {
+sub copySeqFileToCluster {
   my ($name, $mgr) = @_;
   my $propertySet = $mgr->{propertySet};
 
   my $serverPath = $propertySet->getProp('serverPath');
-  my $liniacServer = $propertySet->getProp('liniacServer');
 
   my $seqfilesDir = "$mgr->{pipelineDir}/seqfiles";
   my $f = "${name}.fsa";
 
-  my $signal = "${name}2liniac";
-  return if $mgr->startStep("Copying $seqfilesDir/$f to $serverPath/$mgr->{buildName}/seqfiles on $liniacServer", $signal);
+  my $signal = "${name}2cluster";
+  return if $mgr->startStep("Copying $seqfilesDir/$f to $serverPath/$mgr->{buildName}/seqfiles on cluster", $signal);
 
-  $mgr->copyToLiniac($seqfilesDir, $f, $liniacServer, "$serverPath/$mgr->{buildName}/seqfiles");
+  $mgr->{cluster}->copyTo($seqfilesDir, $f, "$serverPath/$mgr->{buildName}/seqfiles");
 
   $mgr->endStep($signal);
 }
 
-sub startDotsMatrixOnLiniac {
+sub startDotsMatrixOnCluster {
   my ($name, $mgr) = @_;
   my $propertySet = $mgr->{propertySet};
 
@@ -989,28 +972,26 @@ sub startDotsMatrixOnLiniac {
 
   my $cmd = "run" . ucfirst($signal);
 
-  my $liniacCmdMsg = "submitPipelineJob $cmd $serverPath/$mgr->{buildName} NUMBER_OF_NODES";
-  my $liniacLogMsg = "monitor $serverPath/$mgr->{buildName}/logs/*.log and xxxxx.xxxx.stdout";
+  my $clusterCmdMsg = "submitPipelineJob $cmd $serverPath/$mgr->{buildName} NUMBER_OF_NODES";
+  my $clusterLogMsg = "monitor $serverPath/$mgr->{buildName}/logs/*.log and xxxxx.xxxx.stdout";
 
-  $mgr->exitToLiniac($liniacCmdMsg, $liniacLogMsg, 0);
+  $mgr->exitToCluster($clusterCmdMsg, $clusterLogMsg, 0);
 }
 
-sub copyDotsMatrixFromLiniac {
+sub copyDotsMatrixFromCluster {
   my($name, $mgr) = @_;
   my $propertySet = $mgr->{propertySet};
 
   my $serverPath = $propertySet->getProp('serverPath');
-  my $liniacServer = $propertySet->getProp('liniacServer');
 
-  my $signal = "${name}MatrixFromLiniac";
+  my $signal = "${name}MatrixFromCluster";
 
-  return if $mgr->startStep("Copying ${name} matrix from $liniacServer",
+  return if $mgr->startStep("Copying ${name} matrix from cluster",
 			    $signal);
 
-  $mgr->copyFromLiniac($liniacServer,
-		       "$serverPath/$mgr->{buildName}/matrix/$name/master/mainresult",
-		       "blastMatrix.out.gz",
-		       "$mgr->{pipelineDir}/matrix/$name");
+  $mgr->{cluster}->copyFrom("$serverPath/$mgr->{buildName}/matrix/$name/master/mainresult",
+			    "blastMatrix.out.gz",
+			    "$mgr->{pipelineDir}/matrix/$name");
 
   $mgr->endStep($signal);
 }
@@ -1752,15 +1733,14 @@ sub extractProdom {
   &extractProteinSeqs("prodom", $sql, $mgr);
 }
 
-sub copyProteinDBsToLiniac {
+sub copyProteinDBsToCluster {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
 
   my $serverPath = $propertySet->getProp('serverPath');
-  my $liniacServer = $propertySet->getProp('liniacServer');
 
-  my $signal = "proteinDBs2Liniac";
-  return if $mgr->startStep("Copying NRDB, CDD and Prodom to $serverPath/$mgr->{buildName}/seqfiles on $liniacServer", $signal);
+  my $signal = "proteinDBs2Cluster";
+  return if $mgr->startStep("Copying NRDB, CDD and Prodom to $serverPath/$mgr->{buildName}/seqfiles on cluster", $signal);
 
   my $release = "release" . $propertySet->getProp('dotsRelease');
   my $proteinRelease = "release" . $propertySet->getProp('proteinRelease');
@@ -1769,14 +1749,14 @@ sub copyProteinDBsToLiniac {
   my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
   my $seqfilesDir = "$dotsBuildDir/$release/$speciesNickname/seqfiles";
 
-  my $copyNRDBToLiniac = $propertySet->getProp('copyNRDBToLiniac');
+  my $copyNRDBToCluster = $propertySet->getProp('copyNRDBToCluster');
   my $f = "nrdb.fsa";
-  if ($copyNRDBToLiniac eq 'yes') {
-    $mgr->copyToLiniac($seqfilesDir, $f, $liniacServer,
+  if ($copyNRDBToCluster eq 'yes') {
+    $mgr->{cluster}->copyTo($seqfilesDir, $f,
 		       "$serverPath/$mgr->{buildName}/seqfiles");
   } else {
     my $linkCmd = "ln $dotsBuildDir/$proteinRelease/$proteinDir/seqfiles/$f $dotsBuildDir/$release/$speciesNickname/seqfiles/$f";
-    $mgr->runCmdOnLiniac($liniacServer, $linkCmd);
+    $mgr->runCmdOnCluster($linkCmd);
   }
 
   my $externalDbDir = $propertySet->getProp('externalDbDir');
@@ -1784,64 +1764,62 @@ sub copyProteinDBsToLiniac {
   my $downloadSubDir = "$externalDbDir/cdd";
   my $tmpCddDir = "$downloadSubDir/cdd";
   die "$tmpCddDir exists but it shouldn't" if -e $tmpCddDir;
-  my $copyCDDToLiniac = $propertySet->getProp('copyCDD');
-  $mgr->runCmd("mv $downloadSubDir/$date $tmpCddDir") if ($copyNRDBToLiniac eq 'yes');
+  my $copyCDDToCluster = $propertySet->getProp('copyCDD');
+  $mgr->runCmd("mv $downloadSubDir/$date $tmpCddDir") if ($copyNRDBToCluster eq 'yes');
   $f = "cdd";
-  if ($copyNRDBToLiniac eq 'yes') {
-    $mgr->copyToLiniac($downloadSubDir, "cdd", $liniacServer, 
+  if ($copyNRDBToCluster eq 'yes') {
+    $mgr->{cluster}->copyTo($downloadSubDir, "cdd",
 		       "$serverPath/$mgr->{buildName}/seqfiles");
   }else {
     my $linkCmd = "ln -s $dotsBuildDir/$proteinRelease/$proteinDir/seqfiles/$f $dotsBuildDir/$release/$speciesNickname/seqfiles/$f";
-    $mgr->runCmdOnLiniac($liniacServer, $linkCmd);
+    $mgr->runCmdOnCluster($linkCmd);
   }
-  $mgr->runCmd("mv $tmpCddDir $downloadSubDir/$date") if ($copyNRDBToLiniac eq 'yes');
+  $mgr->runCmd("mv $tmpCddDir $downloadSubDir/$date") if ($copyNRDBToCluster eq 'yes');
 
-  my $copyProdomToLiniac = $propertySet->getProp('copyProdomToLiniac');
+  my $copyProdomToCluster = $propertySet->getProp('copyProdomToCluster');
   $f = "prodom.fsa";
-  if ($copyProdomToLiniac eq 'yes') {
-    $mgr->copyToLiniac($seqfilesDir, $f, $liniacServer,
+  if ($copyProdomToCluster eq 'yes') {
+    $mgr->{cluster}->copyTo($seqfilesDir, $f,
 		       "$serverPath/$mgr->{buildName}/seqfiles");
   } else {
     my $linkCmd = "ln $dotsBuildDir/$proteinRelease/$proteinDir/seqfiles/$f $dotsBuildDir/$release/$speciesNickname/seqfiles/$f";
-    $mgr->runCmdOnLiniac($liniacServer, $linkCmd);
+    $mgr->runCmdOnCluster($linkCmd);
   }
 
   $mgr->endStep($signal);
 }
 
-sub startSimilaritiesOnLiniac {
+sub startSimilaritiesOnCluster {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
 
   my $serverPath = $propertySet->getProp('serverPath');
 
   my $signal = "findSimilarities";
-  return if $mgr->startStep("Starting NRDB, CDD and Prodom similarites on liniac", $signal);
+  return if $mgr->startStep("Starting NRDB, CDD and Prodom similarites on cluster", $signal);
 
   $mgr->endStep($signal);
 
-  my $liniacCmdMsg = "submitPipelineJob runSimilarities $serverPath/$mgr->{buildName} NUMBER_OF_NODES";
-  my $liniacLogMsg = "monitor $serverPath/$mgr->{buildName}/logs/*.log and xxxxx.xxxx.stdout";
+  my $clusterCmdMsg = "submitPipelineJob runSimilarities $serverPath/$mgr->{buildName} NUMBER_OF_NODES";
+  my $clusterLogMsg = "monitor $serverPath/$mgr->{buildName}/logs/*.log and xxxxx.xxxx.stdout";
 
-  $mgr->exitToLiniac($liniacCmdMsg, $liniacLogMsg, 1);
+  $mgr->exitToCluster($clusterCmdMsg, $clusterLogMsg, 1);
 }
 
-sub copySimilaritiesFromLiniac {
+sub copySimilaritiesFromCluster {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
 
   my $serverPath = $propertySet->getProp('serverPath');
-  my $liniacServer = $propertySet->getProp('liniacServer');
 
-  my $signal = "copySimilaritiesFromLiniac";
-  return if $mgr->startStep("Copying protein similarities from $liniacServer",
+  my $signal = "copySimilaritiesFromCluster";
+  return if $mgr->startStep("Copying protein similarities from cluster",
 			    $signal);
   my @names = ("finalDots-nrdb","finalDots-prodom", "finalDots-cdd");
   foreach my $name (@names) {
-    $mgr->copyFromLiniac($liniacServer,
-			 "$serverPath/$mgr->{buildName}/similarity/$name/master/mainresult",
-			 "blastSimilarity.out.gz",
-			 "$mgr->{pipelineDir}/similarity/$name");
+    $mgr->{cluster}->copyFrom("$serverPath/$mgr->{buildName}/similarity/$name/master/mainresult",
+			      "blastSimilarity.out.gz",
+			      "$mgr->{pipelineDir}/similarity/$name");
   }
   $mgr->endStep($signal);
 }

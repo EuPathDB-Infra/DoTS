@@ -3,7 +3,40 @@ I. Make directory for the build (e.g. release7) and each species (e.g. hum and m
 
 II. Copy hum.prop and mus.prop to /ptolemy/cbil/data/cbil/DoTS/releaseN/
 
-III. Update each property file - the following are particularly prone to change:
+III. Update each property file - see file bottom for list of those that are particularly prone to change:
+
+IV. Check the ftp sites for each set of data downloaded (can change): 
+Genbank
+RefSeq
+Taxon
+NRDB
+CDD
+Prodom
+GGTC
+Baygenomics 
+MGI
+LocusLink
+	
+GEA?????
+GeneCards
+
+V. Check regex for all downloaded files especially:
+      CDD
+      Prodom
+
+
+VI. update masking files if nec.:
+   - create the file share/data/thirdparty/repeat/releaseXX/musRiboTagMitoVec 
+   - on liniac: make sure that the Libraries/ directory of the RepeatMask installation are up to date.
+
+VII. Check liniac, make sure server path exists and you can get in.
+
+VII. On liniac: check disk space and make new directory for release.
+
+VIII. (temporarily here) Don't forget to update the release date in externaldatabase release (NRDB, etc).
+
+
+------------- properties prone to change  -----------------------------------------
 
 dotsBuildDir=/ptolemy/cbil/data/cbil/DoTS
 buildDate=2003-07-11
@@ -74,30 +107,4 @@ downloadGenbank=yes
 downloadGOStuff=yes
 downloadNRDB=yes
 downloadTaxon=yes
-
-IV. Check the ftp sites for each set of data downloaded (can change): 
-Genbank
-RefSeq
-Taxon
-NRDB
-CDD
-Prodom
-GGTC
-Baygenomics 
-MGI
-LocusLink
-	
-GEA?????
-GeneCards
-
-V. Check regex for all downloaded files especially:
-
-CDD
-Prodom
-
-
-VI. Update RepeatMasker and repbase files if new version available 
-
-VII. Check liniac, make sure server path exists and you can get in.
-
 

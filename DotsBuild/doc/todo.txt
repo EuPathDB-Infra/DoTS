@@ -55,11 +55,13 @@ NOW
  
 steve
   - look into brian's observation about the promoter regions
-  - make file for Mr. BrainInfo
-  - add the sub to make Angel's materialized view
   - get a legit version of the TMHMM package
+<<<<<<< todo.txt
+
+=======
   - include makePromoterRegionTable
   
+>>>>>>> 1.41
 
 
 LATER
@@ -327,6 +329,9 @@ d 2  1.00 - clean up after assembly is done (eg assemblies w/ len=0, if we
             have them)
   2. clean up and rename makeAllgenesTables
   - fix the htaccess stuff so that WHEN the code adds a file to the download site, at that point we append the file to an htaccess string.  it should be a global variable.
+  - include makePromoterRegionTable
+  - add makePancreasAssemblies
+  - make file for Mr. BrainInfo
 
 
 d 12-03 - add the FF file to the downloads department

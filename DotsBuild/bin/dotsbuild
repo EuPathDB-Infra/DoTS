@@ -21,7 +21,7 @@ my $propertiesFile = $ARGV[0];
 my @properties = 
 (
  # properties required by Pipeline API
- ["liniacServer",         "",  "full name of liniac server"],
+ ["clusterServer",         "",  "full name of cluster server"],
  ["stopBefore",   "none",  "the step to stop before.  uses the signal name"],
 
  # properties used by dotsbuild
@@ -49,9 +49,9 @@ my @properties =
  ["cog_db_rls_id", "","a new id,COG of CDD,for the external_database_release table"],
  ["completedSpeciesNickName", "",  "nick name of the other species (eg mus if this is a hum build) if that one completed first. use 'notdone' if it isn't done."],
  ["copyCDD", "", "yes or no"],
- ["copyGenomeToLiniac",   "",  "yes or no"],
- ["copyNRDBToLiniac", "", "yes or no"],
- ["copyProdomToLiniac", "", "yes or no"],
+ ["copyGenomeToCluster",   "",  "yes or no"],
+ ["copyNRDBToCluster", "", "yes or no"],
+ ["copyProdomToCluster", "", "yes or no"],
  ["dbestDate", "","approx date for dbEST files"],
  ["dbESTRestart", "","number (dbest_id_est from dots.est) to restart parsedbEST plugin on, get from log"],
  ["dbi_str", "", "string used to identify server and login for LoadNRDB temp table"],
@@ -128,7 +128,7 @@ my @properties =
  ["iPSRestart_finalDots-nrdb" , "","list of algorithm_invocation_id for restart of insertProteinSimilaritiesPK for nrdb, see ffRestart"],
  ["iPSRestart_finalDots-prodom" , "","list of algorithm_invocation_id for restart of insertProteinSimilaritiesPK for prodom, see ffRestart"],
  ["kog_db_rls_id", "","a new id,KOG of CDD,for the external_database_release table"],
- ["liniacUser", "","user for copyToLiniac sub in Manager.pm"],
+ ["clusterUser", "","user for copyToCluster sub in Manager.pm"],
  ["ll_db_id", "","LocusLink external_database_id"],
  ["llDeleteDbRef", "","option to delete dbref entries, used in InsertDbRefAndDbRefNASequence, yes or no"],
  ["loadDbEst", "", "yes or no"],
@@ -145,10 +145,10 @@ my @properties =
  ["mgc_db_rel_id", "", "database release id for mgc"],
  ["mgi_db_rls_id",   "",  "database release id for mgi"],
  ["mgiFiles","","mgi mapping files, a comma delimited list"],
- ["ncbiBlastBinPathLiniac",         "",  "path of ncbi blast bin dir on Liniac"],
+ ["ncbiBlastBinPathCluster",         "",  "path of ncbi blast bin dir on Cluster"],
  ["ncbiTaxId", "","ncbi tax_id corresponding to the taxon_id"],
  ["NewGeneTags", "", "yes or no"],
- ["nodePath",             "",  "full path of scratch dir on liniac node"],
+ ["nodePath",             "",  "full path of scratch dir on cluster node"],
  ["nrdbDate", "","approx date of NRDB file"],
  ["nrdb_db_rls_id" , "","the external_database_release_id for nrdb"],
  ["nrdb_delete", "","use --delete option for LoadNrdb plugin, yes or no"],
@@ -161,7 +161,7 @@ my @properties =
  ["prodom_db_rls_id",   "",  "a new id for the external_database_release table"],
  ["prodomRelease",   "",  "eg 2001.3"],
  ["prodomVersion", "","prodom version used for build"],
- ["proteinRelease", "", "release number for protein link on liniac"],
+ ["proteinRelease", "", "release number for protein link on cluster"],
  ["project_id", "","project_id from projectinfo table, used in projectLink table,get from first species run"],["makeStatPage", "","make Statistics page, yes or no"],
  ["projectLinkRestart", "", "yes or no"],
  ["proteinDir", "","directory containing protein sequence files"],
@@ -176,7 +176,7 @@ my @properties =
  ["repeatmask.taskSize",  "",  "number of seqs to process per repeatmask subtask"],
  ["runQualityStart", "","yes or no"],
  ["serverExternalDbDir", "", "directory for external databases on compute cluster server"],
- ["serverPath",           "",  "full path of dots update dir on liniac server"],
+ ["serverPath",           "",  "full path of dots update dir on cluster server"],
  ["smart_db_rls_id",   "",  "a new id for the external_database_release table"],
  ["sourceDB", "", "pair list of ExternalDatabase.name:ncbi abreviations for nrdb, e.g. GENBANK (NRDB):gb,EMBL DATA LIBRARY (NRDB):emb"],
  ["speciesFullname",              "",  "eg Home sapiens"],
@@ -187,7 +187,7 @@ my @properties =
  ["tempPassword" , "","password for temp table space"],
  ["userId" ,  "","database user_id from UserInfo table in GUS"],
  ["wordfile" ,   "", "file of word probabilities for framefinder"],
- ["wuBlastBinPathLiniac",         "",  "path of wu blast bin dir on Liniac"],
+ ["wuBlastBinPathCluster",         "",  "path of wu blast bin dir on Cluster"],
  ["wuBlastBinPath",         "",  "path of wu blast bin dir (local)"]
  ); 
 
@@ -199,7 +199,18 @@ my $pipelineDir = "$dotsBuildDir/$buildName";
 
 ###################  The Pipeline  ##########################
 
-my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFile);
+my $cluster;
+if ($propertySet->getProp('clusterServer') ne "none") {
+  $cluster = GUS::Pipeline::SshCluster->new($propertySet->getProp('clusterServer')
+					  $propertySet->getProp('clusterUser') );
+} else {
+  $cluster = GUS::Pipeline::NfsCluster->new();
+}
+
+my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, 
+				      $propertiesFile, $cluster, 
+				      $propertySet->getProp('testNextPlugin'));
+
 $mgr->{buildName} = $buildName;
 
 &createDotsPipelineDir($mgr);
@@ -230,11 +241,11 @@ $mgr->{buildName} = $buildName;
 
 &extractAssemSeqs($mgr);
 
-&copyPipelineDirToLiniac($mgr);
+&copyPipelineDirToCluster($mgr);
 
-&copyGenomeToLiniac($mgr);
+&copyGenomeToCluster($mgr);
 
-&startGenomicAlignmentOnLiniac($mgr);
+&startGenomicAlignmentOnCluster($mgr);
 
    &qualityStart($mgr);
  
@@ -254,13 +265,13 @@ $mgr->{buildName} = $buildName;
 
    &extractNRDB($mgr);
 
-   &copyProteinDBsToLiniac($mgr);
+   &copyProteinDBsToCluster($mgr);
 
    &insertGenome($mgr);
 
-$mgr->waitForLiniac("genomic alignments of assemSeqs", "waitGenomeAlignAss");
+$mgr->waitForCluster("genomic alignments of assemSeqs", "waitGenomeAlignAss");
 
-&copyGenomeAssemSeqsFromLiniac($mgr);
+&copyGenomeAssemSeqsFromCluster($mgr);
 
 &deleteGenomeAlignments($mgr, "assemSeqs");
 
@@ -282,17 +293,17 @@ $mgr->waitForLiniac("genomic alignments of assemSeqs", "waitGenomeAlignAss");
 
 &extractUnalignedAssemSeqs($mgr);
 
-&copySeqFileToLiniac("unalignedAssemSeqs", $mgr);
+&copySeqFileToCluster("unalignedAssemSeqs", $mgr);
 
-&copySeqFileToLiniac("alignedDots", $mgr);
+&copySeqFileToCluster("alignedDots", $mgr);
 
-&startDotsMatrixOnLiniac("aligned", $mgr);
+&startDotsMatrixOnCluster("aligned", $mgr);
 
-&copyDotsMatrixFromLiniac("alignedDots-alignedDots",$mgr);
+&copyDotsMatrixFromCluster("alignedDots-alignedDots",$mgr);
 
-&copyDotsMatrixFromLiniac("alignedDots-unalignedAssemSeqs",$mgr);
+&copyDotsMatrixFromCluster("alignedDots-unalignedAssemSeqs",$mgr);
 
-&copyDotsMatrixFromLiniac("unalignedAssemSeqs-unalignedAssemSeqs",$mgr);
+&copyDotsMatrixFromCluster("unalignedAssemSeqs-unalignedAssemSeqs",$mgr);
 
 #&matrix("aligned", $mgr);
 
@@ -310,13 +321,13 @@ $mgr->waitForLiniac("genomic alignments of assemSeqs", "waitGenomeAlignAss");
 
 &matrix("final", $mgr);
 
-&copyDotsMatrixFromLiniac("finalDots-finalDots",$mgr);
+&copyDotsMatrixFromCluster("finalDots-finalDots",$mgr);
 
 &markBadSeqs($mgr);  
 
 &getIdsPerAssembly($mgr); 
 
-&startSimilaritiesOnLiniac($mgr);
+&startSimilaritiesOnCluster($mgr);
 
    &cluster($mgr, "gene", "finalDots-finalDots");
 
@@ -384,9 +395,9 @@ $mgr->waitForLiniac("genomic alignments of assemSeqs", "waitGenomeAlignAss");
 
    &loadGeneTrapAssembly($mgr);
 
-$mgr->waitForLiniac("protein similarities", "waitProteinSims");
+$mgr->waitForCluster("protein similarities", "waitProteinSims");
 
-&copySimilaritiesFromLiniac($mgr);
+&copySimilaritiesFromCluster($mgr);
 
 &insertProteinSimilarities("finalDots-nrdb", "DoTS::ExternalAASequence", $mgr);
 

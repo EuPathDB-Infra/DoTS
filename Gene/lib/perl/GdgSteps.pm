@@ -119,19 +119,17 @@ sub useNewGenomeDbRelease {
 
 }
 
-sub copyPipelineDirToLiniac {
+sub copyPipelineDirToCluster {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
   my $nickName = $propertySet->getProp('speciesNickname');
   my $dotsRelease = "release".$propertySet->getProp('dotsRelease');
   my $serverPath = $propertySet->getProp('serverPath') . "/$dotsRelease";
-  my $liniacServer = $propertySet->getProp('liniacServer');
-  my $liniacUser = $propertySet->getProp('liniacUser');
   my $fromDir =   $propertySet->getProp('dotsGeneBuildDir') . "/$dotsRelease";
-  my $signal = "dir2liniac";
-  return if $mgr->startStep("Copying $fromDir to $serverPath on $liniacServer", $signal);
+  my $signal = "dir2cluster";
+  return if $mgr->startStep("Copying $fromDir to $serverPath on cluster", $signal);
 
-  $mgr->copyToLiniac($fromDir, $nickName, $liniacServer, $serverPath, $liniacUser);
+  $mgr->{cluster}->copyTo($fromDir, $nickName, $serverPath);
 
   $mgr->endStep($signal);
 }
@@ -162,44 +160,40 @@ sub extractDots {
   $mgr->endStep($signal);
 }
 
-sub copyDotsToLiniac {
+sub copyDotsToCluster {
   my ($name, $mgr) = @_;
   my $propertySet = $mgr->{propertySet};
 
   my $serverPath = $propertySet->getProp('serverPath');
-  my $liniacServer = $propertySet->getProp('liniacServer');
-  my $liniacUser = $propertySet->getProp('liniacUser');
 
   my $seqfilesDir = "$mgr->{pipelineDir}/seqfiles";
   my $f = "${name}Dots.fsa";
 
-  my $signal = "${name}Dots2liniac";
-  return if $mgr->startStep("Copying $seqfilesDir/$f to $serverPath/$mgr->{buildName}/seqfiles on $liniacServer", $signal);
+  my $signal = "${name}Dots2cluster";
+  return if $mgr->startStep("Copying $seqfilesDir/$f to $serverPath/$mgr->{buildName}/seqfiles on cluster", $signal);
 
-  $mgr->copyToLiniac($seqfilesDir, $f, $liniacServer, "$serverPath/$mgr->{buildName}/seqfiles", $liniacUser);
+  $mgr->{cluster}->copyTo($seqfilesDir, $f, "$serverPath/$mgr->{buildName}/seqfiles");
 
   $mgr->endStep($signal);
 }
 
-sub copyGenomeToLiniac {
+sub copyGenomeToCluster {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet}; 
-  my $signal = "genome2liniac";
+  my $signal = "genome2cluster";
   my $doDo = 'isNewGenome';
 
   my $gVer = $propertySet->getProp('genomeVersion');
   my $fromDir = $propertySet->getProp('externalDbDir') . '/goldenpath';
   my $serverPath = $propertySet->getProp('serverExternalDbDir') . '/goldenpath';
-  my $liniacServer = $propertySet->getProp('liniacServer');
-  my $liniacUser = $propertySet->getProp('liniacUser');
-  return if $mgr->startStep("Copying $fromDir/$gVer to $serverPath on $liniacServer", $signal, $doDo);
+  return if $mgr->startStep("Copying $fromDir/$gVer to $serverPath on cluster", $signal, $doDo);
 
-  $mgr->copyToLiniac($fromDir, $gVer, $liniacServer, $serverPath, $liniacUser);
+  $mgr->{cluster}->copyTo($fromDir, $gVer, $serverPath);
 
   $mgr->endStep($signal);
 }
 
-sub prepareGenomeAlignmentOnLiniac {
+sub prepareGenomeAlignmentOnCluster {
   my ($mgr) = @_;
   my $signal = "prepGenomeAlign";
 
@@ -212,20 +206,19 @@ sub prepareGenomeAlignmentOnLiniac {
   my $genomeVer = $propertySet->getProp('genomeVersion');
   my $srvGDir = $propertySet->getProp('serverExternalDbDir') . '/goldenpath/'. $genomeVer;
 
-  my $liniacCmdMsg = "$gaPath $chr_lst x.fa x.psl -makeOoc=$srvGDir/11.ooc";
-  my $liniacLogMsg = "wait a little while for it to finish ";
+  my $clusterCmdMsg = "$gaPath $chr_lst x.fa x.psl -makeOoc=$srvGDir/11.ooc";
+  my $clusterLogMsg = "wait a little while for it to finish ";
 
-  return if $mgr->startStep("Making 11.ooc file for over-represented words on liniac", $signal);
+  return if $mgr->startStep("Making 11.ooc file for over-represented words on cluster", $signal);
   $mgr->endStep($signal);
 
-  $mgr->exitToLiniac($liniacCmdMsg, $liniacLogMsg, 1);
+  $mgr->exitToCluster($clusterCmdMsg, $clusterLogMsg, 1);
 }
 
-sub startGenomicAlignmentOnLiniac {
+sub startGenomicAlignmentOnCluster {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
 
-  my $liniacServer = $propertySet->getProp('liniacServer');
   my $serverPath = $propertySet->getProp('serverPath');
   my $buildName = $mgr->{buildName};
   my $signal = "runGenomeAlign";
@@ -233,28 +226,24 @@ sub startGenomicAlignmentOnLiniac {
   return if $mgr->startStep("Starting genomic alignment", $signal);
 
   $mgr->endStep($signal);
-  my $liniacCmdMsg = "submitPipelineJob runDotsGenomeAlign $serverPath/$buildName NUMBER_OF_NODES";
-  my $liniacLogMsg = "monitor $serverPath/$buildName/logs/*.log and xxxxx.xxxx.stdout";
+  my $clusterCmdMsg = "submitPipelineJob runDotsGenomeAlign $serverPath/$buildName NUMBER_OF_NODES";
+  my $clusterLogMsg = "monitor $serverPath/$buildName/logs/*.log and xxxxx.xxxx.stdout";
 
-  $mgr->exitToLiniac($liniacCmdMsg, $liniacLogMsg, 1);
+  $mgr->exitToCluster($clusterCmdMsg, $clusterLogMsg, 1);
 }
 
-sub copyGenomeDotsFromLiniac {
+sub copyGenomeDotsFromCluster {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
   my $serverPath = $propertySet->getProp('serverPath');
-  my $liniacServer = $propertySet->getProp('liniacServer');
-  my $liniacUser = $propertySet->getProp('liniacUser');
   my $buildName = $mgr->{'buildName'};
   my $pipelineDir = $mgr->{'pipelineDir'};
-  my $signal = "genomeDotsFromLiniac";
-  return if $mgr->startStep("Copying genome alignment of DoTS from $liniacServer", $signal);
+  my $signal = "genomeDotsFromCluster";
+  return if $mgr->startStep("Copying genome alignment of DoTS from cluster", $signal);
     
-  $mgr->copyFromLiniac($liniacServer,
-		       "$serverPath/$buildName/genome/dots-genome/master/mainresult",
+  $mgr->{cluster}->copyFrom("$serverPath/$buildName/genome/dots-genome/master/mainresult",
 		       "per-chr",
-		       "$pipelineDir/genome/dots-genome",
-		       $liniacUser);
+		       "$pipelineDir/genome/dots-genome");
       
   $mgr->endStep($signal);
 }
