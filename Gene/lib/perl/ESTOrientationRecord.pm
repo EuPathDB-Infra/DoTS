@@ -125,7 +125,7 @@ sub getEntries {
 	    $self->{qs} = $h->{qstarts} unless $self->{qs};
 	    $self->{ts} = $h->{tstarts} unless $self->{ts};
 	}
-	push @entries, new ESTOrientationEntry($h);
+	push @entries, DoTS::Gene::ESTOrientationEntry->new($h);
     }
 
     $self->{entries} = \@entries;
@@ -159,8 +159,8 @@ SELECT g.strand, g.chromosome_start, g.chromosome_end,
        s.na_sequence_id as seq_id, est.p_end, length(s.gapped_sequence) as gap_seq_len
 FROM $gdg_tab g, $gdt_tab a, DoTS.blatalignment b, DoTS.assembly asm,
      DoTS.assemblysequence s, DoTS.EST est, DoTS.virtualsequence v
-WHERE g.aligned_gene_id = $id
-and g.aligned_gene_id = a.aligned_gene_id
+WHERE g.genome_dots_gene_id = $id
+and g.genome_dots_gene_id = a.genome_dots_gene_id
 and a.na_sequence_id = b.query_na_sequence_id
 and b.query_table_id = 56
 and b.target_na_sequence_id = v.na_sequence_id

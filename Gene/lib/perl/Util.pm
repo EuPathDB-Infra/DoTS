@@ -85,9 +85,9 @@ sub getCoordSelectAndSkip {
     die "start or end set while chr is not defined" if (defined($start) || $end) && !$chr;
     if ($chr) {
 	my ($chr_id, $chr_len) = &getChromIdAndLen($dbh, $genomeId, $chr);
-	my $s = 0 unless $start; 
-	my $e = $chr_len unless $end < $chr_len;
-	return ([{ chr_id=> $chr_id, chr => $chr, start => $s, end => $e }], []);
+	$start = 0 unless $start; 
+	$end = $chr_len unless $end && $end < $chr_len;
+	return ([{ chr_id=> $chr_id, chr => $chr, start => $start, end => $end }], []);
     } else {
 	my $skipChrs = $opt->{skip_chrs}; $skipChrs =~ s/chr//gi;
 	my @skipChrs = split(/,/, $skipChrs);
