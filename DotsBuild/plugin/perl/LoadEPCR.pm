@@ -1,9 +1,5 @@
 package DoTS::DotsBuild::Plugin::LoadEPCR;
 
-###################################
-# Program: LoadEPCR                # 
-# Author: Shannon McWeeney         # 
-###################################
 
 @ISA = qw(GUS::PluginMgr::Plugin);
 use strict;
