@@ -93,6 +93,9 @@ and a.taxon_id in (8,14)";
 #and r.gene_id in (35588675,35732838)";  # for debugging
 
   my $rows = $dbh->do($sql);
+
+  die "Couldn't create temp table PrintStatsTmp\n" unless $rows;
+
   $dbh->commit();
   print STDERR "tmp table created..entered $rows rows\n";
 
@@ -184,8 +187,9 @@ sub formatGOTable {
   my $tableString;
   foreach my $func (@sortedGoFuncs) {
 
-    $func = substr($func,0,30) . "..." if (length($func) > 30);
-    my %values = &findGOValues($func,
+    my $funcBrief = $func;
+    $funcBrief = substr($func,0,30) . "..." if (length($func) > 30);
+    my %values = &findGOValues($funcBrief,
 			       $humDoTSGOHash->{$func}, $humDoTSGOTot,
 			       $musDoTSGOHash->{$func}, $musDoTSGOTot,
 			       $totalBarWidth
@@ -208,13 +212,13 @@ sub findGOValues {
   $values{funcname} = $func;
   $values{humCount} = $humCount? $humCount : 0;
   $values{musCount} = $musCount? $musCount : 0;
-  $values{humPercent} = &findPercent($humCount, $humTotal);
-  $values{musPercent} = &findPercent($musCount, $musTotal);
+  $values{humPercent} = &findPercent($values{humCount}, $humTotal);
+  $values{musPercent} = &findPercent($values{musCount}, $musTotal);
 
   ($values{humBarWidth}, $values{humBarRemainder}) =
-    findWidths($humCount, $humTotal, $totalBarWidth);
+    findWidths($values{humCount}, $humTotal, $totalBarWidth);
   ($values{musBarWidth}, $values{musBarRemainder}) =
-    findWidths($musCount, $musTotal, $totalBarWidth);
+    findWidths($values{musCount}, $musTotal, $totalBarWidth);
 
   return %values;
 }
