@@ -225,6 +225,7 @@ sub run {
 	$dbh->commit();
 	push @done_chrs, $coord->{chr};
 	$self->log("completed/skipped chromosomoes: " . join(', ', @done_chrs));
+        $db->undefPointerCache();
     }
 
     $self->log("analyze table statistics");
