@@ -83,8 +83,8 @@ foreach my $dt (keys %RNA) {
 
 
 sub printSequence{
-	my @row = @_;
-#	print STDERR "$gene_id,$na_id,$description,$number,$taxon,$assembly_id,$length,$seq_ver\n";
+  my (@row) = @_;
+  #	print STDERR "$gene_id,$na_id,$description,$number,$taxon,$assembly_id,$length,$seq_ver\n";
   my $sequence = pop(@row);
   if(length($sequence) < $minLength){
     print STDERR "ERROR: $row[0] too short: ",length($sequence),"\n";
