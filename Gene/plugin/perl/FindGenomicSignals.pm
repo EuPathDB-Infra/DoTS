@@ -123,7 +123,7 @@ sub run {
   my $q_table_id = 56;
 
   # create the result table if it is not there yet, clean old result if there
-  my @cols = &cleanOrCreateTempTable($dbh, $tempLogin, $genomeId);
+  my @cols = &cleanOrCreateTempTable($dbh, $tempLogin, $genomeId, scalar(@skip));
 
   # get all chromosome ids
   my ($chrom_ids, $chrom_names) = &getChromosomeIdNames($dbh, $genomeId);
@@ -133,13 +133,13 @@ sub run {
 
   my @done_chrs;
   foreach my $cid (@$chrom_ids) {
-      print STDERR "# done chromosome ids: ", join(',', @done_chrs), "\n" if scalar(@done_chrs) > 0;
+      print "# done chromosome ids: ", join(',', @done_chrs), "\n" if scalar(@done_chrs) > 0;
       if ($skip_chroms{$cid}) {
 	  print "# chromosome id $cid:  skip\n";
 	  push @done_chrs, $cid;
 	  next;
       } else {
-	  print STDERR "# chromosome id $cid:  processing\n";
+	  print "# chromosome id $cid:  processing\n";
       }
       my $bids = &getBlatIds($dbh, $cid, $t_taxon_id, $t_table_id, $q_taxon_id, $q_table_id, $tempLogin);
 
@@ -160,7 +160,7 @@ sub run {
 	  $ba_info->{blat_alignment_id} = $bid;
 	  my $signals = getSignals($dbh, $ba_info, \@cols);
 	  unless (++$tot % 1000) {
-	      print STDERR "# processed $tot blat alignment entries\n";
+	      print "# processed $tot blat alignment entries\n";
 	  }
 
 	  next unless $signals;
@@ -170,7 +170,7 @@ sub run {
 	  &saveSignals($dbh, $signals, \@cols, $tempLogin);
 
 	  unless (++$c % 200) {
-	      print STDERR "# found $c informative blat alignment signals entries\n";
+	      print "# found $c informative blat alignment signals entries\n";
 	  }
       }
       $sth->finish if defined $sth;
@@ -178,7 +178,7 @@ sub run {
       print "sleeping for 5 minutes\n";
       sleep 300 unless $chrom_names->{$cid} =~ /random/i;
   }
-  print STDERR "# ALL DONE: processed $c blat alignment signal entries\n\n";
+  print "# ALL DONE: processed $c blat alignment signal entries\n\n";
 }
 
 #----------------
@@ -195,7 +195,7 @@ sub saveSignals {
   foreach (@$cols) { push @vals, $signals->{$_}; }
   my $sql = "INSERT INTO ${tmp}.BlatAlignmentSignals(" . join(',', @$cols). ")"
           . "VALUES (" . join(',', @vals) . ")";
-  $dbh->sqlexec($sql);
+  $dbh->do($sql);
 }
 
 sub getBlatIds {
@@ -222,7 +222,7 @@ BA_SQL
 }
 
 sub cleanOrCreateTempTable {
-  my ($dbh, $tmpLogin, $extDbId) = @_;
+  my ($dbh, $tmpLogin, $extDbId, $isRestart) = @_;
 
   my $tmp = uc($tmpLogin);
 
@@ -242,8 +242,12 @@ sub cleanOrCreateTempTable {
   $sth->execute;
   my ($c) = $sth->fetchrow_array;
   if ($c) {
-      print STDERR "# cleaning up ${tmp}.BlatAlignmentSignals table...\n";
-      $dbh->sqlexec("delete ${tmp}.BlatAlignmentSignals where target_external_db_release_id = $extDbId");
+      if ($isRestart) {
+          print "# looks like it is a restart, do not clean table\n";
+      } else {
+          print "# cleaning up ${tmp}.BlatAlignmentSignals table...\n";
+          $dbh->do("delete ${tmp}.BlatAlignmentSignals where target_external_db_release_id = $extDbId");
+      }
   } else {
     $sql = <<BAS_SQL;
 CREATE TABLE ${tmp}.BlatAlignmentSignals(
@@ -261,9 +265,9 @@ CREATE TABLE ${tmp}.BlatAlignmentSignals(
 )
 BAS_SQL
 
-    print STDERR "# creating ${tmp}.BlatAlignmentSignals table...\n";
-    $dbh->sqlexec($sql);
-    $dbh->sqlexec("GRANT SELECT ON ${tmp}.BlatAlignmentSignals to PUBLIC");
+    print "# creating ${tmp}.BlatAlignmentSignals table...\n";
+    $dbh->do($sql);
+    $dbh->do("GRANT SELECT ON ${tmp}.BlatAlignmentSignals to PUBLIC");
   }
 
   @cols;
@@ -491,6 +495,8 @@ sub getGenomicFlankSeqs {
 
 sub getGenomicSeq {
     my ($dbh, $chr_id, $s, $len) = @_;
+
+    $dbh->{'LongReadLen'} = 4000000;
 
     my $sql = "select substr(sequence, $s, $len) "
 	    . "from DoTS.VirtualSequence "
