@@ -528,17 +528,17 @@ sub downloadTaxon {
 
     #$mgr->runCmd("gunzip $downloadSubDir/taxdump.tar.gz");
 	
-    $mgr->runCmd("tar -xf $downloadSubDir/taxdump.tar");
+    $mgr->runCmd("tar --extract --file $downloadSubDir/taxdump.tar");
 
-    $mgr->runCmd("gunzip $downloadSubDir/gi_taxid_nucl.dmp.gz");
+    #$mgr->runCmd("gunzip $downloadSubDir/gi_taxid_nucl.dmp.gz");
 
-    $mgr->runCmd("gunzip $downloadSubDir/gi_taxid_prot.dmp.gz");
+    #$mgr->runCmd("gunzip $downloadSubDir/gi_taxid_prot.dmp.gz");
 
     $mgr->endStep($signal);
 
 }
 
-sub downloadNRDB {
+sub downloadNRDB {downloadTaxon
 
     my $signal = "downloadNRDB";
 
