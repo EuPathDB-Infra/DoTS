@@ -48,7 +48,8 @@
 
   <target name="DoTS/DotsBuild-Installation" depends="ProjectTree">
     <ant target="defaultComponentInstall">
-      <property name="component" value="DoTS/DotsBuild"/>
+      <property name="project" value="DoTS"/>
+      <property name="component" value="DotsBuild"/>
     </ant>
   </target>  
 
