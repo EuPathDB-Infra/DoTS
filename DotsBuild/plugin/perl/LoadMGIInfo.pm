@@ -21,9 +21,13 @@ sub new {
 	  t => 'int',
 	  h => 'number of iterations for testing',
          },
-	 {o => 'inputfile',
+	 {o => 'infoFile',
 	  t => 'string',
 	  h => 'file downloaded from MGI containing additional information for rows in DbRef',
+         },
+	 {o => 'geneFile',
+          t => 'string',
+          h => 'file downloaded from MGI containing Entrez Gene ids for rows in DbRef',
          },
 	 {o => 'external_db_release_id',
 	  t => 'string',
@@ -56,23 +60,25 @@ sub run {
     $testnum = $ctx->{'cla'}->{'testnumber'};
   }
 
-  if (!$ctx->{'cla'}->{'inputfile'} || !$ctx->{'cla'}->{'external_db_release_id'}) {
+  if (!$ctx->{'cla'}->{'infoFile'} || !$ctx->{'cla'}->{'external_db_release_id' || !$ctx->{'cla'}->{'geneFile'}}) {
 
-    die "--inputfile --external_db_release_id must be supplied\n";
+    die "--infoFile --geneFile --external_db_release_id must be supplied\n";
 
   }
-  my $inputfile = $ctx->{'cla'}->{'inputfile'};
+  my $infoFile = $ctx->{'cla'}->{'infoFile'};
+
+  my $geneFile = $ctx->{'cla'}->{'geneFile'};
 
   my $external_db_release_id = $ctx->{'cla'}->{'external_db_release_id'};
 
-  my $dataHash = &makeDataHash($inputfile, $testnum);
+  my $dataHash = &makeDataHash($infoFile, $geneFile, $testnum);
 
   &updateDbRef($dataHash, $external_db_release_id);    
 }
 
 sub makeDataHash {
 
-    my ($inputfile, $testnum) = @_;
+    my ($infoFile, $testnum) = @_;
 
     my %dataHash;
 
@@ -80,7 +86,7 @@ sub makeDataHash {
 
     my $num = 0;
 
-    open (FILE, $inputfile) || die "Can't open the input file\n"; 
+    open (FILE, $infoFile) || die "Can't open the info file\n"; 
 
     while (<FILE>) {
       chomp;
@@ -113,7 +119,21 @@ sub makeDataHash {
 
     close(FILE);
 
-    print STDERR ("$num MGI entries will be processed\n");
+    open (GENE, $geneFile) || die "Can't open the Entrez Gene file\n";
+    my $geneNum = 0;
+    while (<GENE>) {
+      chomp;
+      my $line = $_;
+      my @arr = split(/\t/,$line);
+      next if ($arr[2] ne 'O' || !$arr[8]);
+      my $id = $arr[0];
+      my $gene = $arr[8];
+      $geneNum++;
+      $dataHash{$id}[4]=$gene;
+    }
+    close(GENE);
+
+    print STDERR ("$num MGI entries will be processed\nThere are $numGene corresponding gene ids\n");
     return \%dataHash;
 }
 
@@ -127,6 +147,7 @@ sub updateDbRef($dataHash) {
 	my $centimorgans = $dataHash->{$id}->[1];
 	my $symbol = $dataHash->{$id}->[2];
 	my $remark = $dataHash->{$id}->[3];
+	my $secondary_identifier =  $dataHash->{$id}->[4];
 	my $newDbRef = GUS::Model::SRes::DbRef->new({'primary_identifier'=>$id,'external_database_release_id'=>$external_db_release_id});
 	$newDbRef->retrieveFromDB;
 
@@ -137,11 +158,14 @@ sub updateDbRef($dataHash) {
 	    $newDbRef->setCentimorgans($centimorgans);
 	}
 	if ($symbol ne $newDbRef->get('gene_symbol')) {
-	    $newDbRef->setSecondaryIdentifier($symbol);
+	    $newDbRef->setGeneSymbol($symbol);
 	}
 	if ($remark ne $newDbRef->get('remark')) {
 	    $newDbRef->setRemark($remark);
 	}
+	if ($secondary_identifier ne $newDbRef->get('secondary_identifier')) {
+            $newDbRef->setSecondaryIdentifier($secondary_identifier);
+	  }
 	$num += $newDbRef->submit();
 	$newDbRef->undefPointerCache();
     }
