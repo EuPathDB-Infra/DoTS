@@ -200,11 +200,7 @@ my $pipelineDir = "$dotsBuildDir/$buildName";
 ###################  The Pipeline  ##########################
 
 my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFile);
-$mgr->{dotsBuildDir} = $dotsBuildDir;##in property set, this is redundant
 $mgr->{buildName} = $buildName;
-$mgr->{pipelineDir} = $pipelineDir;
-$mgr->{propertiesFile} = $propertiesFile;
-$mgr->{propertySet} = $propertySet;
 
 &createDotsPipelineDir($mgr);
 
