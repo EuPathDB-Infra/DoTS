@@ -50,10 +50,10 @@ sub new {
 sub run {
   my $self = shift;
   
-  $self->log ($self->getCla{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n");
-  $self->log ("Testing on $self->getCla{'testnumber'}\n" if $self->getCla{'testnumber'});
+  print $self->getArgs()->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
+  $self->log ("Testing on $self->getArgs()->{'testnumber'}\n" if $self->getArgs()->{'testnumber'});
   
-  unless ($self->getCla{'taxon_id'}) {
+  unless ($self->getArgs()->{'taxon_id'}) {
     die "you must provide a taxon_id\n";
   }
   
@@ -81,7 +81,7 @@ sub getIds {
   my $st2 = $dbh->prepare("select /** RULE */ p.protein_sequence_id from dots.proteininstance p, dots.translatedaafeature f, dots.rnafeature r where r.na_sequence_id = ? and r.na_feature_id = f.na_feature_id and f.aa_feature_id = p.aa_feature_id");  
   
   while (my $na_sequence_id = $st1->fetchrow_array) {
-    if ($ctx->{'cla'}->{'testnumber'} && $i >= $ctx->{'cla'}->{'testnumber'}) {
+    if ($self->getArgs()->->{'testnumber'} && $i >= $self->getArgs()->{'testnumber'}) {
       last;
     }
     $st2->execute($na_sequence_id);
@@ -123,7 +123,7 @@ sub processIds {
       $ass->addToSubmitList($trAS);
       $count += $ass->submit();
       $ass->undefPointerCache();
-      $self->log ("Processed $count ending with na_sequence_id: $id\n") if $count % 1000 == 0;
+      $self->log "Processed $count ending with na_sequence_id: $id\n" if $count % 1000 == 0 ;
     }
   }
   
