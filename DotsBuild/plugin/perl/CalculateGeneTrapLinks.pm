@@ -69,7 +69,8 @@ sub run {
     # Query for and cache the na_sequence_id, name, and length of each tag
     #
 
-    my $restartHash = &getRestartHash($logfile) if (-s $logfile);
+    my $restartHash;
+    $restartHash = &getRestartHash($logfile) if (-s $logfile);
     my $tagSeqs = &getTagSequences($dbh, $extDbRel);
     my $nTags = scalar(@$tagSeqs);
     my $nLinks = 0;
