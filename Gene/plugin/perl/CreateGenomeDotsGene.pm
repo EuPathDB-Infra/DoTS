@@ -214,7 +214,8 @@ sub run {
 
     my $gdgId = $self->getArg('initial_gdg_id');
     foreach my $coord (@$coords) {
-	$sel_criteria->{baseT}->{target_na_sequence_id} = $coord->{chr_id};
+        $self->log("processing chr$coord->{chr}:$coord->{start}-$coord->{end}"); 
+        $sel_criteria->{baseT}->{target_na_sequence_id} = $coord->{chr_id};
 	$sel_criteria->{optT} = { start => $coord->{start}, end => $coord->{end} };
 	my $gdg_wkr = DoTS::Gene::GenomeWalker->new($db, $sel_criteria, $mrg_criteria);
 	my $genes = $gdg_wkr->getCompositeGenomeFeatures();
@@ -355,7 +356,7 @@ sub createTable {
 	$sql .= $cols->[$i] . ' ' . $types->[$i] . ($i < $num_cols - 1 ? ',' : '') . "\n";
     }
     $sql .= ")";
-    print STDERR "# creating ${schema}.$tab table...\n";
+    print "# creating ${schema}.$tab table...\n";
     $dbh->sqlexec($sql);
     $dbh->sqlexec("GRANT SELECT ON ${schema}.$tab to PUBLIC");
     foreach (@$constraints) { $dbh->sqlexec($_); }

@@ -259,7 +259,7 @@ sub createGenomeDotsGene {
     my $genomeId = $propertySet->getProp('genome_db_rls_id');
     my $tmpLogin = $propertySet->getProp('tempLogin');
 
-    my $args = "--taxon_id $taxonId --genome_db_rls_id $genomeId --temp_login $tmpLogin --est_pair_cache ${tmpLogin}.EstClonePair";
+    my $args = "--taxon_id $taxonId --genome_db_rls_id $genomeId --temp_login $tmpLogin --est_pair_cache EstClonePair";
 
     $mgr->runPlugin("CreateGenomeDotsGene", 
 		    "DoTS::Gene::Plugin::CreateGenomeDotsGene",

@@ -71,7 +71,12 @@ sub _seed {
     my $self = shift;
 
     my $srt_aln = $self->{sa};
-    my $i = 0;
+    my $c = scalar(@$srt_aln);
+    if ($c > 10000) {
+        print "increasing object cache size to 2 x $c + 1000 (>10000)\n";
+        $self->{db}->setMaximumNumberOfObjects(2 * $c + 1000);
+    }
+
     foreach my $aln (@$srt_aln) {
 	my $id = $aln->getBlatAlignmentId();
 	$aln->retrieveFromDB();
@@ -86,7 +91,6 @@ sub _seed {
 	} else {
 	    push @{ $self->{cachePlus} }, $seed;
 	}
-	$self->{db}->undefPointerCache() unless ++$i % 5000;
     }
 }
 
