@@ -38,7 +38,7 @@ sub new {
      {o => 'export',
       t => 'string',
       h => 'filename to export sequences to...default does not export',
-     }
+     },
      {o => 'repeatFile',
       t => 'string',
       h => 'full path of file of repeats',
@@ -68,9 +68,9 @@ $| = 1;
 
 sub run {
   my $self = shift;
-    
+  my $ctx = shift;  
   print STDERR ($self->getCla->{'commit'} ? "COMMIT ON\n" : "COMMIT TURNED OFF\n");
-  print STDERR("Testing on". $self->getCla->{'testnumber'}."\n") if $self->getCla->{'testnumber'};
+  print STDERR ("Testing on". $self->getCla->{'testnumber'}."\n") if $self->getCla->{'testnumber'};
   
   ##set the taxon_id...
   die "You must enter either the --taxon_id and optionally --idSQL on the command line\n" unless $self->getCla->{taxon_id};
@@ -88,7 +88,7 @@ sub run {
   $library = $self->getCla->{repeatFile};
   print STDERR ("Running cross_match with $library\n");
   
-  $self->{'self_inv'}->setMaximumNumberOfObjects(100000);
+  $ctx->{'self_inv'}->setMaximumNumberOfObjects(100000);
   
   my $dbh = $self->getQueryHandle();
   
@@ -115,7 +115,7 @@ sub run {
     
     ##first get the ESTs and mRNAs..
     my $sql = "select e.na_sequence_id from dots.ExternalNASequence e where e.taxon_id in(".$self->getCla->{taxon_id}.")".
-      "and e.sequence_type_id in (7,8) " .
+      " and e.sequence_type_id in (7,8) " .
 	"and e.na_sequence_id not in (select a.na_sequence_id from dots.AssemblySequence a) ";
     
     if ($self->getCla->{'date'}) {
@@ -128,8 +128,8 @@ sub run {
     ##need to check this for things that are not human or mouse...may need to use less sophisticated query!
     my $mRNASql = "select o.na_sequence_id from dots.externalnasequence o where o.na_sequence_id in (
                        select s.na_sequence_id from dots.externalnasequence s, dots.transcript t, dots.nalocation l
-                       where s.taxon_id =".$self->getCla->{taxon_id}. 
-			 "and s.sequence_type_id = 2 
+                       where s.taxon_id =".$self->getCla->{taxon_id} . 
+			 " and s.sequence_type_id = 2 
                        and t.na_sequence_id = s.na_sequence_id
                        and t.name = 'CDS'
                        and l.na_feature_id = t.na_feature_id
