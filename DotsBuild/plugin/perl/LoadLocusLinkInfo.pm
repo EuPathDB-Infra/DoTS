@@ -104,9 +104,9 @@ sub updateDbRef {
       $newDbRef->setRemark($line[6]);
     }
 
-    $newDbRef->undefPointerCache();
-
     $num += $newDbRef->submit();
+
+    $newDbRef->undefPointerCache();
 
     exit if ($testnumber && $testnumber >= $num);
   }
