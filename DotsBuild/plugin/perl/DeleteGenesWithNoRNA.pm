@@ -1,4 +1,4 @@
-package DoTS::DotsBuild::Plugin::DeleteAssembliesWithNoAssemblySequences;
+package DoTS::DotsBuild::Plugin::DeleteGenesWithNoRNA;
 
 @ISA = qw(GUS::PluginMgr::Plugin);
 
