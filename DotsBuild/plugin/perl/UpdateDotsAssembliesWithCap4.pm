@@ -129,7 +129,7 @@ sub run {
   $ctx->{self_inv}->setGlobalDeleteSimilarityOnDelete(0);
 
   ##may need more objects as do all in one transaction...
-  $ctx->{'self_inv'}->setMaximumNumberOfObjects(200000);
+  $ctx->{'self_inv'}->setMaximumNumberOfObjects(300000);
   $algoInvo = $ctx->{self_inv}; 
 
   chomp $ctx->{cla}->{directory};
