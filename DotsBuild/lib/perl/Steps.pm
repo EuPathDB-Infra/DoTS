@@ -257,7 +257,7 @@ sub parseGenbank {
 
     my $subDir = "gbParse_".$file;
 
-    my $failFiles = "$dotsBuildDir/$dotsRelease/$buildName/plugins/$subDir/gbparserFailures/*.gb";
+    my $failFiles = "$dotsBuildDir/$dotsRelease/$buildName/plugins/$subDir/gbparserFaiures/*.gb";
 
     my @fileArr = <$failFiles>;
 
@@ -278,6 +278,8 @@ sub parsedbEST {
   my $restart = $propertySet->getProp('dbESTRestart');
 
   my $taxonIdList = &getTaxonIdList($mgr);
+
+  chomp $taxonIdList;
 
   my $args = "--log $mgr->{pipelineDir}/logs/dbest.log --fullupdate --span 500 --project 'dbEST Parser' --taxon_id_list '$taxonIdList' --restart_number $restart";
 
