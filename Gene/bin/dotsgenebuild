@@ -74,6 +74,8 @@ $mgr->{propertySet} = $propertySet;
 
 &deleteBlatAlignment($mgr);
 
+&cacheEstClonePairs($mgr);
+
 $mgr->waitForLiniac("genomic alignments of Dots", "waitGenomeAlignDots");
 
 &copyGenomeDotsFromLiniac($mgr);
@@ -81,3 +83,5 @@ $mgr->waitForLiniac("genomic alignments of Dots", "waitGenomeAlignDots");
 &loadGenomeAlignments($mgr, "dots", "genome");
 
 &findGenomicSignals($mgr);
+
+&createGenomeDotsGene($mgr);
