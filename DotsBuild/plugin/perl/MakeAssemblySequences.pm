@@ -61,7 +61,7 @@ my $library;
 
 $| = 1;
 
-sub Run {
+sub run {
     my $self   = shift;
     
     $self->log ($self->getCla{'commit'} ? "COMMIT ON\n" : "COMMIT TURNED OFF\n");

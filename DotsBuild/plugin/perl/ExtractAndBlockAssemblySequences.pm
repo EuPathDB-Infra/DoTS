@@ -63,7 +63,7 @@ my $repMaskDir = '/usr/local/src/bio/RepeatMasker/04-04-1999';
 my $tmpLib = "tmpLib.$$";
 my $RepMaskCmd;
 
-sub Run {
+sub run {
     my $self   = shift;
     
     die "You must enter repeat masker options on the command line to specify minimally the organism to be blocked\n" unless $self->getCla{rm_options} || $self->getCla{extractonly};
