@@ -1,0 +1,68 @@
+#!@perl@
+
+
+use strict;
+use lib "$ENV{GUS_HOME}/lib/perl";
+use Getopt::Long;
+use GUS::ObjRelP::DbiDatabase;
+use GUS::Model::Core::TableInfo;
+use GUS::Common::GusConfig;
+
+$| = 1;
+
+my ($accListFile, $gdgAid, $gusConfigFile, $verbose);
+&GetOptions("accListFile=s" => \$accListFile, 
+            "gusConfigFile=s" => \$gusConfigFile, 
+            "gdgAnalysisId=i" => \$gdgAid,
+	    "verbose!" => \$verbose);
+
+die "usage: genbankAcc2Gdg --accListFile --gdgAnalysisId [--gusConfigFile]\n"
+    unless $accListFile && $gdgAid;
+
+my $gusconfig = GUS::Common::GusConfig->new($gusConfigFile);
+
+print STDERR "Establishing dbi login\n" if $verbose;
+my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
+                                        $gusconfig->getReadOnlyDatabaseLogin(),
+                                        $gusconfig->getReadOnlyDatabasePassword,
+                                        $verbose,0,1,
+                                        $gusconfig->getCoreSchemaName(),
+                                        $gusconfig->getOracleDefaultRollbackSegment());
+my $dbh = $db->getQueryHandle();
+
+# for each accession, do the mapping
+print "Accession\tDT\tDG\tChrom\tStart\tEnd\tStrand\n";
+my @accs;
+open AC, $accListFile or die "could not open $accListFile for read";
+while (my $acc = <AC>) {
+    chomp $acc; next unless $acc;
+    push @accs, $acc;
+}
+close AC;
+my $tot = scalar(@accs);
+
+print STDERR "found $tot accessions in $accListFile\n" if $verbose;
+
+my $tally = 0;
+foreach my $acc (@accs) {
+    my $sql = "select a.na_sequence_id, ag.gene_id, ag.aligned_gene_id, "
+            .       " ag.chromosome, ag.chromosome_start, ag.chromosome_end, ag.strand "
+            . "from DoTS.ExternalNASequence ens, DoTS.AssemblySequence s, DoTS.Assembly a, "
+            . "allgenes.AlignedGeneAssembly aga, allgenes.AlignedGene ag "
+            . "where ens.source_id = '$acc' "
+            . "and ens.na_sequence_id = s.na_sequence_id "
+            . "and s.assembly_na_sequence_id = a.na_sequence_id "
+            . "and a.na_sequence_id = aga.na_sequence_id "
+            . "and aga.aligned_gene_id = ag.aligned_gene_id "
+            . "and ag.aligned_gene_analysis_id = $gdgAid "
+            . "order by ag.confidence_score desc";
+    my $sth = $dbh->prepare($sql) or die "bad sql $sql: $!\n";
+    $sth->execute or die "could not run $sql: $!\n";
+    if (my ($dtid, $gid, $agid, $chr, $cs, $ce, $str) = $sth->fetchrow_array) {
+        my $dg = ($gid ? "DG.$gid" : "(ag.$agid)");
+        print "$acc\tDT.$dtid\t$dg\t$chr\t$cs\t$ce\t$str\n";
+    } else {
+        print "$acc\tn/a\n";
+    }
+    print STDERR "mapped $tally / $tot \n" if $verbose && ! (++$tally % 500);
+}
