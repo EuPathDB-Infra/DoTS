@@ -1,0 +1,58 @@
+#!@perl@
+
+##  April 5 2004
+
+use strict;
+use lib "$ENV{GUS_HOME}/lib/perl";
+use Getopt::Long;
+use GUS::ObjRelP::DbiDatabase;
+use GUS::Common::GusConfig;
+
+$| = 1;
+
+my ($dbLogin,$dbPassword,$taxonId,$dotsRel,$outFile,$verbose);
+
+&GetOptions("dbLogin=s" => \$dbLogin,
+	    "dbPassword=s" => \$dbPassword,
+	    "taxonId=i" => \$taxonId,
+	    "dotsRel=s" => \$dotsRel,
+	    "outFile=s" =>\$outFile,
+	    'verbose!' => \$verbose);
+
+&usage() unless $taxonId && $dotsRel && $outFile;
+
+my $gusconfig = GUS::Common::GusConfig->new();
+$dbLogin = $gusconfig->getDatabaseLogin() unless $dbLogin;
+$dbPassword = $gusconfig->getDatabasePassword() unless $dbPassword;
+
+my $sp = ""; $sp = 'hum' if $taxonId == 8; $sp = 'mus' if $taxonId == 14;
+
+my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
+					$dbLogin,
+					$dbPassword,
+					$verbose,0,1,
+					$gusconfig->getCoreSchemaName());
+my $dbh = $db->getQueryHandle();
+
+
+# DT - EST anatomy file
+my $sql = "select ap.na_sequence_id, a.anatomy_id, a.name, ap.anatomy_ests, ap.percent, ap.est_count "
+    . "from dots.AssemblyAnatomyPercent ap, Sres.Anatomy a "
+    . "where ap.anatomy_id = a.anatomy_id and ap.taxon_id = $taxonId "
+    . "order by ap.na_sequence_id, ap.anatomy_id";
+my $sth = $dbh->prepare($sql) or die "bad sql $sql";
+$sth->execute();
+open OUT, ">$outFile";
+
+print OUT "# DT\tAnatamy(ID)\tAnatomy Percent(EST count)\tTotal ESTs\n";
+while (my ($dt, $aid, $anam, $c, $p, $tot) = $sth->fetchrow_array) {
+    print OUT "DT.$dt\t$anam($aid)\t" . sprintf("%3.2f", $p) . "\%($c)\t$tot\n";
+}
+close OUT;
+
+sub usage {
+  print STDERR "\nUsage: dotsDownloadFiles --dbLogin --dbPassword --taxonId --dotsRel --outFile [--verbose]\n\n";
+  exit(1);
+}
+
+1;
