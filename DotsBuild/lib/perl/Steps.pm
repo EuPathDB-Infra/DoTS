@@ -1610,7 +1610,7 @@ sub insertProdom {
 
   $mgr->runCmd ("gunzip ${prodomFile}.gz"); 
 
-  my $logFile = "$mgr->{pipelineDir}/logs/insertProdom.log";
+  my $logFile = "$mgr->{pipelineDir}/logs/insertProdom.log" unless -e "$downloadSubDir/prodom.cons";
 
   my $prodomDB = $propertySet->getProp('prodom_db_rls_id');
 
