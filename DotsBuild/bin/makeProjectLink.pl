@@ -123,7 +123,7 @@ sub insertProjectLink {
 
     print STDERR ("$num assembly ids to be entered into ProjectLink\n");
 
-    my $sql = "insert into dots.ProjectLink (ProjectLink_sq.nextval,$project,56,?,null,SYSDATE,1,1,1,1,1,0,12,0,$project,0)";
+    my $sql = "insert into dots.ProjectLink (ProjectLink_sq.nextval,$project,56,?,'',SYSDATE,1,1,1,1,1,0,12,0,$project,0)";
 
     my $stmt = $db->prepare($sql);
 
