@@ -662,8 +662,8 @@ sub submitUpdatedAssemblies {
       ###check to see if still has assemblyseuqencechildren and deal with if  so...
       ##is hack but can fix before dumping sequences so leave in until find problem
       if ($c->isMarkedDeleted()) {
-        $c->retrieveChildrenFromDB('AssemblySequence');
-        if (scalar($c->getChildren('AssemblySequence')) > 0) {
+        $c->retrieveChildrenFromDB('GUS::Model::DoTS::AssemblySequence');
+        if (scalar($c->getChildren('GUS::Model::DoTS::AssemblySequence')) > 0) {
           $c->markUnDeleted();
           $c->removeAllChildren();
           $c->undefSubmitList();
