@@ -49,14 +49,15 @@ sub percolateAndWrite {
 
     $raw_percolated += $kid_raw_percolated;
     $effective_percolated += $kid_effective_percolated;
+    next if $effective_percolated == 0;
   }
-
+  return ($raw_percolated,$effective_percolated) if $raw_percolated == 0;
   # write
   my $percent = $effective_percolated / $sumEffective * 100;
   my $anatomyESTs = $raw_percolated;
 
   my $args = {percent => $percent,
-	      anatomy_ests => $raw_percolated,
+	      anatomy_ests => $anatomyESTs,
 	      anatomy_id => $self->{anatomyId},
 	      EST_count => $sumRaw,
 	      taxon_id => $taxonId,
