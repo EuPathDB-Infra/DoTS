@@ -42,6 +42,10 @@ sub new {
      {o => 'repeatFile',
       t => 'string',
       h => 'full path of file of repeats',
+     },
+     {o => 'phrapDir',
+      t => 'string',
+      h => "full path of the directory containing phrap's cross_match program",
      }
     ];
 
@@ -76,6 +80,8 @@ sub run {
   die "You must enter either the --taxon_id and optionally --idSQL on the command line\n" unless $self->getCla->{taxon_id};
 
   die "You must provide the subdirectory and repeat file, e.g. unknown_release/vector_humMitoRibo.lib\n" unless $self->getCla->{repeatFile};
+
+  die "You must provide a --phrapDir in which an executable cross_match program resides" unless -x $self->getCla->{phrapDir} . "/cross_match";
   ##set up the library:
   #if($self->getCla->{taxon_id} == 8){
     #$library = '/ptolemy/share/data/thirdparty/repeat/unknown_release/vector_humMitoRibo.lib';
@@ -193,7 +199,7 @@ sub processQuery {
     my $ex = GUS::Model::DoTS::ExternalNASequence->new({'na_sequence_id' => $id});
     next unless $ex->retrieveFromDB();
     ##want to just use the quality_sequence if it exists...
-    my $ls = $ex->getChildren('GUS::Model::DoTS::EST',1);
+    my ($ls) = $ex->getChildren('GUS::Model::DoTS::EST',1);
     my $qStop;
     $qStop = $ls->getQualityStop() if $ls;
     if($ls && defined $qStop){  ##exists and has qualityStop...assume quality_start is not relevant if qualitystop is null..
@@ -225,17 +231,19 @@ sub processSet {
   my $self   = shift;
   my($miniLib) = @_;
   
-  my $phrap_dir = '/usr/local/src/bio/phrap/latest';
-  open(S, ">tmpLib");
+  open(S, ">tmpLib") || die "Can't open tmpLib";
   print S $miniLib;
   close S;
-  
+
+  my $phrapDir = $self->getCla->{phrapDir};
     ##NOTE that need to get this installed correctly...
   #  system("/usr/local/src/bio/PHRAP_etal/phrap.SUNWspro/ultra.bin/cross_match tmpLib /usr/local/db/others/repeat/vector -screen > cross.test");
-  system("$phrap_dir/cross_match tmpLib $library -screen > cross.test 2> /dev/null");
-  
-    ##generate better sequence....
-  open(S,"tmpLib.screen");
+  die unless -x "$phrapDir/cross_match";
+  my $retCode = system("$phrapDir/cross_match tmpLib $library -screen > cross.test 2> cross_match.err");  
+  die "Failed with status $retCode running cross_match" if $retCode;
+
+  ##generate better sequence....
+  open(S,"tmpLib.screen") || die "Can't open tmpLib.screen";
   my $seq;
   my $na_seq_id;
   while (<S>) {
