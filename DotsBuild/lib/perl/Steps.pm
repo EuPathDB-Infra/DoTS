@@ -1063,6 +1063,26 @@ sub extractGeneTrapTags {
   $mgr->endStep($signal);
 }
 
+sub formatFinalDots {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "formatFinalDots";
+
+  return if $mgr->startStep("Formatting finalDots.fsa for blast", $signal, 'loadGeneTrapAssembly');
+
+  my $blastBinDir = $propertySet->getProp('wuBlastBinPath');
+
+  my $outputFile1  = "$mgr->{pipelineDir}/seqfiles/finalDots.fsa";
+  my $fastalink1 = "$mgr->{pipelineDir}/blastSite/finalDots";
+
+  $mgr->runCmd("ln -s $outputFile1 $fastalink1");
+  $mgr->runCmd("$blastBinDir/xdformat -n $fastalink1");
+  $mgr->runCmd("rm -rf $fastalink1");
+  $mgr->endStep($signal);
+}
+
+
 sub blastGeneTrapTags {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
@@ -1071,7 +1091,7 @@ sub blastGeneTrapTags {
 
   return if $mgr->startStep("Blasting gene trap tags vs final mouse DoTS", $signal, 'loadGeneTrapAssembly');
 
-  my $dotsFile = "$mgr->{pipelineDir}/blastSite/musDoTS";
+  my $dotsFile = "$mgr->{pipelineDir}/blastSite/finalDots";
 
   my $blastBinDir = $propertySet->getProp('wuBlastBinPath');
 
