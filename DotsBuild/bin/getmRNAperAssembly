@@ -28,7 +28,7 @@ my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
 my $dbh = $db->getQueryHandle();
 
 
-my $sql = "select ass.assembly_na_sequence_id,e.source_id from dots.ExternalNASequence e, dots.AssemblySequence ass where e.na_sequence_id = ass.na_sequence_id and ass.assembly_na_sequence_id is not null and e.taxon_id = $taxon_id and e.sequence_type_id in (2,7) order by ass.assembly_na_sequence_id";
+my $sql = "select /*+ RULE */ ass.assembly_na_sequence_id,e.source_id from dots.ExternalNASequence e, dots.AssemblySequence ass, dots.Assembly a where e.na_sequence_id = ass.na_sequence_id and ass.assembly_na_sequence_id is not null and ass.assembly_na_sequence_id = a.na_sequence_id and a.taxon_id = $taxon_id and e.sequence_type_id in (2,7) order by ass.assembly_na_sequence_id";
 
 print STDERR "Query: $sql\n" if $verbose;
 
