@@ -377,8 +377,10 @@ sub getChroms {
   my ($dbh, $ext_db_rel_id, $skipChrs) = @_;
 
   my $sql = "select na_sequence_id, chromosome, length(sequence) from DoTS.VirtualSequence "
-    . "where external_database_release_id = $ext_db_rel_id "
-    . "and chromosome not in (" . join(', ', map { "'" . $_ . "'" } @$skipChrs). ")";
+    . "where external_database_release_id = $ext_db_rel_id";
+  if (scalar(@$skipChrs) > 0) {   
+    $sql .= " and chromosome not in (" . join(', ', map { "'" . $_ . "'" } @$skipChrs). ")";
+  }
   my $sth = $dbh->prepareAndExecute($sql);
 
   my @chroms;
