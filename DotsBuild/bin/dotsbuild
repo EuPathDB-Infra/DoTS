@@ -635,8 +635,6 @@ sub parseRefSeq {
   my $signal = "refseq_${file}";
     
   $mgr->runPlugin($signal, "GUS::Common::Plugin::GBParser", $args, "Loading RefSeq files into GUS");
-    
-  }
 }
 
 sub parsedbEST {
