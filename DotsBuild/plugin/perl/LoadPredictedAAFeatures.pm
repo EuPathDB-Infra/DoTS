@@ -99,8 +99,6 @@ sub new {
 		     usage => $usage
 		    }); 
   return $self;
-
-					};
 }
 
 sub run {
