@@ -66,12 +66,16 @@ my @properties =
  ["loadGeneCards",   "",  "yes or no"],
  ["downloadGOStuff",   "",  "yes or no"],
  ["prodomRelease",   "",  "eg 2001.3"],
+ ["mgi_db_rls_id",   "",  "database release id for mgi"],
+ ["genecards_db_rls_id",   "",  "database release id for genecards"],
  ["prodom_db_rls_id",   "",  "a new id for the external_database_release table"],
  ["load_db_rls_id",   "",  "a new id for the external_database_release table"],
  ["pfam_db_rls_id",   "",  "a new id for the external_database_release table"],
  ["smart_db_rls_id",   "",  "a new id for the external_database_release table"],
  ["nrdb_db_rls_id" , "","the external_database_release_id for nrdb"],
  ["imclone_db_rls_id" , "","the external_database_release_id for imclone"],
+ ["locuslink_db_rls_id" , "","the external_database_release_id for LL"],
+ ["gea_db_rls_id" , "","the external_database_release_id for GEA"],
  ["makeNewGORules",   "",  "yes or no. Regenerate the GO rules from scratch"],
  ["GOversion",   "",  "version of GO, eg, 2.155"],
  ["GOrootId",   "",  "only until GUS 3.0, eg, 59235"],
@@ -86,6 +90,7 @@ my @properties =
  ["iPSRestart" , "","list of algorithm_invocation_id for restart of insertProteinSimilaritiesPK, see ffRestart"],
  ["assignDescriptionRestart" , "","list of algorithm_invocation_id for restart of AssignSequenceDescription"],
  ["loadMGI" ,  "",  "yes or no"],
+ ["loadGEA" ,  "",  "yes or no"],
  ["insertTaxonRestart" , "","last ncbi_tax_id in the log for restarting LoadTaxon.pm"],
  ["nrdbRestart" , "","last set number in log for restarting LoadNrdb.pm"],
  ["nrdbTempLogin" , "","login for temp table space, e.g. pinney@gusdev"],
@@ -1211,7 +1216,7 @@ sub deleteIndexWords {
 
     my $sql = "select index_word_link_id from dots.indexwordlink l,dots.assembly a where a.taxon_id = $taxonId and a.na_sequence_id = l.target_id and l.target_table_id = 56";
 
-    my $cmd = "deleteEntries.pl --gusConfigFile $gusConfigFile --table DoTS::IndexWordLink --idSQL \"$sql\" --verbose 2>> $logFile";
+    my $cmd = "deleteEntries.pl --gusConfigFile $gusConfigFile --table DoTS.IndexWordLink --idSQL \"$sql\" --verbose 2>> $logFile";
 
     $mgr->runCmd($cmd);
 
@@ -1236,7 +1241,8 @@ sub deleteNRDBIndexWords {
 
   my $signal = "deleteNRDBIndexWords";
 
-  return if $mgr->startStep("Deleting nrdb index word links from GUS", $signal, 'downloadNRDB');
+  return if $mgr->startStep("Deleting nrdb index word links from GUS",
+			    $signal, 'downloadNRDB');
 
   my $buildDate = $propertySet->getProp('buildDate');
   my $nrdbReleaseId = $propertySet->getProp('nrdb_db_rls_id');
@@ -1245,7 +1251,7 @@ sub deleteNRDBIndexWords {
 
   my $sql = "select index_word_link_id from dots.indexwordlink l,dots.externalaasequence e where e.aa_sequence_id = l.target_id and l.target_table_id = 83 and e.external_database_release_id = $nrdbReleaseId  and e.modification_date > '$buildDate'";
 
-  my $cmd = "deleteEntries.pl --table DoTS::IndexWordLink --idSQL \"$sql\" --verbose 2>> $logFile";
+  my $cmd = "deleteEntries.pl --table DoTS.IndexWordLink --idSQL \"$sql\" --verbose 2>> $logFile";
 
   $mgr->runCmd($cmd);
 
@@ -1775,7 +1781,7 @@ sub deleteAnatomyPercent {
 
     my $sql = "select assembly_anatomy_percent_id from dots.assemblyanatomypercent where na_sequence_id in (select  na_sequence_id from dots.assembly where taxon_id = $taxonId)";
 
-    my $cmd = "deleteEntries.pl --table DoTS::AssemblyAnatomyPercent --gusConfigFile $gusConfigFile --idSQL \"$sql\" --verbose 2>> $logFile";
+    my $cmd = "deleteEntries.pl --table DoTS.AssemblyAnatomyPercent --gusConfigFile $gusConfigFile --idSQL \"$sql\" --verbose 2>> $logFile";
     
     $mgr->runCmd($cmd);
 
@@ -1829,7 +1835,9 @@ sub versionGeneTrapAssembly {
     my $signal = "versionGeneTrapAssembly";
 
     return if $mgr->startStep("Versioning entries from GeneTrapAssembly", $signal,'loadGeneTrapAssembly');
-    
+
+    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
     my $taxonId = $propertySet->getProp('taxonId');
 
     my $userId = $propertySet->getProp('userId');
@@ -1838,7 +1846,7 @@ sub versionGeneTrapAssembly {
 
     my $sql = "select gene_trap_assembly_id from dots.genetrapassembly g, dots.assembly a where a.na_sequence_id=g.assembly_na_sequence_id and a.taxon_id=$taxonId";
 
-    my $cmd = "versionEntries.pl --table DoTS::GeneTrapAssembly --idSQL \"$sql\" --tablePK 'gene_trap_assembly_id' --userId $userId --verbose 2>> $logFile";
+    my $cmd = "versionEntries.pl --table DoTS.GeneTrapAssembly --idSQL \"$sql\" --tablePK 'gene_trap_assembly_id' --userId $userId --gusConfigFile $gusConfigFile --verbose 2>> $logFile";
     
     $mgr->runCmd($cmd);
 }
@@ -1847,15 +1855,18 @@ sub deleteGeneTrapAssembly {
 
     my $signal = "deleteGeneTrapAssembly";
 
-    return if $mgr->startStep("Deleting entries from GeneTrapAssembly", $signal,'loadGeneTrapAssembly');
-    
+    return if $mgr->startStep("Deleting entries from GeneTrapAssembly",
+			      $signal, 'loadGeneTrapAssembly');
+
+    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
     my $taxonId = $propertySet->getProp('taxonId');
 
     my $logFile = "$pipelineDir/logs/${signal}.log";
 
     my $sql = "select gene_trap_assembly_id from dots.genetrapassembly g, dots.assembly a where a.na_sequence_id=g.assembly_na_sequence_id and a.taxon_id=$taxonId";
 
-    my $cmd = "deleteEntries.pl --table DoTS::GeneTrapAssembly --idSQL \"$sql\" --verbose 2>> $logFile";
+    my $cmd = "deleteEntries.pl --table DoTS.GeneTrapAssembly --idSQL \"$sql\" --gusConfigFile $gusConfigFile --verbose 2>> $logFile";
     
     $mgr->runCmd($cmd);
 } 
@@ -2005,13 +2016,17 @@ sub deleteMGIToDots {
     my $signal = "deleteMGIToDots";
 
     return if $mgr->startStep("Deleting MGI to DoTS entries from DbRefNASequence", $signal,'loadMGI');
-    
+
+    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
+    my $mgiDbRlsId = $propertySet->getProp('mgi_db_rls_id');
+
     my $logFile = "$pipelineDir/logs/${signal}.log";
 
-    my $sql = "select db_ref_id from sres.dbref where external_db_id = 4893";
+    my $sql = "select db_ref_id from sres.dbref where external_database_release_id = $mgiDbRlsId";
 
-    my $cmd = "deleteEntries.pl --table DoTS::DbRefNASequence --idSQL \"$sql\" --verbose 2>> $logFile";
-    
+    my $cmd = "deleteEntries.pl --table DoTS.DbRefNASequence --idSQL \"$sql\" --gusConfigFile $gusConfigFile --verbose 2>> $logFile";
+
     $mgr->runCmd($cmd);
 
 }
@@ -2032,17 +2047,21 @@ sub loadMGIInfo {
 }
 
 sub deleteGeneCardsToDots {
-    
+
     my $signal = "deleteGeneCardsToDots";
 
     return if $mgr->startStep("Deleting GeneCards to DoTS entries from DbRefNASequence", $signal,'loadGeneCards');
-    
+
+    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
+    my $geneCardsDbRlsId = $propertySet->getProp('genecards_db_rls_id');
+
     my $logFile = "$pipelineDir/logs/${signal}.log";
 
-    my $sql = "select db_ref_id from sres.dbref where external_db_id = 4892";
+    my $sql = "select db_ref_id from sres.dbref where external_database_release_id = $geneCardsDbRlsId";
 
-    my $cmd = "deleteEntries.pl --table SRes::DbRefNASequence --idSQL \"$sql\" --verbose 2>> $logFile";
-    
+    my $cmd = "deleteEntries.pl --table SRes.DbRefNASequence --idSQL \"$sql\" --gusConfigFile $gusConfigFile --verbose 2>> $logFile";
+
     $mgr->runCmd($cmd);
 
 }
@@ -2051,7 +2070,10 @@ sub loadGeneCardsToDoTS {
 
     my $args = "--mappingfiles '$pipelineDir/misc/DoTS_2_GeneCards' --pattern '\S+' --db_id 4892";
 
-    $mgr->runPlugin("loadGeneCardsMapping", "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence", $args, "loading GeneCards to DoTS mapping",'loadGeneCards');
+    $mgr->runPlugin("loadGeneCardsMapping", 
+		    "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence",
+		    $args,
+		    "loading GeneCards to DoTS mapping",'loadGeneCards');
 }
 
 #sub to dump framefinder translations for download site
@@ -2061,18 +2083,51 @@ sub loadGeneCardsToDoTS {
 #alter for mus, etc
 #}
 
-sub deleteGeneCardsToDots {
-    
+sub deleteLocusLink {
+
     my $signal = "deleteLocusLinkToDots";
 
     return if $mgr->startStep("Deleting LocusLink to DoTS entries from DbRefNASequence", $signal,'loadLocusLink');
-    
+
+    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
+    my $llDbRlsId = $propertySet->getProp('locuslink_db_rls_id');
+
     my $logFile = "$pipelineDir/logs/${signal}.log";
 
-    my $sql = "select db_ref_id from sres.dbref where external_db_id = 6095";
+    my $sql = "select db_ref_id from sres.dbref where external_database_release_id = $llDbRlsId";
 
-    my $cmd = "deleteEntries.pl --table SRes::DbRefNASequence --idSQL \"$sql\" --verbose 2>> $logFile";
-    
+    my $cmd = "deleteEntries.pl --table SRes.DbRefNASequence --idSQL \"$sql\" --gusConfigFile $gusConfigFile --verbose 2>> $logFile";
+
+    $mgr->runCmd($cmd);
+
+}
+
+sub loadLocusLinkToDoTS {
+
+    my $args = "--mappingfiles '$pipelineDir/misc/DoTS_2_LL' --pattern '\d+'  --db_id 6095";
+
+    $mgr->runPlugin("loadGEAMapping",
+		    "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence", 
+		    $args, "loading LocusLink to DoTS mapping",'loadLocusLink');
+}
+
+sub deleteGEA {
+
+    my $signal = "deleteGEAToDots";
+
+    return if $mgr->startStep("Deleting GEA to DoTS entries from DbRefNASequence", $signal,'loadGEA');
+
+    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
+    my $geaDbRlsId = $propertySet->getProp('gea_db_rls_id');
+
+    my $logFile = "$pipelineDir/logs/${signal}.log";
+
+    my $sql = "select db_ref_id from sres.dbref where external_database_release_id = $geaDbRlsId";
+
+    my $cmd = "deleteEntries.pl --table SRes.DbRefNASequence --idSQL \"$sql\" --gusConfigFile $gusConfigFile --verbose 2>> $logFile";
+
     $mgr->runCmd($cmd);
 
 }
@@ -2081,16 +2136,20 @@ sub loadGEAToDoTS {
 
     my $args = "--mappingfiles '$pipelineDir/misc/DoTS_2_LL' --pattern '\d+'  --db_id 6095";
 
-    $mgr->runPlugin("loadGEAMapping", "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence", $args, "loading GEA to DoTS mapping",'loadMGIAndGeneCards');
+    $mgr->runPlugin("loadGEAMapping",
+		    "GUS::Common::Plugin::InsertDbRefAndDbRefNASequence", 
+		    $args, "loading GEA to DoTS mapping", 'loadGEA');
 }
 
 sub makeProjectLink {
 
     my $signal = "makeProjectLink";
 
-    return if $mgr->startStep("Deleting LocusLink to DoTS entries from DbRefNASequence", $signal);
+    return if $mgr->startStep("Insert links between projectinfo and nasequence into projectlink table", $signal);
 
     my $taxonId = $propertySet->getProp('taxonId');
+
+    my $imcloneDbRlsId = $propertySet->getProp('imclone_db_rls_id');
 
     my $allgenesVer = $propertySet->getProp('allgenesVersion');
 
@@ -2098,18 +2157,13 @@ sub makeProjectLink {
 
     my $args;
 
-    if ($propertySet->getProp('projectLinkRestart') eq "yes") {
+    $args = "--commit --verbose --allgenes_num $allgenesVer --gusConfigFile $gusConfigFile  --taxon $taxonId --imclone_db_rls_id $imcloneDbRlSID";
 
-	$args = "--commit --verbose --restart --allgenes_num $allgenesVer --gusConfigFile $gusConfigFile  --taxon $taxonId";
-    }
-    else {
-
-	$args = "--commit --verbose --allgenes_num $allgenesVer --gusConfigFile $gusConfigFile  --taxon $taxonId";
-    }
+    $args .= " --restart"
+      if ($propertySet->getProp('projectLinkRestart') eq "yes");
 
     my $cmd = "makeProjectLink.pl $args";
 
-    
     $mgr->runCmd($cmd);
 }
 
