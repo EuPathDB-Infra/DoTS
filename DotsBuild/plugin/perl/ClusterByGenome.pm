@@ -230,10 +230,11 @@ sub getClusterLinks {
 
 sub addNewMembers {
     my ($dbh, $aid, $taxon_id, $query_dbid, $genome_id, $stage, $clusters) = @_;
-
     my $new_seqs = 0;
     my %changed_dgs;
+    my %assSeqs;
     my $no_dg_seqs = 0;
+
     my $sql = "select s.assembly_sequence_id, b.target_start, b.target_end, b.target_na_sequence_id "
 	. "from DoTS.BlatAlignment b, DoTS.AssemblySequence s "
 	. "where b.query_na_sequence_id = s.na_sequence_id "
@@ -243,34 +244,39 @@ sub addNewMembers {
 	. "and b.target_external_db_release_id = $genome_id and b.is_best_alignment = 1";
     my $sth = $dbh->prepare($sql) or die "bad sql $sql";
     $sth->execute or die "could not run $sql";
+
     while (my ($id, $ts, $te, $chr_id) = $sth->fetchrow_array) {
-	my $sql1 = "select ag.aligned_gene_id from Allgenes.AlignedGene ag, Dots.VirtualSequence vs "
-	    . "where ag.chromosome = vs.chromosome and vs.na_sequence_id = $chr_id "
-	    . "and not (ag.chromosome_start > $te or ag.chromosome_end < $ts) "
-	    . "and ag.aligned_gene_analysis_id = $aid";
-	my $sth1 = $dbh->prepare($sql1) or die "bad sql $sql1";
-	$sth1->execute or die "could not run $sql1";
-	$new_seqs++;
-	my $has_dg_overlap = 0;
-	while (my ($agid) = $sth1->fetchrow_array) {
-	    # TODO: maybe evaluation exon overlaps by comparing block coordinates
-	    $clusters->{$agid}->{$id} = '';
-	    $changed_dgs{$agid} = '';
-	    $has_dg_overlap++;
-	}
-	$sth1->finish;
-
-	# HACK: put seqs on each chr in a group if they do not overlap any dgs
-	unless ($has_dg_overlap) {
-	    $no_dg_seqs++; 
-	    $clusters->{"c$chr_id"} = {} unless ($clusters->{"c$chr_id"});
-	    $clusters->{"c$chr_id"}->{$id} = '';
-	    # print "*** adding seq $id on chr $chr_id to a group\n";
-	}
+      $assSeqs{$id} = [$ts,$te,$chr_id];
     }
-    $sth->finish;
+    $sth->finish();
 
-    return ($new_seqs, scalar(keys %changed_dgs), $no_dg_seqs);
+    my $sql1 = "select ag.aligned_gene_id from Allgenes.AlignedGene ag, Dots.VirtualSequence vs "
+      . "where ag.chromosome = vs.chromosome and vs.na_sequence_id = ? "
+	. "and not (ag.chromosome_start > ? or ag.chromosome_end < ?) "
+	  . "and ag.aligned_gene_analysis_id = $aid";
+    my $sth1 = $dbh->prepare($sql1) or die "bad sql $sql1";
+    foreach my $assSeq (keys  %assSeqs) {
+      $sth1->execute($assSeqs{$assSeq}[2],$assSeqs{$assSeq}[1],$assSeqs{$assSeq}[0]) or die "could not run $sql1";
+      $new_seqs++;
+      my $has_dg_overlap = 0;
+      while (my ($agid) = $sth1->fetchrow_array) {
+	# TODO: maybe evaluation exon overlaps by comparing block coordinates
+	$clusters->{$agid}->{$assSeq} = '';
+	$changed_dgs{$agid} = '';
+	$has_dg_overlap++;
+      }
+      $sth1->finish;
+
+      # HACK: put seqs on each chr in a group if they do not overlap any dgs
+      unless ($has_dg_overlap) {
+	$no_dg_seqs++; 
+	$clusters->{"c$assSeqs{$assSeq}[2]"} = {} unless ($clusters->{"c$chr_id"});
+	$clusters->{"c"assSeqs{$assSeq}[2]}->{$id} = '';
+	# print "*** adding seq $assSeqs on chr $chr_id to a group\n";
+      }
+    }
+
+return ($new_seqs, scalar(keys %changed_dgs), $no_dg_seqs);
 }
 
 sub getAlignedGeneAnalysisId {
