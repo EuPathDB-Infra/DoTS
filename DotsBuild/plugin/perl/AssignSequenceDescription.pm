@@ -254,13 +254,13 @@ sub run {
       print STDERR "Contains mRNA...getting name of longest one..\n" if $debug;
       $mRNAStmt->execute($id);
       while (my($ext_db_rel_id,$accession,$gusName,$gusDesc) = $mRNAStmt->fetchrow_array()) {
-        print STDERR "debug: mrnaQuery:($ext_db_id,$accession,$gusName,$gusDesc)\n" if $debug || $ctx->{cla}->{verbose};
+        print STDERR "debug: mrnaQuery:($ext_db_rel_id,$accession,$gusName,$gusDesc)\n" if $debug || $ctx->{cla}->{verbose};
         $gusDesc =~ s/^\s*(\S.*\S)\s*$/$1/;
         if($gusDesc){
           &updateAssemblyFromRNA($obj,$ext_db_rel_id,$accession,$gusName,$gusDesc);
           $mRNAStmt->finish();
           $haveName = 1;
-          print MGI "DT.$id: $ext_db_id|$accession - contained mRNA\n" if $ctx->{cla}->{dots_mgi_file};
+          print MGI "DT.$id: $ext_db_rel_id|$accession - contained mRNA\n" if $ctx->{cla}->{dots_mgi_file};
           last;
         }
       }
