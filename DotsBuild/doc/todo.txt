@@ -13,49 +13,21 @@ Some more things:
   9. integrate the GO stuff (parallel)
   10. didn't run the cleanup step
   11. zip as we go
-  
+  12. add the FF file to the downloads department
+  13. double check the promoter region table
+  14. get a legit version of the TMHMM package
+  15. move from /ptolemy to /files
+  16. get new GEA files  
+FrameFinder
+   - investigate and why and what to do about Framefinder's putting an * in the translated sequence
+
 
 For Release 8 and beyond
   - move to DIANA from framefinder for build 8?
   - develop new clustering algorithm (new graph approach + genome)
   - unify our approach to loading links to external dbs
 
-
-FOR RELEASE 7
-
- **** Before Downloading ****
-
-   - make sure we have enough disk space 
-        -mothball build 5
-        -evaluate if we need to be more aggressive about gzipping
-
-   - see if log is being clobbered
-
-   - go through the Pre-build Checklist
-
-
-
- **** Before Post-Download Pipeline ****
-
-   - replace repeat/vector file on both ptolemy and liniac:ftp://ftp.ncbi.nih.gov/blast/db/FASTA/vector.Z
-
-   - add sub to run plugin/script that updates all the quality attributes for existing AssemblySequences-time this to see if this should be done at every build or there should be a set of rules to detect when a sequence has changed
-
-   - For release7, run reassemble for the initial (just the initial?) assembly plugin - compare times (just need to change property value)
-
-   - There are ~1300 duplicates in the ExternalNASrquence that are GenBank or RefSeq (maybe the above is responsible, when update is deemed necessary from the NAEntry table)-investigate and remedy if possible.
-
-
-
- **** While Build is Running ****
-
-   - investigate and why and what to do about Framefinder's putting an * in the translated sequence
-
-   - need procedure for updating externaldatabaserelease where version is continuous (add this to GBParser, NRDB, etc. plugins)
-
-   - Look into including controlling index dropping, creating, checking in the pipeline. 
-
-   - Assemble the masking file-e-mail Brian about repeat sequences-ftp://ftp.ncbi.nih.gov/blast/db/FASTA/mito.nt.Z and vector.Z and alu.n.Z and others in this same directory
+   - need procedure for updating the release date in externaldatabaserelease where version is continuous (add this to GBParser, NRDB, etc. plugins)
 
    - Discover what makes All on liniac-we made All but rpsblast replaced it.
 
@@ -63,25 +35,15 @@ FOR RELEASE 7
 
    - consider adding a "incrementally_maintained" boolean to externaldatabaserelease
 
-   - Modify dots.SignalPeptideFeature to include signal_probability and anchor_probability or otherwise remedy that situation and then rerun the plugin to add that data. The plugin may have to be modified.
-
-   - The file set that resulted from partitioning the human predicted protein (framefinder) file, is too large to process with signalP and signalPHMM. I had to do it twice. See about changing the file size - need to change code for partitioning and processing scripts. 
-
-   - prepareDownloadSiteFiles sub fails and needs to be fixed-files have been gzip'd in earlier subs and this sub altered but I'm not sure it works.
-
-   - comb through dotsgenes web site, and replace hardcoding of primary keys (eg external_db_release_ids) with config macros
-
 GENERAL:
 
 Consider deleting BlatAlignment rows for each taxon_id before running the Cap4 plugin.
 
 dbest.pm-makes a taxon cache with hard coded taxon_ids and even though a comment says that all others are on demand, there is no way to retrieve the "others"-this should be changed to accomodate the others and specific taxon_ids.(see line 843).
 
-We have, as of 8/27/03, over 26,000 dots.gene rows that don't have any rnas- why??? - I think this is happening when assemblies are being made and RNA rows are deleted but there is no deletion of the gene parent. Can't just delete the parent as it could be the parent of another rna (would cause failure). Could write a new plugin to delete the genes and childrn without rnas and run it after running the assembly program or could change the UpdateDotsWithDotsAssembliesWithCap4 plugin.
-
 Look into deadlocking with UpdateDotsAssembliesWithCap4
 
-Look into validation of files on liniac:
+Handle "no valid context" blast result:
     -novalidctxok was added to the command line to run blast in the blastMatrix script (/home/pinney/projects/DJob/DistribJobTasks/bin) so that blast wouldn't fail when there was a "no valid context" found for a query sequence
     -the result file after blast and parse blast has no line for the query at all rather than a line with >XXX and no blast result
     -validation as it now is done should compare input and output files and detect the count difference, therefore we need to change something at some level.
@@ -89,13 +51,7 @@ Look into validation of files on liniac:
 	 >27291543
 GCCTNCCTNCACGGNATTGCTNTGTGNACCTNCAGGTGNACCCACNTGNAGCTTTTNAGCCTNCAG  
 
-Add options for prodom download and insert  - other similar cases
-
-Request schema change for GUS::Model::DoTS::SignalPeptideFeature to add anchor_probability and signal_probability attributes 
-
 add options for --maketemp,--plugin,--delete to properties file and to dotsbuild for loadNRDB
-
-Framefinder, TM, and SignalP should be redone for mouse and possibly for human. 
 
 Add documentatin to dbEST.pm that indicates the source of the data, dbEST mirror, and how to load the mirror.
 
@@ -107,69 +63,34 @@ Validation, Validation, Validation
 
 NEW ISSUES 
 
-NRDB has a version "continuous" and also "unknown"... why?
+NRDB has a version "continuous" and also "unknown" (6593).  probably should delete 6593.
 
 do we have to limit our queries that make the download site files by project id?
 
-don't run in --verbose mode.... makes logs too big!!!
-
 make all big files .gz
 
-
-Add properties for version numbers for cdd, mgi
-
-
-Add option for regex for task.prop for cdd
+Add property for regex for task.prop for cdd (do this the next time the regex changes)
 
 standardize all sequence entry, blast, and similarity (incl. gene tags) procedures and code
 
-The file set that resulted from partitioning the human predicted protein (framefinder) file, is too large to process with signalP and signalPHMM. I had to do it twice. See about changing the file size - need to change code for partitioning and processing scripts. 
-
 BUILD ISSUES
 
-There are missing assemblies discovered by Angel-investigate - there are only 8 truly missing
-
-There are 81 duplications of assemblies in the MergeSplit table that are the result of a merge-7 occured during our build process. I have manually removed duplicates or entries without extant assemblies-60 remain that have valid (apparently non-overlapping) new_id (assembly ids)
-
-Information from the MGI info file needs to be loaded into the dbref table-probably in gus development and production-rewrite the script and add to pipeline
-
-
-QUESTION:  DO INCREMENTAL UPDATES NEED TO CORRECT THE EXTERNAL_DB_RLS_ID IN EXTERNALNASEQUENCE (GENBANK PARSER)
-
-
-other stuff
-- update crossmatch databases
 
 
 PLUGIN BUGS
 
 ud 1  2.00 - why aren't identical RNAs in the same assembly 
+              - [were they in the same cluster??]
+              - [did our dangle fix take care of this?]
+              - should we do a query to find these guys
 
 d 1  0.50 - investigate the assemblies that are missing rna, protein, and 
-            rnasequence --should have been created during the gene cluster 
+            rnaInstance --should have been created during the gene cluster 
             entry-validation issue too!
-
-s 2  0.50 - InsertNewExternalSequences:  must fail on regex parse problem (not 
-            just log error)
-
-s 2  0.25 - MakeRNAAssembliesForCluster:  must fail if dbi error
 
 s 2  0.25 - MakeAssemblySequences: shouldn't put out bogus final "Making 0 ..."
 
-Angel 3 3.0 - dbEST parser 
-             - misassigning IMAGE ids and not assigning WashU 
-               names and ids(angel)
-
 PLUGIN IMPROVEMENTS
-
-ds 0 15.0 - convert scripts and plugins to gus 3.0  
-
-Brkn 1 3.0 - Upgrade GO plugins for GUS 3.0
-
-d 1  1.50 - the script to create the statistics page should
-             - query for Blat alignment
-             - output into text file format
-             - use cgi-bin script to generate html
 
 d 2  3.00 - MakeRNAClustersForAssemblies: produce report of RNAs that have 
               changed gene cluster wrt manually_reviewed bit
@@ -182,21 +103,12 @@ sd 3  7.00 - improve clustering algorithm
 
 PLUGIN OPTIMIZATIONS
 
-ds 2 3.00 - Rewrite DeleteSimilarities:  generalize use of temp table, and 
-            break the set into subsets.  consider using distribjob
-
 d 2  3.00 - runUpdateAssembliesPlugin: 
             - have cap4 produce assembly files (on liniac?)
             - use distribjob to send those files through plugin
             - smartly order clusters to distribute big guys across subtasks
 
-NEW PLUGINS
-
-
-
 PIPELINE STEP IMPROVEMENTS
-
-s 1  0.25 - add predicted proteins to makeDownloadSite
 
 s 2  0.25 - unpackCDD doesn't seem to fail in absence of cdd.tar file
 
@@ -210,40 +122,22 @@ d 3  0.50 - look for other plugins that could use distribjob
 
 NEW PIPELINE STEPS
 
-Brkn 1 10 - 30 or so steps for GO rule creation 
+eventually add in the GO pipeline to dotsbuild
 
-d 1  0.5  - extract problem assembly numbers (length=0, 
-            bad number_of_contained_sequences,etc), put in cluster format, reassemble.
-           
-d 1  0.25 - make mapping from dots to novartis (taking gea->gb as input)
 
-d 1  0.50 - dump predicted proteins
-
-d 1  0.25 - merge-split
 
 d 1  1.00 - index prodom and cdd and nrdb
             - have property to say whether to do it or not
             - deleteIndexWords and makeIndexWords
 
-d 1  1.00 - find out more about: delete go evidence
-
-d 1  0.25 - call the statistics statistics script
-            - use property to say if this should be done (eg, after mus&hum)
-  
 s 1  0.25 - final step to provide todo list, including:
             - copy statistics file to allgenes site
             - copy blastable files to allgenes site
             - get DoTS files to MGI and GeneCards folks
             - update servlet-config to use new blastable files
+            - update InstallConfig to use new external db rel ids
             - copy downloadSite files
-            - AssemblyAnatomyPercent query in servlet-config should use project
-
-
-d 1  0.50 - if downloading new cdd and prodom, delete IndexWordLinks and then 
-            reindex
-
-d 2  1.00 - clean up after assembly is done (eg assemblies w/ len=0, if we 
-            have them)
+            - remove all cached values on allgenes site
 
 s 2  0.25 - reminder to do manual library assignment as soon as ESTs are loaded
 
@@ -262,9 +156,12 @@ VALIDATION
     0 len)
 
 
--------------------------------------------------------------------------------
 
-DONE
+
+
+oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+oooooooooooooooooooooooo   DONE   oooooooooooooooooooooooooooooooooooooooooo
+oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
 
 Crab 1 1.00 - generate EPConDB blastable files (requires making temp table)
 
@@ -377,6 +274,39 @@ find a way to move the MGI file from the plugin to the download directory
 need a step to filter proprietary from  MGI, finalDots.fsa, assembilesfile
   and put em on download site
 add download directory to directory structure (same lecvel as seqfiles)
-
+   - add sub to run plugin/script that updates all the quality attributes for existing AssemblySequences-time this to see if this should be done at every build or there should be a set of rules to detect when a sequence has changed
+   - There are ~1300 duplicates in the ExternalNASrquence that are GenBank or RefSeq (maybe the above is responsible, when update is deemed necessary from the NAEntry table)-investigate and remedy if possible.
+   - Modify dots.SignalPeptideFeature to include signal_probability and anchor_probability or otherwise remedy that situation and then rerun the plugin to add that data. The plugin may have to be modified.
+   - The file set that resulted from partitioning the human predicted protein (framefinder) file, is too large to process with signalP and signalPHMM. I had to do it twice. See about changing the file size - need to change code for partitioning and processing scripts. 
+   - prepareDownloadSiteFiles sub fails and needs to be fixed-files have been gzip'd in earlier subs and this sub altered but I'm not sure it works.
+   - comb through dotsgenes web site, and replace hardcoding of primary keys (eg external_db_release_ids) with config macros
+  - We have, as of 8/27/03, over 26,000 dots.gene rows that don't have any rnas- why??? - I think this is happening when assemblies are being made and RNA rows are deleted but there is no deletion of the gene parent. Can't just delete the parent as it could be the parent of another rna (would cause failure). Could write a new plugin to delete the genes and childrn without rnas and run it after running the assembly program or could change the UpdateDotsWithDotsAssembliesWithCap4 plugin.
+   - Add options for prodom download and insert  - other similar cases
+   - There are missing assemblies discovered by Angel-investigate - there are only 8 truly missing
+   - There are 81 duplications of assemblies in the MergeSplit table that are the result of a merge-7 occured during our build process. I have manually removed duplicates or entries without extant assemblies-60 remain that have valid (apparently non-overlapping) new_id (assembly ids)
+   - Information from the MGI info file needs to be loaded into the dbref table-probably in gus development and production-rewrite the script and add to pipeline
+s 2  0.50 - InsertNewExternalSequences:  must fail on regex parse problem (not 
+            just log error)
+s 2  0.25 - MakeRNAAssembliesForCluster:  must fail if dbi error [fixed in object layer]
+Angel 3 3.0 - dbEST parser 
+             - misassigning IMAGE ids and not assigning WashU 
+               names and ids(angel)
+d 1  1.50 - the script to create the statistics page should
+             - query for Blat alignment [not yet done, but an Allgenes problem, not dots]
+             - output into text file format
+             - use cgi-bin script to generate html
+ds 0 15.0 - convert scripts and plugins to gus 3.0  
+Brkn 1 3.0 - Upgrade GO plugins for GUS 3.0
+ds 2 3.00 - Rewrite DeleteSimilarities:  generalize use of temp table, and 
+            break the set into subsets.  consider using distribjob
+s 1  0.25 - add predicted proteins to makeDownloadSite
+d 1  0.5  - extract problem assembly numbers (length=0, 
+            bad number_of_contained_sequences,etc), put in cluster format, reassemble.
+d 1  0.25 - make mapping from dots to novartis (taking gea->gb as input)
+d 1  0.50 - dump predicted proteins
+d 1  0.25 - call the statistics statistics script
+            - use property to say if this should be done (eg, after mus&hum)
+d 2  1.00 - clean up after assembly is done (eg assemblies w/ len=0, if we 
+            have them)
 
 
