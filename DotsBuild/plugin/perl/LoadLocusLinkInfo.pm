@@ -89,6 +89,8 @@ sub updateDbRef {
 
     $newDbRef->retrieveFromDB;
 
+    $line[4] =  substr($line[4],0,2);
+
     if ($line[4] ne $newDbRef->get('chromosome')) {
 
       $newDbRef->setChromosome($line[4]);
