@@ -73,7 +73,7 @@ sub run {
     my $tagSeqs = &getTagSequences($dbh, $extDbRel);
     my $nTags = scalar(@$tagSeqs);
     my $nLinks = 0;
-
+    my $failcnt = 0;
     # Examine BLAST results for each tag
     #
     foreach my $t (@$tagSeqs) {
@@ -86,8 +86,10 @@ sub run {
 	if (!-e $bfile) {
 	    print STDERR "ERROR - could not find $bfile\n";
 	}
-
-	$nLinks += &processBLASTResults($t, $bfile, $minPctId, $minPctLen,$restartHash);
+        eval {
+	  $nLinks += &processBLASTResults($t, $bfile, $minPctId, $minPctLen,$restartHash);
+	  };
+	&handleFailure($t, $failcnt, $ctx->{cla}, $@) if ($@);
     }
 
     my $summary = "Generated $nLinks links for $nTags gene trap tag sequence(s).";
@@ -165,13 +167,13 @@ sub processBLASTResults {
 	    my $meetsCriteria = (($pct >= $minPct) && ($len >= $minMatchLen));
 
 	    if ($meetsCriteria) {
-		++$numMeetingCriteria;
-		my($dotsId) = ($sbj->{'description'} =~ /(\d+)\s\[Mus musculus\]/);
+	      ++$numMeetingCriteria;
+	      my($dotsId) = ($sbj->{'description'} =~ /(\d+)\s\[Mus musculus\]/);
 
-#		print "Match: $tagSrcId ($tagId) against $dotsId ";
-#		print " $pct% over $len/$tagLen bp bestHit=$bestHit\n";
+	      #print "Match: $tagSrcId ($tagId) against $dotsId ";
+	      #print " $pct% over $len/$tagLen bp bestHit=$bestHit\n";
 
-		my $obj = GUS::Model::DoTS::GeneTrapAssembly->new({
+	      my $obj = GUS::Model::DoTS::GeneTrapAssembly->new({
 		    'tag_na_sequence_id' => $tagId,
 		    'assembly_na_sequence_id' => $dotsId,
 		    'is_best_match' => $bestHit,
@@ -193,6 +195,20 @@ sub processBLASTResults {
 
     return $numMeetingCriteria;
 }
+
+sub handleFailure {
+  my ($t, $failCnt, $cla, $errMsg) = @_;
+  my $naSeqId = $t->{na_sequence_id};
+  my $srcId = $t->{source_id};
+
+  my $failTol = 100;
+
+  die "More than 100 entries failed.  Aborting."
+    if ($failCnt++ > $failTol);
+
+  print "Failed: $naSeqId, $srcId\n$errMsg\n";
+}
+
 
 # ----------------------------------------------------------
 # Generate Algorithm/AlgorithmImplementation
