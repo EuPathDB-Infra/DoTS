@@ -16,12 +16,11 @@ sub createDotsGenePipelineDir {
   my $buildName = $mgr->{buildName};
 
   my $dotsGeneBuildDir = $propertySet->getProp('dotsGeneBuildDir');
-  my $serverPath = $propertySet->getProp('serverPath');
-  my $nodePath = $propertySet->getProp('nodePath');
 
   return if (-e "$dotsGeneBuildDir/$buildName/seqfiles");
 
   $mgr->runCmd("mkdir -p $dotsGeneBuildDir/$buildName/seqfiles");
+  $mgr->runCmd("mkdir -p $dotsGeneBuildDir/$buildName/releasefiles/per_chr_gff");
 
   $mgr->runCmd("chmod -R g+w $dotsGeneBuildDir/$buildName");
 }
@@ -433,7 +432,14 @@ sub loadGenomeAlignments {
   }
 
   foreach my $pf (@pslFiles) {
-      my $chr = $2 if $pf =~ /(.*\/).*chr(\S+?)\./i;
+      my $chr;
+      if ($pf =~ /chr([\w\_]+)\.psl$/i) {
+	  $chr = $1;
+      } elsif ($pf =~ /vs[\_\-](\S+)\.psl$/i) {
+	  $chr = $1;
+      } else {
+	  die "can not deduce chr from $pf\n";
+      }
       $mgr->runPlugin($signal . "Chr$chr" . "Strip", "GUS::Common::Plugin::LoadBLATAlignments",
 		      "--blat_files $pf $args --action strip", "strip extra headers in $pf");
       $mgr->runPlugin($signal . "Chr$chr" . "Load", "GUS::Common::Plugin::LoadBLATAlignments",
@@ -466,12 +472,10 @@ sub createGenomeDotsGene {
 
     my $propertySet = $mgr->{propertySet};
     my $taxonId = $propertySet->getProp('taxonId');
-    my $genomeVer = $propertySet->getProp('genomeVersion');
     my $genomeId = $propertySet->getProp('genome_db_rls_id');
-    my $dotsVer = $propertySet->getProp('dotsRelease');
     my $tmpLogin = $propertySet->getProp('tempLogin');
 
-    my $args = "--taxon_id $taxonId --genome_db_rls_id $genomeId --temp_login $tmpLogin --est_pair_cache EstClonePair --copy_table_suffix _dt$dotsVer$genomeVer";
+    my $args = "--taxon_id $taxonId --genome_db_rls_id $genomeId --temp_login $tmpLogin --est_pair_cache EstClonePair";
     # $args .= ' --skip_chrs 1,2';
 
     $mgr->runPlugin('CreateGenomeDotsGene', "DoTS::Gene::Plugin::CreateGenomeDotsGene",
@@ -546,7 +550,13 @@ sub moveToAllgenes {
     my $genomeId = $propertySet->getProp('genome_db_rls_id');
     my $tmpLogin = $propertySet->getProp('tempLogin');
 
-    my $args = "--taxon_id $taxonId --genome_db_rls_id $genomeId --temp_login $tmpLogin --genome_dots_gene_cache GenomeDotsGene --genome_dots_transcript_cache GenomeDotsTranscript";
+    my $genomeVer = $propertySet->getProp('genomeVersion');
+    my $dotsVer = $propertySet->getProp('dotsRelease');
+
+    my $args = "--taxon_id $taxonId --genome_db_rls_id $genomeId "
+	. "--temp_login $tmpLogin --genome_dots_gene_cache GenomeDotsGene "
+	. "--genome_dots_transcript_cache GenomeDotsTranscript "
+	. "--copy_table_suffix _dt$dotsVer$genomeVer";
 
     $mgr->runPlugin('MoveGenomeDotsGeneToAllgenes',
 		    "DoTS::Gene::Plugin::MoveGenomeDotsGeneToAllgenes",
@@ -567,20 +577,116 @@ sub integrateWithGus {
 
     my $args = "--taxon_id $taxonId --genome_db_rls_id $genomeId --temp_login $tmpLogin --genome_dots_gene_cache GenomeDotsGene --genome_dots_transcript_cache GenomeDotsTranscript";
 
-    $mgr->runPlugin($signal . 'delete', "DoTS::Gene::Plugin::IntegrateGenomeDotsGeneWithGus",
+    $mgr->runPlugin($signal . 'Delete', "DoTS::Gene::Plugin::IntegrateGenomeDotsGeneWithGus",
 		    $args . ' --only_delete',
 		    "integrate genome dots gene info into GUS: delete old results");
 
-    $mgr->runPlugin($signal . 'insert', "DoTS::Gene::Plugin::IntegrateGenomeDotsGeneWithGus",
+    $mgr->runPlugin($signal . 'Insert', "DoTS::Gene::Plugin::IntegrateGenomeDotsGeneWithGus",
 		    $args . ' --only_insert',
 		    "integrate genome dots gene info into GUS: insert new results");
 
     $mgr->endStep($signal);
 }
 
-sub makeReleaseFiles {
+sub makeGffFiles {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "makeGffFiles";
+
+  return if $mgr->startStep("making GFF files for release", $signal);
+
+  my $pipelineDir = $mgr->{'pipelineDir'};
+  my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+  my $taxonId = $propertySet->getProp('taxonId');
+  my $genomeId = $propertySet->getProp('genome_db_rls_id');
+  my $sp = $propertySet->getProp('speciesNickname');
+
+  my $logFile = "$pipelineDir/logs/makeGffFiles.log";
+  my$outDir = "$pipelineDir/releasefiles/$sp/per_chr_gff";
+  my $rlsFilePref = $mgr->{releaseFilePrefix};
+
+  my $cmd = "makeGffFiles $taxonId $genomeId --gusConfigFile $gusConfigFile"
+      . " --spliced 1 --stable --format gff"
+      . " --out_dir $outDir --out_fn_pref $rlsFilePref 2>>  $logFile";
+
+  # $mgr->runCmd($cmd);
+
+  my $rlsFileSuff = $mgr->{releaseFileSuffix};
+  my $outFile = "$outDir/../$rlsFilePref${rlsFileSuff}.gff";
+
+  $cmd = "/bin/rm $outFile";
+
+  $mgr->runCmd($cmd) if -f $outFile;
+
+  opendir(GFF, $outDir);
+  my @allFiles = readdir(GFF);
+  my @gffFiles = grep(/\.gff/, @allFiles);
+  foreach (@gffFiles) {
+      $cmd = "cat $outDir/$_ >> $outFile";
+      $mgr->runCmd($cmd);
+  }
+
+  $mgr->endStep($signal);
+}
+
+sub addUcscHeaders {
     my ($mgr) = @_;
-    die "to do";
+    my $propertySet = $mgr->{propertySet};
+
+    my $signal = "addUcscHeaders";
+
+    return if $mgr->startStep("adding UCSC browser headers to GFF files for release", $signal);
+
+    my $pipelineDir = $mgr->{'pipelineDir'};
+    my $sp = $propertySet->getProp('speciesNickname');
+    my $rlsFilePref = $mgr->{releaseFilePrefix};
+
+    my $logFile = "$pipelineDir/logs/addUcscHeaders.log";
+    my$inDir = "$pipelineDir/releasefiles/$sp/per_chr_gff";
+    my$outDir = "$pipelineDir/releasefiles/$sp/per_chr_ucscgff";
+    my $genomeVer = $propertySet->getProp('genomeVersion');
+
+    my $cmd = "addUcscHeader $genomeVer $inDir $outDir 2>>  $logFile";
+
+    $mgr->runCmd($cmd);
+
+    $mgr->endStep($signal);
+}
+
+sub dumpCodingGeneSeqs {
+    &dumpGeneSeqs($_[0], 'Coding');
+}
+
+sub dumpNoncodingGeneSeqs {
+    &dumpGeneSeqs($_[0], 'Noncoding');
+}
+
+sub dumpGeneSeqs {
+  my ($mgr, $type) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "dump${type}GeneSeqs";
+
+  return if $mgr->startStep("dumping gene seqs for high confidence $type gDGs", $signal);
+
+  my $pipelineDir = $mgr->{'pipelineDir'};
+  my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+  my $taxonId = $propertySet->getProp('taxonId');
+  my $genomeId = $propertySet->getProp('genome_db_rls_id');
+  my $sp = $propertySet->getProp('speciesNickname');
+
+  my $logFile = "$pipelineDir/logs/dump" . $type . "GeneSeqs.log";
+  my$outFile = "$pipelineDir/releasefiles/$sp/"
+      . $mgr->{releaseFilePrefix} . $mgr->{releaseFileSuffix} . '.' . lc($type) . '.fa' ;
+
+  my $cmd = "dumpGeneSeqs $taxonId $genomeId $gusConfigFile 1 1 1 1 $outFile 2>>  $logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->runCmd("gzip $outFile");
+
+  $mgr->endStep($signal);
 }
 
 sub makeBuildName {
