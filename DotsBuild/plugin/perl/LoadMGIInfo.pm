@@ -137,14 +137,14 @@ sub updateDbRef($dataHash) {
     
     my $num = 0;
     
-    foreach my $primary_identifier (%$dataHash) {
+    foreach my $id (keys %$dataHash) {
 	
 	my $chromosome = $dataHash->{$id}->[0];
 	my $centimorgans = $dataHash->{$id}->[1];
 	my $secondary_identifier = $dataHash->{$id}->[2];
 	my $remark = $dataHash->{$id}->[3];
 	
-	my $newDbRef = GUS::Model::SRes::DbRef->new({'primary_identifier'=>$primary_identifier,'external_db_release_id'=>$external_db_release_id});
+	my $newDbRef = GUS::Model::SRes::DbRef->new({'primary_identifier'=>$id,'external_db_release_id'=>$external_db_release_id});
 	
 	$newDbRef->retrieveFromDB;
 	
