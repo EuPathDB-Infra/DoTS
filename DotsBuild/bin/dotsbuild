@@ -131,6 +131,8 @@ my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFil
 
 &insertTaxon();
 
+exit();
+
 &parseGenbank();
 
 ###&parsedbEST();
