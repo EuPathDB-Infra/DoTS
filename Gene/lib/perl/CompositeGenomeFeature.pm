@@ -74,10 +74,10 @@ sub _sortCoords {
     }
 
     if ($debug == 3) {
-        print "#debug \t\t${SUB}::x coords before sort: ";
-        foreach (@$coords) { print $_->[0], ", "; }
-        print "\n";
-        print "#debug \t\t${SUB}::x coords after sort: ", join(', ', @sorted_starts), "\n"; 
+        print STDERR "#debug \t\t${SUB}::x coords before sort: ";
+        foreach (@$coords) { print STDERR $_->[0], ", "; }
+        print STDERR "\n";
+        print STDERR "#debug \t\t${SUB}::x coords after sort: ", join(', ', @sorted_starts), "\n"; 
     }
 
     return \@sorted_coords;
@@ -91,15 +91,15 @@ sub _flatSortedCoords {
     my $old_tot = scalar(@$old_coords);
 
     if ($debug >= 3) {
-	print "#debug \t\t${SUB}::content of old_coords: ";
-	foreach my $oc (@$old_coords) { print "(", join(', ', @$oc), "), "; }
-	print "\n";
+	print STDERR "#debug \t\t${SUB}::content of old_coords: ";
+	foreach my $oc (@$old_coords) { print STDERR "(", join(', ', @$oc), "), "; }
+	print STDERR "\n";
     }
 
     for (my $i=0; $i<$old_tot-1; $i++) {
 	my ($s1,$e1) = @{ $old_coords->[$i] };
 	unless (($s1 || $s1 == 0) && $e1) {
-	    print "#WARNING \t\t${SUB}: ($s1, $e1) at $i!\n" if $debug >= 3;
+	    print STDERR "#WARNING \t\t${SUB}: ($s1, $e1) at $i!\n" if $debug >= 3;
 	    next;
 	}
 
@@ -107,7 +107,7 @@ sub _flatSortedCoords {
 	    ($s1, $e1) = @{ $old_coords->[$i] };
 	    my ($s2,$e2) = @{ $old_coords->[$j] };
 
-	    print "#debug \t\t\t${SUB}::examine join between ($s1,$e1) at $i with ($s2,$e2) at $j\n" 
+	    print STDERR "#debug \t\t\t${SUB}::examine join between ($s1,$e1) at $i with ($s2,$e2) at $j\n" 
 		if $debug >= 4;
 
 	    die "coordinate must be none descending by x" if $s1 > $s2;
@@ -119,7 +119,7 @@ sub _flatSortedCoords {
 		$e = $e2 if $e2 > $e1;
 		$old_coords->[$i] = [$s, $e];
 		$old_coords->[$j] = [];
-		print "#debug \t\t${SUB}::merging coord at $j to $i\n" if $debug >= 3;
+		print STDERR "#debug \t\t${SUB}::merging coord at $j to $i\n" if $debug >= 3;
 	    } else { last; }
 	}
     }
@@ -131,15 +131,15 @@ sub _flatSortedCoords {
 	    if ($s >= 0 && $e > 0 && $e > $s) { 
 		push @$new_coords, $coord;
 	    } else {
-		print "#WARNING\t${SUB}::ignore unexpected exon coordinate ($s, $e)\n";
+		print STDERR "#WARNING\t${SUB}::ignore unexpected exon coordinate ($s, $e)\n";
 	    }
 	}
     }
 
     if ($debug >= 3) {
-        print "#debug \t\t${SUB}::content of new_coords: ";
-        foreach my $nc (@$new_coords) { print "(", join(', ', @$nc), "), "; }
-        print "\n";
+        print STDERR "#debug \t\t${SUB}::content of new_coords: ";
+        foreach my $nc (@$new_coords) { print STDERR "(", join(', ', @$nc), "), "; }
+        print STDERR "\n";
     }
 
     return $new_coords;

@@ -197,9 +197,9 @@ sub run {
     my $isTest = $self->getArg('test');
 
     $self->log("Clean out or create temp tables to hold genome dots gene analysis result...");
-    my @tmpMeta = &createTempTables($dbh, $tempLogin, $isRerun || $isTest);
+    my @tmpMeta = $self->createTempTables($dbh, $tempLogin, $isRerun || $isTest);
     my ($exonstarts_sp, $exonends_sp) = ('appendGdgEss', 'appendGdgEes');
-    &createTempProcedures($dbh, $exonstarts_sp, $exonends_sp);
+    $self->createTempProcedures($dbh, $exonstarts_sp, $exonends_sp);
 
     $self->log("Creating genome-based DoTS genes...");
     my ($coords, $skip_chrs) = &DoTS::Gene::Util::getCoordSelectAndSkip($dbh, $genomeId, $args);
@@ -294,7 +294,7 @@ sub getMergeCriteria {
 }
 
 sub createTempTables {
-  my ($dbh, $tmpLogin, $donotCreate) = @_;
+  my ($self, $dbh, $tmpLogin, $donotCreate) = @_;
 
   my $gdg_tab = 'GenomeDotsGene';
   my @gdg_cols = ('genome_dots_gene_id', 'taxon_id', 'genome_external_db_release_id',
@@ -338,8 +338,8 @@ sub createTempTables {
       $dbh->do("drop index GENOME_DG_TRANS_IND01") or print "";
       $dbh->do("drop index GENOME_DG_TRANS_IND02") or print "";
   
-      &createTable($dbh, $tmpLogin, $gdg_tab, \@gdg_cols, \@gdg_types, \@gdg_csts);
-      &createTable($dbh, $tmpLogin, $gdt_tab, \@gdt_cols, \@gdt_types, \@gdt_csts);
+      $self->createTable($dbh, $tmpLogin, $gdg_tab, \@gdg_cols, \@gdg_types, \@gdg_csts);
+      $self->createTable($dbh, $tmpLogin, $gdt_tab, \@gdt_cols, \@gdt_types, \@gdt_csts);
       # &createTable($dbh, $tmpLogin, $g2s_tab, \@g2s_cols, \@g2s_types, \@g2s_csts);
   }
 
@@ -347,7 +347,7 @@ sub createTempTables {
 }
 
 sub createTable {
-    my ($dbh, $schema, $tab, $cols, $types, $constraints) = @_;
+    my ($self, $dbh, $schema, $tab, $cols, $types, $constraints) = @_;
 
     my $num_cols = scalar(@$cols);
     die "number of columns and number of column types mismatch" if scalar(@$types) != $num_cols;
@@ -357,16 +357,16 @@ sub createTable {
 	$sql .= $cols->[$i] . ' ' . $types->[$i] . ($i < $num_cols - 1 ? ',' : '') . "\n";
     }
     $sql .= ")";
-    print "# creating ${schema}.$tab table...\n";
+    $self->log("creating ${schema}.$tab table...");
     $dbh->sqlexec($sql);
     $dbh->sqlexec("GRANT SELECT ON ${schema}.$tab to PUBLIC");
     foreach (@$constraints) { $dbh->sqlexec($_); }
 }
 
 sub createTempProcedures {
-    my ($dbh, $essSp, $eesSp) = @_;
-    &createStoredProcedure($dbh, $essSp, 'GenomeDotsGene', 'genome_dots_gene_id', 'exonstarts');
-    &createStoredProcedure($dbh, $eesSp, 'GenomeDotsGene', 'genome_dots_gene_id', 'exonends');
+    my ($self, $dbh, $essSp, $eesSp) = @_;
+    $self->createStoredProcedure($dbh, $essSp, 'GenomeDotsGene', 'genome_dots_gene_id', 'exonstarts');
+    $self->createStoredProcedure($dbh, $eesSp, 'GenomeDotsGene', 'genome_dots_gene_id', 'exonends');
 }
 
 sub saveGene {
@@ -446,7 +446,7 @@ sub appendClob {
 }
 
 sub createStoredProcedure {
-  my ($dbh, $spName, $tab, $idCol, $col) = @_;
+  my ($self, $dbh, $spName, $tab, $idCol, $col) = @_;
 
   my $sp =<<SP;
 CREATE OR REPLACE PROCEDURE $spName (id NUMBER, val VARCHAR) IS

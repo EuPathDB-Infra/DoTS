@@ -44,22 +44,22 @@ sub getAlignments {
 
     my $dbh = $self->{dbh};
     my $cntSql = $self->getSelectSql($sort, 1);
-    print "running cntSql: $cntSql ...\n";
+    print STDERR "running cntSql: $cntSql ...\n";
     my $cntSth = $dbh->prepareAndExecute($cntSql);
     my $cnt = $cntSth->fetchrow_array();
     if ($cnt > 4000) {
-	print "increasing object cache size to 2 * $cnt + 2000 (>10000)\n";
+	print STDERR "increasing object cache size to 2 * $cnt + 2000 (>10000)\n";
 	$self->{db}->setMaximumNumberOfObjects(2 * $cnt + 2000);
     }
 
     my $sql = $self->getSelectSql($sort);
-    print "running sql: $sql ...\n";
+    print STDERR "running sql: $sql ...\n";
     my $sth = $dbh->prepareAndExecute($sql);
     $res = [];
     while(my $id = $sth->fetchrow_array) {
 	push @$res, GUS::Model::DoTS::BLATAlignment->new({blat_alignment_id=>$id});
     }
-    print "tot alignments selected: " . scalar(@$res) . "\n";
+    print STDERR "tot alignments selected: " . scalar(@$res) . "\n";
 
     $self->{alignments} = $res;
     return $self->{alignments};
