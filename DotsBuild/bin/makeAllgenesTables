@@ -27,7 +27,7 @@ my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
 my $dbh = $db->getQueryHandle();
 
 
-$dbh->do("CREATE TABLE ALLGENES_60.PROTEINASSEMBLY (PROTEIN_ID   NUMBER(12),
+my $table = $dbh->do("CREATE TABLE ${login}.PROTEINASSEMBLY (PROTEIN_ID   NUMBER(12),
                                           RNA_ID   NUMBER(12),
                                           NA_FEATURE_ID   NUMBER(12),
                                           NA_SEQUENCE_ID   NUMBER(12) NOT NULL,
@@ -35,26 +35,57 @@ $dbh->do("CREATE TABLE ALLGENES_60.PROTEINASSEMBLY (PROTEIN_ID   NUMBER(12),
                                          ) TABLESPACE RAID1
                                          STORAGE (MAXEXTENTS UNLIMITED)");
 
+print "PROTEINASSEMBLY table created\n" if $table;
 
-$dbh->do ("insert into allgenes_60.proteinassembly select /*+ rule */ null, null, null, na_sequence_id, taxon_id from dots.assembly");
 
-$dbh->do ("update allgenes_60.proteinassembly pa set pa.na_feature_id = (select rf.na_feature_id from dots.rnafeature rf where rf.na_sequence_id = pa.na_sequence_id)");
+my $assembly = $dbh->do ("insert into ${login}.proteinassembly select /*+ rule */ null, null, null, na_sequence_id, taxon_id from dots.assembly");
 
-$dbh->do ("update allgenes_60.proteinassembly pa set pa.rna_id = (select rs.rna_id from dots.rnainstance rs where rs.na_feature_id = 
-pa.na_feature_id)");
+print "$assembly na_sequence_id and taxon_id inserted into proteinassembly table\n" if  $assembly;
 
-$dbh->do ("update allgenes_60.proteinassembly pa set pa.protein_id = (select p.protein_id from dots.protein p where  p.rna_id = pa.rna_id)");
+my $feature = $dbh->do ("update ${login}.proteinassembly pa set pa.na_feature_id = (select rf.na_feature_id from dots.rnafeature rf where rf.na_sequence_id = pa.na_sequence_id)");
+
+print "$feature na_feature_id inserted into proteinassembly table\n" if  $feature;
+
+my $rna = $dbh->do ("update ${login}.proteinassembly pa set pa.rna_id = (select rs.rna_id from dots.rnainstance rs where rs.na_feature_id = pa.na_feature_id)");
+
+print "$rna rna_id inserted into proteinassembly table\n" if  $rna;
+
+my $protein = $dbh->do ("update ${login}.proteinassembly pa set pa.protein_id = (select p.protein_id from dots.protein p where  p.rna_id = pa.rna_id)");
+
+print "$protein protein_id inserted into proteinassembly table\n" if  $protein;
 
 $dbh->commit();
 
-$dbh->do ("alter table allgenes_60.proteinassembly modify (protein_id not null)");
-$dbh->do ("alter table allgenes_60.proteinassembly modify (rna_id not null)");
-$dbh->do ("alter table allgenes_60.proteinassembly modify (na_feature_id not null)");
+my $protNotNull = $dbh->do ("alter table ${login}.proteinassembly modify (protein_id not null)");
 
-$dbh->do ("CREATE INDEX ALLGENES_60.PROTEINASSEMBLY_IND01 on allgenes_60.proteinassembly (PROTEIN_ID) TABLESPACE INDX");
-$dbh->do ("CREATE INDEX ALLGENES_60.PROTEINASSEMBLY_IND02 on allgenes_60.proteinassembly (PROTEIN_ID,TAXON_ID,NA_SEQUENCE_ID) TABLESPACE INDX");
-$dbh->do ("CREATE INDEX ALLGENES_60.PROTEINASSEMBLY_IND03 on allgenes_60.proteinassembly (RNA_ID,TAXON_ID,NA_SEQUENCE_ID) TABLESPACE INDX");
+print "protein_id not null\n" if $protNotNull;
 
-$dbh->do ("ANALYZE TABLE ALLGENES_60.PROTEINASSEMBLY compute statistics");
+my $rnaNotNull = $dbh->do ("alter table ${login}.proteinassembly modify (rna_id not null)");
 
-$dbh->do ("grant select on allgenes_60.proteinassembly to public");
+print "rna_id not null\n" if $rnaNotNull;
+
+my $featureNotNull = $dbh->do ("alter table ${login}.proteinassembly modify (na_feature_id not null)");
+
+print "na_feature_id not null\n" if $featureNotNull;
+
+my $index1 = $dbh->do ("CREATE INDEX ${login}.PROTEINASSEMBLY_IND01 on allgenes_60.proteinassembly (PROTEIN_ID) TABLESPACE INDX");
+
+print "IND01 created\n" if $index1;
+
+my $index2 = $dbh->do ("CREATE INDEX ${login}.PROTEINASSEMBLY_IND02 on allgenes_60.proteinassembly (PROTEIN_ID,TAXON_ID,NA_SEQUENCE_ID) TABLESPACE INDX");
+
+print "IND02 created\n" if $index2;
+
+my $index3 = $dbh->do ("CREATE INDEX ${login}.PROTEINASSEMBLY_IND03 on allgenes_60.proteinassembly (RNA_ID,TAXON_ID,NA_SEQUENCE_ID) TABLESPACE INDX");
+
+print "IND03 created\n" if $index3;
+
+my $analyze = $dbh->do ("ANALYZE TABLE ${login}.PROTEINASSEMBLY compute statistics");
+
+print "table analyzed\n" if $analyze;
+
+my $grant = $dbh->do ("grant select on ${login}.proteinassembly to public");
+
+print "select\n" if $grant;
+
+
