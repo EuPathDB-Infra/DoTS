@@ -35,8 +35,8 @@ sub new {
      {o => 'update',
       t => 'boolean',
       h => 'Deletes existing rows from AssemblyAnatomyPercent for these na_sequence_ids',
-     },
-   ]
+     }
+   ];
 
   $m->initialize({requiredDbVersion => {},
 		  cvsRevision => '$Revision$', # cvs fills this in!
