@@ -198,7 +198,8 @@ sub run {
 
     $self->log("Clean out or create temp tables to hold genome dots gene analysis result...");
     my @tmpMeta = &createTempTables($dbh, $tempLogin, $isRerun || $isTest);
-    my ($exonstarts_sp, $exonends_sp) = &createTempProcedures($dbh);
+    my ($exonstarts_sp, $exonends_sp) = ('appendGdgEss', 'appendGdgEes');
+    &createTempProcedures($dbh, $exonstarts_sp, $exonends_sp);
 
     $self->log("Creating genome-based DoTS genes...");
     my ($coords, $skip_chrs) = &DoTS::Gene::Util::getCoordSelectAndSkip($dbh, $genomeId, $args);
@@ -363,10 +364,9 @@ sub createTable {
 }
 
 sub createTempProcedures {
-    my ($dbh) = @_;
-    my $exonstarts_sp = &createStoredProcedure($dbh, 'GenomeDotsGene', 'genome_dots_gene_id', 'exonstarts');
-    my $exonends_sp = &createStoredProcedure($dbh, 'GenomeDotsGene', 'genome_dots_gene_id', 'exonends');
-    return ($exonstarts_sp, $exonends_sp);
+    my ($dbh, $essSp, $eesSp) = @_;
+    &createStoredProcedure($dbh, $essSp, 'GenomeDotsGene', 'genome_dots_gene_id', 'exonstarts');
+    &createStoredProcedure($dbh, $eesSp, 'GenomeDotsGene', 'genome_dots_gene_id', 'exonends');
 }
 
 sub saveGene {
@@ -446,9 +446,7 @@ sub appendClob {
 }
 
 sub createStoredProcedure {
-  my ($dbh, $tab, $idCol, $col) = @_;
-
-  my $spName = "append_${tab}_$col";
+  my ($dbh, $spName, $tab, $idCol, $col) = @_;
 
   my $sp =<<SP;
 CREATE OR REPLACE PROCEDURE $spName (id NUMBER, val VARCHAR) IS
@@ -461,8 +459,6 @@ CREATE OR REPLACE PROCEDURE $spName (id NUMBER, val VARCHAR) IS
    END $spName;
 SP
   $dbh->do($sp);
-
-  return $spName;
 }
 
 1;
