@@ -10,6 +10,7 @@ use File::Basename;
 $| = 1;
 umask 002;
 
+
 my $propertiesFile = $ARGV[0];
 
 &usage unless -e $propertiesFile;
@@ -136,7 +137,7 @@ my @properties =
  ["makeAllgenesTable", "","make table ProteinAssembl, yes or no"],
  ["qualityStartDate", "","date when the last SetAssSeqQualStartStop.pm was run for this taxon"],
  ["cddDate", "","approx date for cdd download"],
- ["nrdbDate", "","approx date for NRDB file"],
+ ["nrdbDate", "","approx date of NRDB file"],
  ["dbestDate", "","approx date for dbEST files"],
  ["prodomVersion", "","prodom version used for build"],
  ["cddFileDates", "","approx date for cdd files"],
@@ -1330,7 +1331,6 @@ sub downloadProdom {
     $mgr->runCmd("mkdir -p $downloadSubDir");
 
     my $file = $propertySet->getProp('prodomFile');
-
     my $logfile = "$pipelineDir/logs/$signal.log";
 
     $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
@@ -1997,7 +1997,7 @@ The files available are:
        The Genbank accessions of ESTs and mRNAs which were assembled to
        form the consensus sequence of each putative transcript.
 
-    $nrdbHitsFile      
+    $nrSpreparedownldbHitsFile      
        The best hit in NRDB for each consensus sequence.
 
     $assPerGeneFile
@@ -2300,16 +2300,17 @@ sub downloadGGTC {
     
   my $downloadSubDir = "$externalDbDir/genetags/GGTC/$date";
 
-  my $indexFile = "$downloadSubDir/ggtc-index.html";
-
   my $logfile = "$pipelineDir/logs/${signal}.log";
 
-  my $cmd = "getAllSeqs $indexFile $downloadSubDir >$logfile";
+  $mgr->runCmd("mkdir -p $downloadSubDir");
+
+  $mgr->runCmd("unsetenv ftp_proxy");
+
+  my $cmd = "wget -t5 -b -m -np -nd -nH -o $logfile  --cut-dirs=2 -A \"*html\"  -P $downloadSubDir http://tikus.gsf.de/project/sequence/";
 
   $mgr->runCmd($cmd);
 
   $mgr->endStep($signal);
-
 
 }
 
@@ -2407,7 +2408,7 @@ sub blastGeneTrapTags {
   
   my $blastBinDir = $propertySet->getProp('wuBlastBinPath');
   
-  my $blastn = "${blastBinDir}blastn";
+  my $blastn = "${blastBinDir}/blastn";
   
   my @DB = split (/,/, $propertySet->getProp('geneTrapDbRls'));
   
@@ -2590,7 +2591,7 @@ sub deleteGeneCardsToDots {
 
     my $sql = "select n.db_ref_na_sequence_id from sres.dbref d, dots.dbrefnasequence n where d.external_database_release_id =$geneCardsDbRlsId and d.db_ref_id = n.db_ref_id";
 
-    my $cmd = "deleteEntries.pl --table DoTS::DbRefNASequence --idSQL \"$sql\" --gusConfigFile $gusConfigFile --verbose 2>> $logFile";
+    my $cmd = "deleteEntries.pl --table DoTS::DbRefNASequence --idSQL \"$sql\" --verbose 2>> $logFile";
 
     $mgr->runCmd($cmd);
 
@@ -2749,7 +2750,7 @@ sub deleteLocusLink {
 
     my $sql = "select n.db_ref_na_sequence_id from sres.dbref d, dots.dbrefnasequence n, dots.assembly a where d.external_database_release_id = $llDbRlsId and d.db_ref_id = n.db_ref_id and n.na_sequence_id = a.na_sequence_id and a.taxon_id = $taxonId";
 
-    my $cmd = "deleteEntries.pl --table DoTS::DbRefNASequence --idSQL \"$sql\" --gusConfigFile $gusConfigFile --verbose 2>> $logFile";
+    my $cmd = "deleteEntries.pl --table DoTS::DbRefNASequence --idSQL \"$sql\" --verbose 2>> $logFile";
 
     $mgr->runCmd($cmd);
 
@@ -2862,11 +2863,13 @@ sub makeAllgenesTable {
 
   my $logFile = "$pipelineDir/logs/${signal}.log";
 
+  my $taxonId = $propertySet->getProp('taxonId');
+
   my $login = $propertySet->getProp('allgenesLogin');
   
   my $password = $propertySet->getProp('allgenesPassword');
 
-  my $args = "--login $login --password $password";
+  my $args = "--login $login --password $password --taxon_id $taxonId";
 
   my $cmd = "makeAllgenesTables $args 2>> $logFile";
 
