@@ -723,7 +723,7 @@ sub copyPipelineDirToLiniac {
     my $signal = "dir2liniac";
     return if $mgr->startStep("Copying $dotsBuildDir/$dotsRelease/$nickName to $serverPath on $liniacServer", $signal);
 
-    $mgr->copyToLiniac($dotsBuildDir/$dotsRelease, $nickName, $liniacServer, $serverPath);
+    $mgr->copyToLiniac("$dotsBuildDir/$dotsRelease", $nickName, $liniacServer, $serverPath);
 
     $mgr->endStep($signal);
 }
