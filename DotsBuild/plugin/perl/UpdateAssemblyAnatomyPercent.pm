@@ -73,10 +73,10 @@ sub run {
   my $stmt = $dbh->prepareAndExecute($self->getArg('idSQL'));
   my $count;
   while (my @row = $stmt->fetchRowArray()) {
-    die "Error: The idSQL query did not return a single column (na_sequence_id)\n" if (scalar($row) != 1);
+    die "Error: The idSQL query did not return a single column (na_sequence_id)\n" if (scalar(@row) != 1);
     my $dt = $row[0];
     die "Error: na_sequence_id '$dt' returned in the result set is not an integer" unless $dt =~ /\d+/;
-    count++;
+    $count++;
     print STDERR "Updated $count rows\n" if ($count % 10000) == 0;
     &processDT($dt, $nodeHash, $taxonId, $root, $dbh);
     $self->undefPointerCache();
