@@ -1466,7 +1466,7 @@ sub unpackCDD {
 
   $mgr->runCmd("cd $downloadSubDir; cat LOAD PFAM SMART COG KOG CD > All");
 
-  $mgr->runCmd("rm -r $downloadSubDir/cdd.tar");
+  $mgr->runCmd("rm -f $downloadSubDir/cdd.tar");
 
   $mgr->endStep($signal);
 }
