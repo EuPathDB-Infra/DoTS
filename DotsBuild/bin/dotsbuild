@@ -1302,9 +1302,9 @@ sub copySimilaritiesFromLiniac {
 
 sub deleteOldSimilarities {
 
-    my $taxonId = $propertySet->getProp('taxonId');
+    my $taxonId = $propertySet->getProp('taxonId');    
     
-   my $sql = "select similarity_id from gusdev.humansimstodelete where subject_table_id in (83,84,277)";
+    my $sql = "select similarity_id from dots.similarity s, dots.assembly a where s.query_table_id = 56 and s.query_id = a.na_sequence_id and a.taxon_id = $taxonId  and s.subject_table_id in (83,84,277)";
 
     my $args = "--idSQL \"$sql\" --doNotVersion";
 
