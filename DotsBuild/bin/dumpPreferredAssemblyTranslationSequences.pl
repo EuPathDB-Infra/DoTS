@@ -59,7 +59,7 @@ my $sql = 'select pi.rna_id,a.na_sequence_id from dots.assembly a,dots.rnafeatur
 my $stmt = $dbh->prepareAndExecute($sql) || die "Cannot execute $sql\n";
 
 while(my ($rna,$dt) = $stmt->fetchrow_array()){
-  $RNA{$dt}=$rna unless $done{DT.$dt}==1;
+  $RNA{$dt}=$rna unless $done{"DT.".$dt}==1;
 }
 
 $stmt->finish();
@@ -79,11 +79,10 @@ foreach my $dt (keys %RNA) {
   print STDERR "Getting id for $count\n" if $verbose && $count % 10000 == 0;
 }
 
-&printSequence(@row)
+&printSequence();
 
 
 sub printSequence{
-  my (@row) = @_;
   #	print STDERR "$gene_id,$na_id,$description,$number,$taxon,$assembly_id,$length,$seq_ver\n";
   my $sequence = pop(@row);
   if(length($sequence) < $minLength){
