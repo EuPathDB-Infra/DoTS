@@ -176,7 +176,7 @@ and tf.row_alg_invocation_id in ($ctx->{cla}->{'restart'})";
 
     # Summary data for Framefinder output
     #
-    my $parameterset= "-O 14 -F -17 -w $framefinderdir"."wordProb/$ctx->{cla}->{wordfile}";
+    my $parameterset= "-O 14 -F -17 -w $framefinderdir"."/wordProb/$ctx->{cla}->{wordfile}";
     my @F = `$Framefinder $parameterset $tmpFile`;
     #                        print STDERR "Running: @F\n";
     my $start_pos;
