@@ -1,7 +1,7 @@
-package DoTS::Gene::ESTOrientEntry;
+package ESTOrientationEntry;
 
 # -----------------------------------------------------------
-# data container for ESTOrientGroup.pm
+# data container for ESTOrientationRecord.pm
 #
 # Yongchang Gan, Jan 24, 03
 # ---------------------------------------------------------

@@ -1,16 +1,16 @@
-package DoTS::Gene::ESTOrientGroup;
+package ESTOrientationRecord;
 
 # -----------------------------------------------------------
-# data container for ESTOrientPlot.pm
+# data container for ESTOrientationPlot.pm
 #
 # Yongchang Gan, Jan 24, 03
 # ---------------------------------------------------------
 
 use strict;
 use Util;
-use DoTS::Gene::ESTOrientEntry;
+use ESTOrientationEntry;
 
-my $CN = 'ESTOrientGroup';
+my $CN = 'ESTOrientationRecord';
 
 # constructor
 #
@@ -28,6 +28,8 @@ sub new {
 	     };
 
     # other data members
+    $self->{dbh} = Util::getLogin();
+    $self->{AG} = $args->{schema} ? $args->{schema} : Util::getAllgenesSchema;
     $self->{strand} = undef;
     $self->{chr_s} = undef;
     $self->{chr_e} = undef;
@@ -99,9 +101,9 @@ sub getEntries {
     # get entries from db
     my $type = $self->{type};
     my $id = $self->{id};
-    my $dbh = Util::getLogin();
-    my $sql = &_getESTOrientationQuery($type, $id);
-    my $sth = $dbh->prepare($sql);
+    my $dbh = $self->{dbh};
+    my $sql = &_getESTOrientationQuery($type, $id, $self->{AG});
+    my $sth = $dbh->prepare($sql) or die "bad sql $sql: $!\n";
     print "$TAG sql=\n$sql\n" if $dbg;
     $sth->execute;
 
@@ -135,7 +137,7 @@ sub getEntries {
 #### file scoped subroutines
 
 sub _getESTOrientationQuery {
-    my ($type, $id) = @_;
+    my ($type, $id, $AG) = @_;
 
     my $sql;
     if (lc $type eq 'dt') {
@@ -155,7 +157,7 @@ SELECT g.strand, g.chromosome_start, g.chromosome_end,
        b.blat_alignment_id, b.blocksizes, b.qstarts, b.tstarts,
        s.assembly_offset as asm_offset,
        s.na_sequence_id as seq_id, est.p_end, length(s.gapped_sequence) as gap_seq_len
-FROM ygan.alignedgene g, ygan.alignedgeneassembly a, DoTS.blatalignment b, DoTS.assembly asm,
+FROM ${AG}.alignedgene g, ${AG}.alignedgeneassembly a, DoTS.blatalignment b, DoTS.assembly asm,
      DoTS.assemblysequence s, DoTS.EST est, DoTS.virtualsequence v
 WHERE g.aligned_gene_id = $id
 and g.aligned_gene_id = a.aligned_gene_id

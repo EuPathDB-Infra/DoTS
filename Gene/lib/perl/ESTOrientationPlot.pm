@@ -1,4 +1,4 @@
-package DoTS::Gene::ESTOrientPlot;
+package ESTOrientationPlot;
 
 # -----------------------------------------------------------
 # plotting density of 5' ends of 5' ESTs or 3' ends of 3' ESTs
@@ -9,7 +9,7 @@ package DoTS::Gene::ESTOrientPlot;
 
 use strict;
 
-my $CN = 'ESTOrientPlot';
+my $CN = 'ESTOrientationPlot';
 
 # constructor
 #

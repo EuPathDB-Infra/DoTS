@@ -48,6 +48,7 @@ sub walkGenome {
 	my $aln_sel = DoTS::Gene::GenomeAlignmentSelector->new($db,$bq,$bt,$oq,$otb);
 	my $sas = $aln_sel->getSortedAlignments();
 	push @bin_res, $sas;
+        $db->undefPointerCache();
     }
 
     my $srt_alns = [];

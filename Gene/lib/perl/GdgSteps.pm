@@ -195,7 +195,7 @@ sub loadGenomeAlignments {
   my ($mgr, $queryName, $targetName) = @_;
   my $propertySet = $mgr->{propertySet};
 
-  my $signal = "$queryName-$targetName" . 'Load';
+  my $signal = "$queryName-$targetName" . 'LoadBlatALignment';
 
   return if $mgr->startStep("Loading $queryName-$targetName alignments", $signal);
 
@@ -221,19 +221,13 @@ sub loadGenomeAlignments {
     $args .= " --query_db_rel_id $gb_db_rel_id";
   }
 
-  $mgr->runPlugin("LoadBLATAlignments", 
-			  "GUS::Common::Plugin::LoadBLATAlignments",
-			  $args, "loading genomic alignments of $queryName vs $targetName");
-  $mgr->endStep($signal);
+  $mgr->runPlugin($signal, "GUS::Common::Plugin::LoadBLATAlignments",
+		  $args, "loading genomic alignments of $queryName vs $targetName");
 }
 
 sub findGenomicSignals {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
-
-  my $signal = 'findGenomicSignals';
-
-  return if $mgr->startStep("scan genomic context of DT alignments for splice signals etc", $signal);
 
   my $taxonId = $propertySet->getProp('taxonId');
   my $genomeId = $propertySet->getProp('genome_db_rls_id');
@@ -241,18 +235,12 @@ sub findGenomicSignals {
 
   my $args = "--taxon_id $taxonId --genome_db_rls_id $genomeId --temp_login $tmpLogin";
 
-  $mgr->runPlugin("FindGenomicSignals", 
-			  "DoTS::Gene::Plugin::FindGenomicSignals",
-			  $args, "searching for splice/polyA signals etc in genomic context of DT alignments");
-  $mgr->endStep($signal);
+  $mgr->runPlugin("FindGenomicSignals", "DoTS::Gene::Plugin::FindGenomicSignals",
+		  $args, "searching for splice/polyA signals etc in genomic context of DT alignments");
 }
 
 sub createGenomeDotsGene {
     my ($mgr) = @_;
-
-    my $signal = 'createGenomeDotsGene';
-
-    return if $mgr->startStep("Creating genome-based Dots Gene from DT alignments ", $signal);
 
     my $propertySet = $mgr->{propertySet};
     my $taxonId = $propertySet->getProp('taxonId');
@@ -261,10 +249,43 @@ sub createGenomeDotsGene {
 
     my $args = "--taxon_id $taxonId --genome_db_rls_id $genomeId --temp_login $tmpLogin --est_pair_cache EstClonePair";
 
-    $mgr->runPlugin("CreateGenomeDotsGene", 
-		    "DoTS::Gene::Plugin::CreateGenomeDotsGene",
+    $mgr->runPlugin('CreateGenomeDotsGene', "DoTS::Gene::Plugin::CreateGenomeDotsGene",
 		    $args, "create genome-based Dots Gene from DT alignments");
-    $mgr->endStep($signal);
+}
+
+sub computeQualityScore {
+    my ($mgr) = @_;
+
+    my $propertySet = $mgr->{propertySet};
+    my $taxonId = $propertySet->getProp('taxonId');
+    my $genomeId = $propertySet->getProp('genome_db_rls_id');
+    my $tmpLogin = $propertySet->getProp('tempLogin');
+
+    my $args = "--taxon_id $taxonId --genome_db_rls_id $genomeId --temp_login $tmpLogin --blat_signals_cache BlatAlignmentSignals";
+
+    $mgr->runPlugin('ComputeGenomeDotsGeneScore',
+		    "DoTS::Gene::Plugin::ComputeGenomeDotsGeneScore",
+		    $args, "compute heuristic quality score for genome DoTS genes");
+}
+
+sub markAntisense {
+    my ($mgr) = @_;
+    die "to do";
+}
+
+sub mapToSimilarityDotsGene {
+    my ($mgr) = @_;
+    die "to do";
+}
+
+sub integrateWithGus {
+    my ($mgr) = @_;
+    die "to do";
+}
+
+sub makeReleaseFiles {
+    my ($mgr) = @_;
+    die "to do";
 }
 
 sub makeBuildName {
