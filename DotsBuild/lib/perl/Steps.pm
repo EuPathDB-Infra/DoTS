@@ -722,9 +722,19 @@ sub loadGenomeAlignments {
   my $pipelineDir = $mgr->{'pipelineDir'};
   my $pslDir = "$pipelineDir/genome/$queryName-$targetName/per-seq";
 
-  my $qFile = "$pipelineDir/repeatmask/$queryName/master/mainresult/blocked.seq";
-  #my $qFile = "/tmp/dotsbuild/blocked.seq";
-  $qFile = "$pipelineDir/seqfiles/finalDots.fsa" if $queryName =~ /dots/i;
+  my $qFile;
+
+  if ($queryName =~ /dots/i) {
+    $qFile = "$pipelineDir/seqfiles/finalDots.fsa" if $queryName =~ /dots/i;
+  } else {
+    # copy qFile to /tmp directory to work around a bug in the
+    # LoadBLATAlignments plugin's call to FastaIndex
+    my $qDir = "/tmp/" . $propertySet->getProp('speciesNickname');
+    $mgr->runCmd("mkdir $qDir") if ! -d $qDir;
+    $qFile = $qDir . "/blocked.seq";
+    $mgr->runCmd("cp $pipelineDir/repeatmask/$queryName/master/mainresult/blocked.seq $qFile");
+  }
+
   my $qTabId = ($queryName =~ /dots/i ? 56 : 57);
   #--gap_table_space $gapTabSpace
   my $regEx = $propertySet->getProp('genomeSrcIdRegEx');
