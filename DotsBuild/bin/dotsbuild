@@ -1947,7 +1947,9 @@ sub writeReadmeFile {
   my $accsPerAssemFile = "${prefix}_accessionsPerAssembly.dat.gz";
   my $assPerGeneFile = "${prefix}_DTperDG.dat.gz";
   my $nrdbHitsFile = "${prefix}_bestNRDBHits.dat.gz";
-  my $mRNAPerAss ="${prefix}_mRNAaccessionsPerAssembly.dat.gz"; 
+  my $mRNAPerAss ="${prefix}_mRNAaccessionsPerAssembly.dat.gz";
+
+  my $LL2DoTS = "${prefix}_LL2DoTS.gz";
    
   my $manRevwDoTSReport = "$pipelineDir/downloadSite/${prefix}_manuallyReviewedTranscriptsReport.txt";
 
@@ -1982,7 +1984,6 @@ The data sources include:
     * Gene Ontology (GO) consortium ontologies and assignments
     * German Gene Trap Consortium (GGTC)
     * Gene traps from the BayGenomics consortium
- 
 
 The files available are:
 
@@ -2007,7 +2008,10 @@ The files available are:
        to form the consensus sequence of each putative transcript.
 
     $manRevwDoTSReport
-      A tab delimited report for all manually reviewed DoTS Transcripts
+      A tab delimited report for all manually reviewed DoTS Transcripts.
+
+    $LL2DoTS
+      A map from DoTS transcripts to LocusLink identifier.
  ";
   close(F);
 
@@ -2041,19 +2045,23 @@ sub prepareBlastSiteFiles {
 	my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
 	my $otherPipelineDir = "$dotsBuildDir/$completedSpeciesBuildName";
 	my $otherSpeciesNickname = $speciesNickname eq 'mus'? 'hum' : 'mus';
-
 	my $prefix = "${otherSpeciesNickname}DoTS_rel${dotsRelease}";
+	$cmd = "gzunzip $otherPipelineDir/downloadSite/${prefix}.fasta.gz";
+	$mgr->runCmd($cmd);
 	my $fastafile2 = "$otherPipelineDir/downloadSite/${prefix}.fasta";
 	my $fastalink2 = "$pipelineDir/blastSite/${otherSpeciesNickname}DoTS";
 	$mgr->runCmd("ln -s $fastafile2 $fastalink2");
 	$mgr->runCmd("cat $fastalink $fastalink2 > $pipelineDir/blastSite/allDoTS");
 	$mgr->runCmd("$blastBinDir/xdformat -n $pipelineDir/blastSite/allDoTS");
-
+	$mgr->runCmd("gzip $fastafile2");
 	$mgr->runCmd("rm -rf $fastalink2");
 	$mgr->runCmd("rm -rf $pipelineDir/blastSite/allDoTS");
+	
     }
 
     $mgr->runCmd("rm -rf $fastalink");
+
+    $mgr->runCmd("gzip $fastafile");
 
     $mgr->endStep($signal);
 
@@ -2774,9 +2782,22 @@ sub parseLocusLink {
 
   $mgr->runCmd($cmd);
 
+  $cmd = "cp $outputfile $pipelineDir/downloadSite";
+
+  $mgr->runCmd($cmd);
+  
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  $cmd = "mv $pipelineDir/downloadSite/${species}LL2DoTS $pipelineDir/downloadSite/${species}DoTS_rel${dotsRelease}_LL2DoTS";
+
+  $mgr->runCmd($cmd);
+
+  $cmd = "gzip $pipelineDir/downloadSite/${species}DoTS_rel${dotsRelease}_LL2DoTS";
+
+  $mgr->runCmd($cmd);
+
   $mgr->endStep($signal);
 }
-
 
 sub loadLocusLinkToDoTS {
 
@@ -2869,7 +2890,7 @@ sub makeProteinChunks {
 
   my $predictedProteinsFile = "$pipelineDir/downloadSite/${prefix}_predictedProteins.fasta";
 
-  my $proteinChunkDir = "$pipelineDir/downloadSite/proteinSequenceChunks";
+  my $proteinChunkDir = "$pipelineDir/misc/proteinSequenceChunks";
 
   my $cmd = "mkdir $proteinChunkDir";
 
@@ -2899,9 +2920,9 @@ sub predictTmAndSignalP {
 
   my $predictedProteinsFile = "$pipelineDir/downloadSite/${prefix}_predictedProteins.fasta";
 
-  my $outputfile = "$pipelineDir/downloadSite/${prefix}_predictedProteins";
+  my $outputfile = "$pipelineDir/misc/${prefix}_predictedProteins";
 
-  my $proteinChunkDir = "$pipelineDir/downloadSite/proteinSequenceChunks";
+  my $proteinChunkDir = "$pipelineDir/misc/proteinSequenceChunks";
 
   my $cmd = "all-predictions $predictedProteinsFile $outputfile $proteinChunkDir 2>>$logFile";
 
@@ -2920,7 +2941,7 @@ sub parseTMFile {
 
   my $logFile = "$pipelineDir/logs/${signal}.log";
 
-  my $predictionPath = "$pipelineDir/downloadSite/*.tmhmm.*";
+  my $predictionPath = "$pipelineDir/misc/*.tmhmm.*";
 
   my $dotsRelease = $propertySet->getProp('dotsRelease');
 
@@ -2928,7 +2949,7 @@ sub parseTMFile {
   
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
 
-  my $outputFile = "$pipelineDir/downloadSite/${prefix}_predictedProteins.tmhmm.parsed";
+  my $outputFile = "$pipelineDir/misc/${prefix}_predictedProteins.tmhmm.parsed";
 
   my $predictedProteinsFile = "$pipelineDir/downloadSite/${prefix}_predictedProteins.fasta";
 
@@ -2949,7 +2970,7 @@ sub parseSGPSignalP {
 
   my $logFile = "$pipelineDir/logs/${signal}.log";
 
-  my $predictionPath = "$pipelineDir/downloadSite/proteinSequenceChunks/*.fa.sgp.Z";
+  my $predictionPath = "$pipelineDir/misc/proteinSequenceChunks/*.fa.sgp.Z";
 
   my $dotsRelease = $propertySet->getProp('dotsRelease');
 
@@ -2957,7 +2978,7 @@ sub parseSGPSignalP {
   
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
 
-  my $outputFile = "$pipelineDir/downloadSite/proteinSequenceChunks/${prefix}_predictedProteins.sgp.parsed";
+  my $outputFile = "$pipelineDir/misc/proteinSequenceChunks/${prefix}_predictedProteins.sgp.parsed";
 
   my $predictedProteinsFile = "$pipelineDir/downloadSite/${prefix}_predictedProteins.fasta";
 
@@ -2978,7 +2999,7 @@ sub parseSGPHMMSignalP {
 
   my $logFile = "$pipelineDir/logs/${signal}.log";
 
-  my $predictionPath = "$pipelineDir/downloadSite/proteinSequenceChunks/*.fa.sgphmm.Z";
+  my $predictionPath = "$pipelineDir/misc/proteinSequenceChunks/*.fa.sgphmm.Z";
 
   my $dotsRelease = $propertySet->getProp('dotsRelease');
 
@@ -2986,7 +3007,7 @@ sub parseSGPHMMSignalP {
 
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
 
-  my $outputFile = "$pipelineDir/downloadSite/proteinSequenceChunks/${prefix}_predictedProteins.sgphmm.parsed";
+  my $outputFile = "$pipelineDir/misc/proteinSequenceChunks/${prefix}_predictedProteins.sgphmm.parsed";
 
   my $predictedProteinsFile = "$pipelineDir/downloadSite/${prefix}_predictedProteins.fasta";
 
@@ -3028,7 +3049,7 @@ sub loadTMHMM {
   
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
 
-  my $inputFile = "$pipelineDir/downloadSite/${prefix}_predictedProteins.tmhmm.parsed";
+  my $inputFile = "$pipelineDir/misc/${prefix}_predictedProteins.tmhmm.parsed";
 
   my $project_id = $propertySet->getProp('project_id');
 
@@ -3047,7 +3068,7 @@ sub loadSGPSignalP {
   
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
 
-  my $inputFile = "$pipelineDir/downloadSite/proteinSequenceChunks/${prefix}_predictedProteins.sgp.parsed";
+  my $inputFile = "$pipelineDir/misc/proteinSequenceChunks/${prefix}_predictedProteins.sgp.parsed";
 
   my $project_id = $propertySet->getProp('project_id');
 
@@ -3064,7 +3085,7 @@ sub loadSGPHMMSignalP {
   
   my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
 
-  my $inputFile = "$pipelineDir/downloadSite/proteinSequenceChunks/${prefix}_predictedProteins.sgphmm.parsed";
+  my $inputFile = "$pipelineDir/misc/proteinSequenceChunks/${prefix}_predictedProteins.sgphmm.parsed";
 
   my $project_id = $propertySet->getProp('project_id');
 
