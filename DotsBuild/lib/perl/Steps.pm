@@ -1087,7 +1087,7 @@ sub blastGeneTrapTags {
 
     my $dotsRelease = $propertySet->getProp('dotsRelease');
 
-    my $outputDir = "/$mgr->{pipelineDir}genetrap/$name";
+    my $outputDir = "$mgr->{pipelineDir}/genetrap/$name";
 
     my $logFile = "$mgr->{pipelineDir}/logs/${name}Blast.log";
 
