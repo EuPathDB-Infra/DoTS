@@ -612,6 +612,7 @@ sub loadGenomeAlignments {
   my $pslDir = "$pipelineDir/genome/$queryName-$targetName/per-chr";
 
   my $qFile = "$pipelineDir/repeatmask/$queryName/master/mainresult/blocked.seq";
+  $qFile = "$pipelineDir/seqfiles/finalDots.fsa" if $queryName =~ /dots/i;
   my $qTabId = ($queryName =~ /dots/i ? 56 : 57);
 
   my $args = "--blat_dir $pslDir --query_file $qFile --gap_table_space $gapTabSpace --keep_best 2 "
@@ -3775,7 +3776,9 @@ sub makeBuildNameRls {
 }
 
 sub usage {
-  print STDERR "usage:  dotsbuild propertiesfile\n";
+  my $prog = `basename $0`;
+  chomp $prog;
+  print STDERR "usage: $prog propertiesfile\n";
   exit 1;
 }
 
