@@ -70,7 +70,7 @@ sub getChromsInfo {
 }
 
 sub getCoordSelectAndSkip {
-    ($dbh, $genomeId, $opt)
+    my ($dbh, $genomeId, $opt) = @_;
 
     if ($opt->{test}) {
 	my $chr = '1';

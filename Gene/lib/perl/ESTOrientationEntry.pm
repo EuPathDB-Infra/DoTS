@@ -1,4 +1,4 @@
-package ESTOrientationEntry;
+package DoTS::Gene::ESTOrientationEntry;
 
 # -----------------------------------------------------------
 # data container for ESTOrientationRecord.pm

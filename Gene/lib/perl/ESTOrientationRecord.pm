@@ -1,4 +1,4 @@
-package ESTOrientationRecord;
+package DoTS::Gene::ESTOrientationRecord;
 
 # -----------------------------------------------------------
 # data container for ESTOrientationPlot.pm
@@ -7,8 +7,7 @@ package ESTOrientationRecord;
 # ---------------------------------------------------------
 
 use strict;
-use Util;
-use ESTOrientationEntry;
+use DoTS::Gene::ESTOrientationEntry;
 
 my $CN = 'ESTOrientationRecord';
 
@@ -28,8 +27,9 @@ sub new {
 	     };
 
     # other data members
-    $self->{dbh} = Util::getLogin();
-    $self->{AG} = $args->{schema} ? $args->{schema} : Util::getAllgenesSchema;
+    $self->{dbh} = $args->{dbh};
+    $self->{gdg_tab} = $args->{gdg_tab};
+    $self->{gdt_tab} = $args->{gdt_tab};
     $self->{strand} = undef;
     $self->{chr_s} = undef;
     $self->{chr_e} = undef;
@@ -84,7 +84,7 @@ sub setRecord {
     my @entries;
     my $ies = $info->{entries};
     foreach (@$ies) {
-	push @entries, new ESTOrientationEntry($_);
+	push @entries, DoTS::Gene::ESTOrientationEntry->new($_);
     }
     $self->{entries} = \@entries;
 }
@@ -102,7 +102,7 @@ sub getEntries {
     my $type = $self->{type};
     my $id = $self->{id};
     my $dbh = $self->{dbh};
-    my $sql = &_getESTOrientationQuery($type, $id, $self->{AG});
+    my $sql = &_getESTOrientationQuery($type, $id, $self->{gdg_tab}, $self->{gdt_tab});
     my $sth = $dbh->prepare($sql) or die "bad sql $sql: $!\n";
     print "$TAG sql=\n$sql\n" if $dbg;
     $sth->execute;
@@ -137,7 +137,7 @@ sub getEntries {
 #### file scoped subroutines
 
 sub _getESTOrientationQuery {
-    my ($type, $id, $AG) = @_;
+    my ($type, $id, $gdg_tab, $gdt_tab) = @_;
 
     my $sql;
     if (lc $type eq 'dt') {
@@ -157,7 +157,7 @@ SELECT g.strand, g.chromosome_start, g.chromosome_end,
        b.blat_alignment_id, b.blocksizes, b.qstarts, b.tstarts,
        s.assembly_offset as asm_offset,
        s.na_sequence_id as seq_id, est.p_end, length(s.gapped_sequence) as gap_seq_len
-FROM ${AG}.alignedgene g, ${AG}.alignedgeneassembly a, DoTS.blatalignment b, DoTS.assembly asm,
+FROM $gdg_tab g, $gdt_tab a, DoTS.blatalignment b, DoTS.assembly asm,
      DoTS.assemblysequence s, DoTS.EST est, DoTS.virtualsequence v
 WHERE g.aligned_gene_id = $id
 and g.aligned_gene_id = a.aligned_gene_id
@@ -165,7 +165,7 @@ and a.na_sequence_id = b.query_na_sequence_id
 and b.query_table_id = 56
 and b.target_na_sequence_id = v.na_sequence_id
 and v.chromosome = g.chromosome
-and b.blat_alignment_quality_id < 4
+and b.is_best_alignment = 1
 and b.target_start >= g.chromosome_start and b.target_end <= g.chromosome_end
 and asm.na_sequence_id = s.assembly_na_sequence_id
 and a.na_sequence_id = s.assembly_na_sequence_id

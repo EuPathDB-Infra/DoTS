@@ -1,4 +1,4 @@
-package ESTOrientationPlot;
+package DoTS::Gene::ESTOrientationPlot;
 
 # -----------------------------------------------------------
 # plotting density of 5' ends of 5' ESTs or 3' ends of 3' ESTs
