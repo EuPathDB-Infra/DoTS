@@ -80,7 +80,7 @@ sub getIds {
   
   my $st1 = $dbh->prepareAndExecute("select  /** RULE */ a.na_sequence_id from dots.assembly a where a.taxon_id = $taxon_id and a.description != 'DELETED'");
   
-  my $st2 = $dbh->prepare("select /** RULE */ p.protein_sequence_id from dots.proteininstance p, dots.translatedaafeature f, dots.rnafeature r where r.na_sequence_id = ? and r.na_feature_id = f.na_feature_id and f.aa_feature_id = p.aa_feature_id");  
+  my $st2 = $dbh->prepare("select /** RULE */ p.protein_instance_id from dots.proteininstance p, dots.translatedaafeature f, dots.rnafeature r where r.na_sequence_id = ? and r.na_feature_id = f.na_feature_id and f.aa_feature_id = p.aa_feature_id");  
   
   while (my $na_sequence_id = $st1->fetchrow_array) {
     if ($self->getArgs()->{'testnumber'} && $i >= $self->getArgs()->{'testnumber'}) {
@@ -103,8 +103,8 @@ sub processIds {
     
   my $self = shift;
   
-  my $ids = @_;
-  
+  my $ids = shift;
+
   my $count = 0;
   
   foreach my $id (@$ids){ 
@@ -186,7 +186,8 @@ sub makeProteinInstance {
   my ($prot) = @_;
   my $review_status_id = 0; 
   my $is_reference = 0;
-  my %attHash = ('review_status_id'=>$review_status_id, 'is_reference'=>$is_reference);
+  my $protein_instance_category_id = 1;
+  my %attHash = ('review_status_id'=>$review_status_id, 'is_reference'=>$is_reference, 'protein_instance_category_id'=>$protein_instance_category_id );
   my $proteininst = GUS::Model::DoTS::ProteinInstance->new(\%attHash);
   $proteininst->setParent($prot);
   return $proteininst;
