@@ -247,7 +247,7 @@ sub downloadNRDB {
 
   $mgr->runCmd("mkdir -p $downloadSubDir");
 
-  my $cmd = "wget -t5 -m -np -nd -nH -o $logfile --cut-dirs=4 -A \"nr.gz\"  -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/blast/db/FASTA/;gunzip $downloadSubDir/nr.gz";
+  my $cmd = "wget -t5 -m -np -nd -nH -o $logfile --cut-dirs=4 -A \"nr.gz\"  -P $downloadSubDir  ftp://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/;gunzip $downloadSubDir/nr.gz";
 
   $mgr->runCmd($cmd);
 
