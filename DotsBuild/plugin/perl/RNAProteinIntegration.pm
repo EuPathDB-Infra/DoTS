@@ -84,6 +84,7 @@ sub run {
 
 #loop through each mRNA na_sequence_id in @ids  
     foreach my $id (@ids) {
+        $ctx->{self_inv}->undefPointerCache();
 	my $extNAseq = GUS::Model::DoTS::ExternalNASequence->new({'na_sequence_id' => $id});
 	$extNAseq->retrieveFromDB();
 	my $rnafeat = $extNAseq->getChild('GUS::Model::DoTS::RNAFeature',1) ? $extNAseq->getChild('GUS::Model::DoTS::RNAFeature') : &makeRNAFeature ($extNAseq);
@@ -101,13 +102,13 @@ sub run {
 	$protinst->setParent($prot);
 	$extNAseq->addToSubmitList($prot);
 	$count += $extNAseq->submit();
-	$extNAseq->undefPointerCache();
 	if ($count%1000==0) {
 	    $time = `date`;
 	    chomp($time); 
 	    print STDERR ("$count    $time\n");
 	}   
     }
+    $ctx->{self_inv}->undefPointerCache();
     $time = `date`;
     chomp($time);
     print STDERR ("Finishing entries: $count completed:  $time\n");
