@@ -238,7 +238,7 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
 
    &makeNRDBIndexWordLink();
 
-   &deleteProteinGOPredictions();
+#   &deleteProteinGOPredictions(); DB
 
    &deleteOldSimilarities();
 
@@ -250,15 +250,15 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &copySimilaritiesFromLiniac();
 
-&insertProteinSimilarities("prodom", "MotifAASequence");
+&insertProteinSimilarities("finalDots-prodom", "DoTS::MotifAASequence");
 
-&insertProteinSimilarities("nrdb", "ExternalAASequence");
+&insertProteinSimilarities("finalDots-nrdb", "DoTS::ExternalAASequence");
 
 &substituteCDDPKs();
 
-&insertProteinSimilarities("cdd", "MotifAASequence");
+&insertProteinSimilarities("finalDots-cdd", "DoTS::MotifAASequence");
 
-&applyGORules(); 
+#&applyGORules(); DB
 
 &copyGOPredictions(); 
 
@@ -1290,7 +1290,7 @@ sub copySimilaritiesFromLiniac {
     my $signal = "copySimilaritiesFromLiniac";
     return if $mgr->startStep("Copying protein similarities from $liniacServer", 
 			 $signal);
-    my @names = ("nrdb", "prodom", "cdd");
+    my @names = ("finalDots-nrdb", "finalDots-prodom", "finalDots-cdd");
     foreach my $name (@names) {
 	$mgr->copyFromLiniac($liniacServer, 
 			     "$serverPath/$buildName/similarity/$name/master/mainresult", 
@@ -1317,11 +1317,11 @@ sub insertProteinSimilarities {
     my ($name, $subjectTable) = @_;
 
     my $file = "$pipelineDir/similarity/$name/blastSimilarity.out";
-    $file .= ".correctPK" if ($name eq "cdd");
+    $file .= ".correctPK" if ($name eq "finalDots-cdd");
 
     my $restart = $propertySet->getProp('iPSRestart');
 
-    my $args = "--files $file --verbose --restart $restart --query_table Assembly --subject_table $subjectTable --log_frequency 10 --limit_sub 50 --limit_hsp 10";
+    my $args = "--files $file --verbose --restart $restart --query_table DoTS::Assembly --subject_table $subjectTable --log_frequency 10 --limit_sub 50 --limit_hsp 10";
 
     $mgr->runPlugin("loadSims_$name", 
 		    "GUS::Common::Plugin::LoadBlastSimilaritiesPK", $args,
@@ -1343,8 +1343,8 @@ sub substituteCDDPKs {
     return if $mgr->startStep("Substitituting primary keys into CDD similarities file",
 			 $signal);
     
-    my $infile = "$pipelineDir/similarity/cdd/blastSimilarity.out";
-    my $outfile = "$pipelineDir/similarity/cdd/blastSimilarity.out.correctPK";
+    my $infile = "$pipelineDir/similarity/finalDots-cdd/blastSimilarity.out";
+    my $outfile = "$pipelineDir/similarity/finalDots-cdd/blastSimilarity.out.correctPK";
     my $logfile = "$pipelineDir/logs/$signal.log";
 
     my $sql = "select source_id,aa_sequence_id from dots.motifaasequence where external_database_release_id in ($smartDB,$pfamDB,$loadDB)";
