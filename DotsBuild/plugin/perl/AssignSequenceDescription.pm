@@ -230,7 +230,8 @@ sub run {
     print "Processing $id: $count finished, " . ($totalToDo - $count) . " remaining\n" if $count % 10 == 0;
 
     ##first get the object...
-    my $obj = $ctx->{cla}->{table}->new({ $table_pk => $id });
+    my $className = "GUS::Model::$ctx->{cla}->{table}";
+    my $obj = $className->new({ $table_pk => $id });
     if (!$obj->retrieveFromDB()) {
       print "ERROR: unable to retrieve $id from database\n";
       next;
