@@ -25,6 +25,7 @@ use GUS::Model::DoTS::TranslatedAASequence;
 use GUS::Model::DoTS::PredictedAAFeature;
 use GUS::Model::DoTS::PfamEntry;
 use GUS::Model::DoTS::SignalPeptideFeature;
+use Disp;
 
 
 
