@@ -1836,6 +1836,41 @@ sub indexNRDBWords {
 		  "Indexing words in NRDB descriptions");
 }
 
+sub assemblyProteinIntegration {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $args = "--taxon_id $taxonId";
+
+  $mgr->runPlugin("integrateAssemblyProtein", "DoTS::DotsBuild::Plugin::AssemblyProteinInstance", $args, "integrating assemblies and proteins"); 
+}
+
+sub RNAProteinIntegration {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $sourceDB = $propertySet->getProp('sourceDB');
+
+  my @DBs = split(/,/, $sourceDB);
+
+  my @extRel;
+
+  foreach my $db (@DBs) {
+    my ($db_rel_id, $abrev) = split(/:/, $db);
+    die "--sourceDB db_rel_id:abreviation pairs must be provided\n" if (!$db_rel_id || !$abrev);
+    push (@extRel, $db_rel_id);
+  }
+
+  my $relList = join(',', @extRel);
+
+  my $args = "--taxon_id $taxonId --ext_db_rel $relList";
+
+  $mgr->runPlugin("integrateRNAProtein", "DoTS::DotsBuild::Plugin::RNAProteinIntegration", $args, "integrating RNA and proteins");
+}
 
 sub getIdsPerAssembly {
   my ($mgr) = @_;
