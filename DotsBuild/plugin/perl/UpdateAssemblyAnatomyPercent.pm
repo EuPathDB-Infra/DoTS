@@ -1,0 +1,169 @@
+package DoTS::DotsBuild::Plugin::UpdateAssemblyAnatomyPercent;
+
+@ISA = qw(GUS::PluginMgr::Plugin);
+use strict;
+use GUS::Model::DoTS::AssemblyAnatomyPercent;
+use DoTS::DotsBuild::AssemblyAnatomyNode;
+
+# ----------------------------------------------------------------------
+# create and initalize new plugin instance.
+
+sub new {
+  my $Class = shift;
+
+  my $m = bless {}, $Class;
+
+  my $usage = 'assign library distribution to assemblies';
+
+  my $easycsp =
+    [
+     {o => 'testnumber',
+      t => 'int',
+      h => 'number of iterations for testing',
+     },
+     {o => 'taxon_id',
+      t => 'int',
+      h => 'taxon_id',
+     },
+     {o => 'restart',
+      t => 'string',
+      h => 'restarts: ignores assembies in the AssemblyAnatomyPercent table >= this date',
+     },
+     {o => 'idSQL',
+      t => 'string',
+      h => 'SQL query that returns Assembly na_sequence_ids, deletes these from AssemblyAnatomyPercent unless >= restart date and then creates new entries for each na_sequence_id',
+     },
+   ];
+
+  $m->initialize({requiredDbVersion => {},
+		  cvsRevision => '$Revision$', # cvs fills this in!
+		  cvsTag => '$Name$', # cvs fills this in!
+		  name => ref($m),
+		  revisionNotes => 'make consistent with GUS 3.0',
+		  easyCspOptions => $easycsp,
+		  usage => $usage
+		 });
+
+  return $m;
+}
+
+$| = 1;
+
+sub run {
+  my ($self) = @_;
+  $self->logAlgInvocationId;
+  $self->logCommit;
+
+  my $testnumber = $self->getArg('testnumber');
+  print "Testing on $testnumber\n" if $testnumber;
+
+  my $taxon_id = $self->getArg('taxon_id');
+  $dbh = $self->getQueryHandle();
+
+  # make anatomy tree with total ESTS at each node (not percolated)
+  my ($root, $nodeHash) = &makeTree($dbh);
+
+  # place raw EST counts in each node of the tree
+  &setESTCounts($nodeHash, $dbh, $taxon_id);
+
+  # handle each DT
+  my $sql =  $self;
+  my $stmt = $dbh->prepareAndExecute($self->getArg('idSQL'));
+
+  my $count;
+  while (my ($dt) = $stmt->fetchRowArray()) {
+    count++;
+    print STDERR "Updated $count rows\n" if ($count % 10000) == 0;
+    &processDT($dt, $taxonID, $root, $dbh);
+    $self->undefPointerCache();
+  }
+
+  $self->setResult("Updated $count rows");
+}
+
+#########################################################################
+##################  subroutines  ########################################
+#########################################################################
+
+
+# static method to make a whole tree
+# return (rootNode, hashOfNodesByAnatomyId)
+sub makeTree {
+  my ($dbh) = @_;
+ 
+  my $sql = "select anatomy_id,parent_id from sres.anatomy order by hier_level";
+
+  my $stmt = $dbh->prepareAndExecute($sql) || die "Can't prepareAndExecute  sql: $sql\n";
+
+  my $count = 0;
+  my $root;
+  my %nodeHash;
+
+  while (my ($anatomy_id, $parent_id) = $stmt-> fetchrow_array()) {
+    my $parent = $nodeHash{parent_id};
+    my $node = DoTS::DotsBuild::AssemblyAnatomyNode->new($anatomy_id, $parent);
+    $nodeHash{$anatomy_id} = $node;
+    if ($parent) {
+      $parent->addKid($node);
+    } else {
+      $root = $node;
+    }
+  }
+  return ($root, \%nodeHash);
+}
+
+# set the raw total est counts for each node in the tree
+sub setESTCounts {
+  my ($self, $nodeHash, $dbh, $taxonId) = @_;
+
+  # issue a query
+  my $sql = "select /*+ RULE */ al.anatomy_id, count(e.na_sequence_id) from dots.anatomylibrary al,dots.library l, dots.assemblysequence a, dots.est e where a.assembly_na_sequence_id is not null and a.na_sequence_id = e.na_sequence_id and l.taxon_id = $taxonId and e.library_id = l.library_id and l.dbest_id = al.dbest_library_id group by al.anatomy_id";
+
+  my $stmt = $dbh->prepareAndExecute($sql) || die "Can't prepareAndExecute  sql: $sql\n";
+
+  while (my ($anatomy_id, $count) = $stmt-> fetchrow_array()) {
+    $nodeHash->{$anatomy_id}->setESTCount($count);
+  }
+
+}
+
+# process a single dt.  
+sub processDT {
+  my ($dt, $taxonId, $root, $dbh) = @_;
+
+  # zero out previous DT's junk
+  $root->zeroOut();
+
+  # load this DT's values into the existing anatomy tree
+  # return the sum of the effective counts and the sum of the raw counts
+  my ($sum_effective, $sum_raw) = &loadDT($dbh,$dt);
+
+  # percolate from bottom up and write out the row
+  $root->percolateAndWrite($dbh, $dt, $sum_effective, $sum_raw, $taxonId);
+}
+
+# For a given DT, foreach anatomyID, place in the anatomyId's node:
+#   raw est count
+#   effective est count
+# Also, accumulate sums for those values
+# return Sum_effective, Sum_raw
+sub loadDT {
+  my ($nodeHash, $dbh, $dtId) = @_;
+
+  # issue a query (anatomy_id, count)
+  my $sql = "??????";
+  # 
+  my $stmt = $dbh->prepareAndExecute($sql) || die "Can't prepareAndExecute  sql: $sql\n";
+
+  my $Sum_effective;
+  my $Sum_raw;
+  while (my ($anatomy_id, $count) = $stmt-> fetchrow_array()) {
+    $nodeHash->{$anatomy_id}->setDTRaw($count);
+    $Sum_raw += $count;
+    $Sum_effective += $nodeHash->{$anatomy_id}->getDTEffective();
+  }
+
+  return (Sum_effective, Sum_raw);
+}
+
+
