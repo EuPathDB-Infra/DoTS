@@ -2,6 +2,8 @@
 
 use strict 'vars';
 
+
+use lib "$ENV{GUS_HOME}/lib/perl";
 use CBIL::Util::EasyCsp;
 use FileHandle;
 
@@ -25,7 +27,7 @@ my @options = ( { h => 'input file',
 							);
 my $ecd = { map {($_->{o},$_)} @options };
 
-my $C = EasyCsp::DoItAll( $ecd, $usage ) || exit 1;
+my $C = CBIL::Util::EasyCsp::DoItAll( $ecd, $usage ) || exit 1;
 
 # output files stuff
 my $o_n;
