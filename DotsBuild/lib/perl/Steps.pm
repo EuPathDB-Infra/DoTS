@@ -2633,7 +2633,7 @@ sub deleteHinvitational2NaSeqId {
 
   my $taxonId = $propertySet->getProp('taxonId');
 
-  my $logFile = "$pipelineDir/logs/${signal}.log";
+  my $logFile = "$mgr->{pipelineDir}/logs/${signal}.log";
 
   my $sql = "select n.db_ref_na_sequence_id from sres.dbref d, dots.dbrefnasequence n, dots.assembly a where d.external_database_release_id = $db_rel_id and d.db_ref_id = n.db_ref_id and n.na_sequence_id = a.na_sequence_id and a.taxon_id = $taxonId";
 
