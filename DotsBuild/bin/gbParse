@@ -1,0 +1,31 @@
+#!/usr/bin/perl
+
+use strict;
+
+use CBIL::Util::Utils;
+
+my $gbRel = shift @ARGV;
+my $inputdir = shift @ARGV;
+my $outputdir = shift @ARGV;
+
+if (scalar(@ARGV) < 1) {
+    print "usage: gbParse release inputdir outputdir\n";
+    exit(1);
+}
+
+die "inputdir $inputdir doesn't exist" unless -e $inputdir;
+die "outputdir $outputdir doesn't exist" unless -e $outputdir;
+
+my @files = @ARGV;
+
+foreach my $inputfile (@files) {
+    my $file = "$inputdir/$inputfile";
+    my $log = "$outputdir/$inputfile.log";
+    my $fail = "$outputdir/$inputfile.fail";
+    my $err = "$outputdir/$inputfile.err";
+
+    my $c = "ga --commit --gbRel $gbRel --file $file --log $log --fail $fail --start 1";
+    my $cmd = "$c --comment '$c' GBParser 2> $err"; 
+    print STDERR "$cmd\n\n";
+    &runCmd($cmd);
+}

@@ -1,0 +1,263 @@
+Overview:
+  1.  Make assembly sequences...finds new sequences in ExternalNASequence, makes quality and writes into the AssemblySequence table.
+  2.  Block these sequences (and relevant DoTS) with repeatmasker.
+  3.  Cluster (run blast matrix in e2k and then transitive closure to form clusters)
+  4.  Update the assemblies from the cluster file
+        -extract updated consensus sequences, block and recluster/reassemble to compress...
+  5.  Annotate the resulting Assemblies and regenerate materialized views..
+        -blast runs vs nrdb, prodomm, CDD and load sims
+        -GOFunction predictions
+        -assign assembly.description
+        -index things (description, via similarities)
+        -EPCR
+        -AssemblyAnatomyPercent
+        -AssemblySNPS
+        -cluster and make Genes from clusters...
+        -update the RNA.descriptions
+        
+
+
+NOTE: all plugins should be run with -help first to see what the options are:
+                 ga -help MakeAssemblySequences
+
+
+Overall steps for the sequence reconstruction.
+
+REMEDIAL step if quality_start and quality_stop are not set...
+ga --help SetAssSeqQualStartStop
+This plugin set the qualitgy start and stop without impacting other atts so does notmess up existing assemblies.
+
+		
+
+  NOTE: this also removes ribosomal and mitochondrial sequences...need to set to null
+	the assembly_na_sequence_ids where proc_cat = 'low_quality' and also keep
+	the resulting assemblies with no assemblysequences to ignore in clustering unless they had been deleted...
+
+	update assemblysequence 
+	set assembly_na_sequence_id = null
+	where processed_category = 'low_quality'
+	and assembly_na_sequence_id is not null
+
+	Also, delete the resulting Assemblies that have no assemblysequences
+	ga --commit --comment "--commit" DeleteAssembliesWithNoAssemblySequences >& deleteAssemblieswithNoAssSeqs.log &
+
+
+
+
+##runing the blast clustering (matrix) on e2kbinf..
+
+#first running humDoTS vs self....
+~/bin_new/setUpBMBlastOnDualNodes.sh humDoTS.blocked pressdb 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32
+
+~/bin_new/startBlastMatrix.pl --db humDoTS.blocked --seqFile /export/Bioinformatics/scratch/db/cbil/DOTS/AssemblyUpdate/Human_1-03-02/humDoTSVsSelf.seq --pValCutoff 1e-5 --lengthCutoff 40 --percentCutoff 92 --endSlop 15 --outputFile blastn.matrix --maskRepeats --nodes '17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32' --numSeqs 770576
+
+#new vs DoTS...note not using blocked DoTS...
+~/bin_new/setUpBMBlastOnDualNodes.sh humDoTS.seq pressdb 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+
+~/bin_new/startBlastMatrix.pl --db humDoTS.seq --seqFile /export/Bioinformatics/scratch/db/cbil/DOTS/AssemblyUpdate/Human_1-03-02/newAssVsDots.seq --pValCutoff 1e-5 --lengthCutoff 40 --percentCutoff 92 --endSlop 15 --outputFile blastn.matrix --maskRepeats --nodes '1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15' --numSeqs 623846 
+
+##new Vs Self..
+~/bin_new/setUpBMBlastOnDualNodes.sh humNewAssSeqs.blocked pressdb 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32
+
+~/bin_new/startBlastMatrix.pl --db humNewAssSeqs.blocked --seqFile /export/Bioinformatics/scratch/db/cbil/DOTS/AssemblyUpdate/Human_1-03-02/newAssVsSelf.seq --pValCutoff 1e-5 --lengthCutoff 40 --percentCutoff 92 --endSlop 15 --outputFile blastn.matrix --maskRepeats --nodes '17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32' --numSeqs 623846
+
+#self matrix of new consensus sequences...
+~/bin_new/setUpAndRunRepeatMaskerOnNodes.pl --trimDangling --file /export/Bioinformatics/scratch/db/cbil/DOTS/AssemblyUpdate/Human_1-03-02/humDoTS_preCluster.seq --nodes '1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32'
+
+~/bin_new/setUpBMBlastOnDualNodes.sh humDoTS_preC.blocked pressdb 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32
+
+~/bin_new/startBlastMatrix.pl --db humDoTS_preC.blocked --seqFile /export/Bioinformatics/scratch/db/cbil/DOTS/AssemblyUpdate/Human_1-03-02/humDoTS_preC.blocked --pValCutoff 1e-5 --lengthCutoff 80 --percentCutoff 95 --endSlop 20 --outputFile blastn.matrix --maskRepeats --nodes '1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32' --numSeqs 911568
+
+##self matrix for making  genes...
+~/bin_new/setUpAndRunRepeatMaskerOnNodes.pl --trimDangling --file /export/Bioinformatics/scratch/db/cbil/DOTS/humDoTS_1-21-02.seq --nodes '17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32'
+
+~/bin_new/getDataFilesFromNodes.pl --file blocked.seq --path '/scratch/brunkb/brunkb_rep?' --nodes '17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32' > humDoTS.blocked
+
+##ERR file....delete these asemblies as are repeats...
+~/bin_new/getDataFilesFromNodes.pl --file blocked.err --path '/scratch/brunkb/brunkb_rep?' --nodes '17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32' > humDoTS.err
+
+~/bin_new/setUpBMBlastOnDualNodes.sh humDoTS.blocked pressdb 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32
+
+~/bin_new/startBlastMatrix.pl --db humDoTS.blocked --seqFile /home/brunkb/humDoTS_update/humDoTS.blocked --pValCutoff 1e-5 --lengthCutoff 100 --percentCutoff 95 --endSlop 30 --outputFile blastn.matrix --maskRepeats --nodes '17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 26, 28, 29, 30, 31, 32' --numSeqs 820965 
+
+~/bin_new/getDataFilesFromNodes.pl --file blastn.matrix --path '/scratch/brunkb/brunkb/proc_?' --nodes '17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 26, 28, 29, 30, 31, 32' | gzip > humDoTSVsSelf.sim.gz
+
+
+##transfer files to persephone and run next steps from there.  Note, you can scp from persephone to e2kbinf.cis.upenn.edu
+
+##First step is to generate clusters from the blast output....have been using dotsBlastTransClosure which will be described here but in the future will use buildBlastClusters.pl.
+
+brunkb@persephone matrixForGenes]$ ~/bin/dotsBlastTransClosure.pl
+USAGE:  dotsBlastTransClosure.perl --lengthCutoff=d --percentCutoff=d --chimeraFile=<filename> --ignoreFile <filename of sequences to ignore> --verbose! --consistentEnds! --files '<matrix, files>'
+
+##for human 1/5/02
+(~/bin/dotsBlastTransClosure.pl --lengthCutoff 40 --percentCutoff 92 --consistentEnds --ignoreFile humDoTSToIgnore.ignore --verbose --files 'humDoTSVsSelf.matrix.gz, humNewVsSelf.sim.gz, humNewVsDoTS.sim.gz' > hum_40-92.cluster ) >& hum_40-92.log &
+
+##NOTE...did not  remove chimeras for mouse....split cluster with higher stringency.
+#for the chimeras... run script to enter them into AssemblySequences if removed chimeras...
+#ga MarkASsemblySequencesBad with processed_category = chimera
+
+1/5/02...there are ~350k sequences in mega cluster...
+##Generate new matrix file with mega cluster...
+gunzip -c *.sim.gz | perl -e 'while(<>){if(/Clu.*:\s\((.*)\)/){foreach $id (split(/, /,$1)){$ids{$id} = 1;}}}print STDERR "have ",scalar(keys %ids)," ids in megacluster\n"; while(<STDIN>){if(/^\>(\S+):/){print if $ids{$1};}}' hum_40-92.mega | gzip > mega_40-92.matrix.gz
+
+##then new matrix...
+(~/bin/dotsBlastTransClosure.pl --lengthCutoff 50 --percentCutoff 95 --consistentEnds --ignoreFile humDoTSToIgnore.ignore --verbose --files 'mega_40-92.matrix.gz'  > hum_50-95.cluster ) >& hum_50-95.log &
+
+
+NOTE: in case of "mega" cluster (cluster with way too many sequences).
+The mega cluster can be split apart by running the dotsBlastTransClosure.pl with stringent params:
+a. --lengthCutoff 40 --percentCutoff 95 .. if needed
+b. --lengthCutoff 80 --percentCutoff 95 .. if needed
+c. --lengthCutoff 80 --percentCutoff 98 .. if needed
+
+##################################################
+Major NOTE: Applicable  only to this update of humDoTS!!
+I am unhappy with the Unigene_44 sequences that can not be explained by the queries
+I now do to Make new assemblysequences....want to remove the unexplained assemblysequences.
+will then ignore these assemblies which following this have no assemblysequences in
+the clustering to see if it makes any difference.  Don't expect it to make a major difference
+as would expect those assemblies that are real problems to also have other sequences
+so would not be removed,  However, in the assembly with --reassemble, the unigene sequences
+would be missing so should get a clean assembly.  I know that this iteration is not clean
+as the current humDoTS assemblies are very problemmatic.  Am planning on fixing this  in the iterative
+clustering and assembly step following this assembly
+
+
+##query 1: ESTs and mRNAs
+create table non_unigene_tmp as
+select a.assembly_sequence_id from gusdev.externalnasequence s, gusdev.assemblysequence a
+where s.taxon_id = 8 and s.sequence_type_id in (7,8)
+and a.na_sequence_id = s.na_sequence_id
+
+##query 2: other RNAs
+insert into non_unigene_tmp 
+select a.assembly_sequence_id from gusdev.assemblysequence a
+where a.na_sequence_id in (
+select s.na_sequence_id from gusdev.externalnasequence s, gusdev.transcript t, gusdev.nalocation l
+where s.taxon_id = 8 
+and s.sequence_type_id = 2 
+and s.length > 400
+and t.na_sequence_id = s.na_sequence_id
+and t.name = 'CDS'
+and l.na_feature_id = t.na_feature_id
+group by s.na_sequence_id having count(*) = 1 )
+
+##creating  tmp table that has only those things in it from unigene44..oor other things
+##that can't be explained..
+create table assSeqs_from_unigene44_tmp as
+select ao.assembly_sequence_id,ao.assembly_na_sequence_id
+ from gusdev.assemblysequence ao
+where ao.assembly_sequence_id in (
+select a.assembly_sequence_id from gusdev.assemblysequence a, gusdev.externalnasequence s
+where s.taxon_id = 8 and a.na_sequence_id = s.na_sequence_id
+MINUS
+select assembly_sequence_id from non_unigene_tmp )
+
+##!!only 1143 rows inserted!!! what gives with that???
+#3turns out that there ~4800 things from unigene_44 that are mRNAs...add these things
+##also restrict the query that identifies sequences to genbank, dbEST and embl...
+
+insert into assSeqs_from_unigene44_tmp
+select a.assembly_sequence_id,a.assembly_na_sequence_id
+ from gusdev.assemblysequence a, gusdev.externalnasequence s
+where s.external_db_id = 19 and s.sequence_type_id = 7 and a.na_sequence_id = s.na_sequence_id
+
+
+##Now update the assemblysequence table
+update assemblysequence
+set processed_category = 'Unigene_44', 
+assembly_na_sequence_id = null,
+have_processed = 1
+where assembly_sequence_id in (
+select assembly_sequence_id from
+assSeqs_from_unigene44_tmp )
+
+##dump assembly ids that have no assembly sequences to test clustering...
+select na_sequence_id from assembly where taxon_id = 8
+minus
+select assembly_na_sequence_id from assemblysequence
+
+##and now remove the assemblies that have no assembly sequences
+ga --commit DeleteAssembliesWithNoAssemblySequences
+
+##################################################
+Assembly update
+##################################################
+
+##running the code to update the assemblies...assembly
+##NOTE:  this time am reassembling from scratch....may iterate later.
+##run three processes on persephone
+
+
+
+
+##################################################
+Annotation
+##################################################
+
+ Dump assembly consensus sequences to a file so can run blast (vs nrdb, prodom, CDD)
+	~/bin/databases/dumpSequencesFromTable.pl --outputFile newhumDoTS.seq --idSQL "na_sequence_id,'('||number_of_contained_sequences||' sequences)',sequence from assembly where taxon_id = 8"  --verbose
+
+##run the blast queries on e2k...used login-newrack forhis run...will be changed to login-clubmask so will be different.
+##vs prodom
+
+~/bin_new/setUpSMPBlastOnNodes.sh prodom2001 setdb 10 11 12 13 14 15 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32
+
+~/bin_new/startRunGenerateBlastSimilarity.pl --regex '(\S+)' --blastProgram blastx --database prodom2001 --seqFile /export/Bioinformatics/scratch/db/cbil/DOTS/AssemblyUpdate/Human_1-03-02/annotation/humDoTSVsProdom.seq --nodes '10, 11, 12, 13, 14, 15, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32' --blastParams '-wordmask=seg+xnu W=3 T=1000' --numSeqs 821098
+
+~brunkb/bin_new/getDataFilesFromNodes.pl --file blastSimilarity.all.gz --path '/scratch/brunkb/brunkb/proc_1' --nodes '10, 11, 12, 13, 14, 15, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32' > humDoTSVsProdom.sim.gz
+
+##vs CDD
+
+~/bin_new/setUpRpsBlastOnNodes.sh All 6 7 8 9
+
+~/bin_new/setUpRpsBlastOnNodes.sh All 3 4 5
+
+~/bin_new/startRunGenerateBlastSimilarity.pl --regex '\w+\|\w+\|(\S+)' --pValCutoff 1e-2 --lengthCutoff 20 --percentCutoff 10 --blastProgram rpsblast --database All --seqFile /export/Bioinformatics/scratch/db/cbil/DOTS/AssemblyUpdate/Human_1-03-02/annotation/humDoTSVsCDD.seq --blastParams '-a 1 -e .1 -p F' --nodes '6, 7, 8, 9' --numSeqs 821098
+
+~/bin_new/startRunGenerateBlastSimilarity.pl --regex '\w+\|\w+\|(\S+)' --pValCutoff 1e-2 --lengthCutoff 20 --percentCutoff 10 --blastProgram rpsblast --database All --seqFile /export/Bioinformatics/scratch/db/cbil/DOTS/AssemblyUpdate/Human_1-03-02/annotation/humDoTSVsCDD.seq --blastParams '-a 1 -e .1 -p F' --nodes '3, 4, 5' --numSeqs 821098
+
+
+~brunkb//bin_new/getDataFilesFromNodes.pl --file blastSimilarity.all.gz --path '/scratch/brunkb/brunkb/proc_1' --nodes '3, 4, 5, 6, 7, 8, 9' > humDoTSVsCDD.sim.gz
+
+##now vs NRDB
+~/bin_new/setUpSMPBlastOnNodes.sh nrdb setdb 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32
+
+~/bin_new/startRunGenerateBlastSimilarity.pl --regex '(\S+)' --blastProgram blastx --database nrdb --seqFile /home/brunkb/humDoTS_update/humDoTS.seq --nodes '17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32' --blastParams '-wordmask=seg+xnu W=3 T=1000' --numSeqs 821098
+
+~brunkb/bin_new/getDataFilesFromNodes.pl --file blastSimilarity.all.gz --path '/scratch/brunkb/brunkb/proc_1' --nodes '17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32' > humDoTSVsNRDB.sim.gz
+
+~/bin_new/setUpSMPBlastOnNodes.sh nrdb setdb 3 4 5 6 7 8 9 10 11 12 13 14 15
+
+~/bin_new/startRunGenerateBlastSimilarity.pl --regex '(\S+)' --blastProgram blastx --database nrdb --seqFile /home/brunkb/humDoTS_update/humDoTS.seq --nodes '3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15' --setSize 500 --blastParams '-wordmask=seg+xnu W=3 T=1000' --numSeqs 821098
+
+~brunkb/bin_new/getDataFilesFromNodes.pl --file blastSimilarity.all.gz --path '/scratch/brunkb/brunkb/proc_1' --nodes '3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15' >> humDoTSVsNRDB.sim.gz
+
+
+
+##assigning description to Assemblies and indexing
+##note the --dots_mgi_file outputs a file for MGI that maps the best similarity to each DoTS id
+
+ga --commit --table Assembly --query_table Assembly --doNotVersion --dots_mgi_file humDoTS_for_MGI.dat  --idSQL "select na_sequence_id,na_sequence_id from Assembly where taxon_id = 8" AssignSequenceDescription >& assignAssemDescription.log &
+
+##indexing Assembly.description
+ga --commit --attribute description --table Assembly --idSQL "select a.na_sequence_id,a.description from Assembly a where a.taxon_id = 8" MakeIndexWordLink > & indexAssemblyDesc.log &
+
+  ##if need to restart.
+ga --commit --attribute description --table Assembly --idSQL "select a.na_sequence_id,a.description from Assembly a where a.taxon_id = 8" --restart --comment '--commit --attribute description --table Assembly --idSQL "select a.na_sequence_id,a.description from Assembly a where a.taxon_id = 8" --restart' MakeIndexWordLink >> & indexAssemblyDesc.log &
+
+
+##INDEXING THE SIMILARITIES TO NRDB AND MOTIFS
+##NOTE: the existing rows will have been deleted by the DeleteSimilarities plugin.
+
+##first motifs...
+
+ga --commit --similarity_table MotifAASequence --target_table Assembly --idSQL "select distinct a.na_sequence_id from similarity s, Assembly a where s.query_table_id = 56 and s.subject_table_id = 277 and s.query_id = a.na_sequence_id and a.taxon_id = 8" --comment 'ga --commit --similarity_table MotifAASequence --target_table Assembly --idSQL "select distinct a.na_sequence_id from similarity s, Assembly a where s.query_table_id = 56 and s.subject_table_id = 277 and s.query_id = a.na_sequence_id and a.taxon_id = 8"' MakeIndexWordSimLink > & indexMotifSims.log &
+
+##then nrdb...
+ga --commit --similarity_table ExternalAASequence --target_table Assembly --idSQL "select distinct a.na_sequence_id from similarity s, Assembly a where s.query_table_id = 56 and s.subject_table_id = 83 and s.query_id = a.na_sequence_id and a.taxon_id = 8" --comment ' --commit --similarity_table ExternalAASequence --target_table Assembly --idSQL "select distinct a.na_sequence_id from similarity s, Assembly a where s.query_table_id = 56 and s.subject_table_id = 83 and s.query_id = a.na_sequence_id and a.taxon_id = 8"' MakeIndexWordSimLink > & indexNRDBSims.log &
+
+##running FrameFinder:
+ga --wordfile "hum_GB123.wordprob" --commit --idSQL "select na_sequence_id from assembly where taxon_id = 8" --comment '--wordfile hum_GB123.wordprob --commit --idSQL "select na_sequence_id from assembly where taxon_id = 8"' FrameFinder > & runFrameFinder.log &
+

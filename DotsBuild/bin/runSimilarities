@@ -1,0 +1,32 @@
+#!/usr/bin/perl
+
+use strict;
+
+use CBIL::Util::Utils;
+use GUS::Pipeline::TaskRunAndValidate;
+
+$| = 1;
+umask 002;
+
+#work around liniac bug that loses stdout
+open(STDOUT, ">&STDERR")     || die "Can't dup stdout";
+
+my $buildDir = $ARGV[0];
+
+if (!($buildDir)) {
+    print "usage:  runsimilarities buildDir\n";
+    exit(1);
+}
+
+die "Build dir $buildDir doesn't exist" unless -d $buildDir;
+
+print "\n";
+
+&runSimilarity($buildDir, "finalDots", "nrdb");
+
+&runSimilarity($buildDir, "finalDots", "cdd");
+
+&runSimilarity($buildDir, "finalDots","prodom");
+
+print "Done\n";
+

@@ -1,0 +1,1859 @@
+#!/usr/bin/perl
+
+use strict;
+
+use GUS::Pipeline::Manager;
+use GUS::Pipeline::MakeTaskDirs;
+use CBIL::Util::PropertySet;
+use CBIL::Util::Utils;
+use File::Basename;
+
+$| = 1;
+umask 002;
+
+my $propertiesFile = $ARGV[0];
+
+&usage unless -e $propertiesFile;
+
+# [name, default (or null if reqd), comment]
+my @properties = 
+(
+ # properties required by Pipeline API
+ ["liniacServer",         "",  "full name of liniac server"],
+ ["stopBefore",   "none",  "the step to stop before.  uses the signal name"],
+ ["objectsPath",   "",  "path to GUS objects, eg /usr/lib/perl5/site_perl/5.6.0"],
+
+ # properties used by dotsbuild
+ ["dotsBuildDir",         "",  "local dots update dir"],
+ ["dotsRelease",          "",  "eg 5 or 6"],
+ ["buildName",            "",  "name of build, eg mus-05-22-02"],
+ ["completedSpeciesBuildName", "",  "similar to build name, but for the other species (eg mus if this is a hum build) if that one completed first. use 'notdone' if it isn't done."],
+ ["reassemble",           "",  "yes or no"],
+ ["serverPath",           "",  "full path of dots update dir on liniac server"],
+ ["nodePath",             "",  "full path of scratch dir on liniac node"],
+ ["repeatmask.taskSize",  "",  "number of seqs to process per repeatmask subtask"],
+ ["repeatmask.path",      "",  "path on node of repeatmask executable"],
+ ["repeatmask.options",   "",  "number of seqs to process per blastmatrix subtask"],
+ ["blastmatrix.taskSize", "",  "number of seqs to process per blastmatrix subtask"],
+ ["blastsimilarity.taskSize", "",  "number of seqs to process per blastsimilarity subtask"],
+ ["blastsimilarity.Bparam", "", "paramter B for blastsimilarity"], 
+ ["blastsimilarity.Vparam", "", "paramter V for blastsimilarity"],
+ ["blastsimilarity.Eparam", "", "paramter E for blastsimilarity"],
+ ["wuBlastBinPath",         "",  "path of wu blast bin dir (local)"],
+ ["wuBlastBinPathLiniac",         "",  "path of wu blast bin dir on Liniac"],
+ ["ncbiBlastBinPathLiniac",         "",  "path of ncbi blast bin dir on Liniac"],
+ ["taxonId",              "",  "eg 14 for mus"],
+ ["speciesFullname",              "",  "eg Home sapiens"],
+ ["speciesNickname",              "",  "eg mus, hum"],
+ ["dbPassword",           "",  ""],
+ ["initialCluster.length",          "",  "length cutoff"],
+ ["initialCluster.percent",         "",  "percent ident cutoff"],
+ ["initialCluster.logbase",         "",  ""],
+ ["initialCluster.consistentEnds",         "",  ""],
+ ["initialCluster.cliqueSzArray",   "",  ""],
+ ["initialCluster.logbaseArray",    "",  ""],
+ ["intermedCluster.length",         "",  "length cutoff"],
+ ["intermedCluster.percent",        "",  "percent ident cutoff"],
+ ["intermedCluster.logbase",        "",  ""],
+ ["intermedCluster.consistentEnds",         "",  ""],
+ ["intermedCluster.cliqueSzArray",  "",  ""],
+ ["intermedCluster.logbaseArray",   "",  ""],
+ ["geneCluster.length",         "",  "length cutoff"],
+ ["geneCluster.percent",        "",  "percent ident cutoff"],
+ ["geneCluster.logbase",        "",  ""],
+ ["geneCluster.consistentEnds",         "",  ""],
+ ["geneCluster.cliqueSzArray",  "",  ""],
+ ["geneCluster.logbaseArray",   "",  ""],
+ ["downloadGenbank",   "",  "yes or no"],
+ ["downloadNRDB",   "",  "yes or no"],
+ ["downloadMGIInfo",   "",  "yes or no"],
+ ["downloadGOStuff",   "",  "yes or no"],
+ ["prodomRelease",   "",  "eg 2001.3"],
+ ["prodom_db_id",   "",  "a new id for the external_db_id table"],
+ ["load_db_id",   "",  "a new id for the external_db_id table"],
+ ["pfam_db_id",   "",  "a new id for the external_db_id table"],
+ ["smart_db_id",   "",  "a new id for the external_db_id table"],
+ ["makeNewGORules",   "",  "yes or no. Regenerate the GO rules from scratch"],
+ ["GOversion",   "",  "version of GO, eg, 2.155"],
+ ["GOrootId",   "",  "only until GUS 3.0, eg, 59235"],
+ ["ePCRinPath",   "", "where to find e-PCR, eg /usr/local/src/bio/e-PCR/src"],
+ ["dbUser",   "", "database user, eg gusrw"],
+ ["buildDate" ,   "", "approximate start date of build"],
+ ["wordfile" ,   "", "file of word probabilities for framefinder"],
+ ["ffRestart" ,  "","list of algorithm_invocation_id for restart of FrameFinder plugin, eg '1,2,3'"],
+ ["userId" ,  "","database user_id from UserInfo table in GUS"],
+ ["iPSRestart" , "","list of algorithm_invocation_id for restart of insertProteinSimilaritiesPK, see ffRestart"],
+ ["assignDescriptionRestart" , "","list of algorithm_invocation_id for restart of AssignSequenceDescription"],
+ ["loadMGIAndGeneCards" ,  "",  "yes or no"],
+ ["insertTaxonRestart" , "","last ncbi_tax_id in the log for restarting LoadTaxon.pm"],
+ ["nrdbRestart" , "","last set number in log for restarting LoadNrdb.pm"],
+ ["nrdbTempLogin" , "","login for temp table space, e.g. pinney@gusdev"],
+ ["nrdbTempPassword" , "","password for temp table space"]
+ ); 
+
+my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
+
+my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
+my $buildName = $propertySet->getProp('buildName');
+my $pipelineDir = "$dotsBuildDir/$buildName";
+
+
+###################  The Pipeline  ##########################
+
+my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFile);
+
+&createDotsPipelineDir($propertySet);
+
+&downloadGenbank();
+
+&downloadRefSeq();
+
+&downloaddbEST();
+
+&downloadTaxon();
+
+&downloadNRDB();
+
+&insertTaxon();
+
+###&parseGenbank();
+
+###&parsedbEST();
+
+&makeAssemSeqs();
+
+&extractAssemSeqs();
+
+&extractDots("prev", "'DT.||'");
+
+&copyPipelineDirToLiniac();
+
+&startBlastMatricesOnLiniac();  
+
+   &insertNRDB();
+
+   &extractNRDB();
+
+   &downloadCDD();
+
+   &unpackCDD();
+
+   &insertCDD();
+
+   &downloadProdom();
+
+   &insertProdom();
+
+   &extractProdom();
+
+   &copyProteinDBsToLiniac();
+
+$mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
+
+&copyBlastMatricesFromLiniac();
+
+&cluster("initial", 
+	 "prevDots-prevDots", "assemSeqs-assemSeqs", "prevDots-assemSeqs");
+
+&assemble("", $propertySet->getProp('reassemble'), "initial");
+
+&extractDots("intermed", "'DT.||'");
+
+&matrix("intermed");
+
+&cluster("intermed", "intermedDots-intermedDots");
+
+&assemble("--assemble_old", "no", "intermed");
+
+&extractDots("final", "");
+
+&matrix("final");
+
+&startSimilaritiesOnLiniac();
+
+&cluster("gene", "finalDots-finalDots");
+
+   &sortClusters();
+
+   &loadRNAClusters();
+
+   &markBadSeqs();  
+
+   &getIdsPerAssembly(); 
+
+   &getImcloneOnlyAssemblies(); 
+
+   &makeFrameFinder();
+
+   &extractMarkers();  
+
+   &runEPCR();  
+
+   &insertEPCR();
+
+   &deleteAnatomyPercent();
+
+   &insertAnatomyPercent();
+
+   &deleteIndexWords();
+
+   &deleteNRDBIndexWords(); 
+
+   &makeNRDBIndexWordLink();
+
+   &deleteProteinGOPredictions();
+
+   &deleteOldSimilarities();
+
+   &assemblyProteinIntegration();
+
+   &RNAProteinIntegration();
+
+$mgr->waitForLiniac("protein similarities", "waitProteinSims");
+
+&copySimilaritiesFromLiniac();
+
+&insertProteinSimilarities("prodom", "MotifAASequence");
+
+&insertProteinSimilarities("nrdb", "ExternalAASequence");
+
+&substituteCDDPKs();
+
+&insertProteinSimilarities("cdd", "MotifAASequence");
+
+&applyGORules(); 
+
+&copyGOPredictions(); 
+
+&assignSequenceDescription();
+
+&makeIndexWords();
+
+&indexSimilarityWords();
+
+&indexNRDBWords();
+
+&prepareDownloadSiteFiles();      
+
+&prepareBlastSiteFiles();      
+
+###&downloadGOTerms();
+
+###&insertGOTerms();
+
+###&downloadGOAssoc();
+
+###&downloadFly();
+
+###&insertFly();
+
+###&downloadWorm();
+
+###&insertWorm();
+
+###&downloadYeast();
+
+###&insertYeast();
+
+###&downloadArabidopsis();
+
+###&insertArabidopsis();
+
+###&downloadSwissprot();
+
+###&insertSwissprot();
+
+###&downloadTREMBL();
+
+###&findTREMBLWithAssociation();
+
+###&insertTREMBLSubset();
+
+###&insertGOAssoc();
+
+###&extractSwissprotWithAssociations();
+
+###&extractFlyWithAssociations();
+
+###&copyGOSeqsToLiniac();
+
+###&blastGOSeqsAgainstMotifs();
+
+###&copySimsFromLiniac();
+
+###&insertProteinSimilarities("sp-cdd", "ExternalAASequence");
+
+###&insertProteinSimilarities("sp-prodom", "ExternalAASequence");
+
+###&insertProteinSimilarities("fly-cdd", "ExternalAASequence");
+
+###&insertProteinSimilarities("fly-prodom", "ExternalAASequence");
+
+###&learnGORules();
+
+##&applyGORules();   
+
+###versionOldProteinGOFunc();
+
+##&copyGOPredictions();
+
+###&cleanGORules();
+
+##&versionGeneTrapAssembly();
+
+##&deleteGeneTrapAssembly();
+
+&makeStatisticsPage();
+
+&downloadMGIInfo();
+
+&loadMGIToDoTS();
+
+&loadMGIInfo();
+
+&loadGeneCardsToDoTS();
+
+$mgr->goodbye("Pipeline complete!\n");
+
+#########################   Pipeline Subroutines   ########################
+
+sub createDotsPipelineDir { 
+    my ($props) = @_;
+
+    my $buildName = $props->getProp('buildName');
+    my $dotsBuildDir = $props->getProp('dotsBuildDir');
+    my $serverPath = $props->getProp('serverPath');
+    my $nodePath = $props->getProp('nodePath');
+    my $rmTaskSize = $props->getProp('repeatmask.taskSize');
+    my $rmPath = $props->getProp('repeatmask.path');
+    my $rmOptions = $props->getProp('repeatmask.options');
+    my $bmTaskSize = $props->getProp('blastmatrix.taskSize');
+    my $bsTaskSize = $props->getProp('blastsimilarity.taskSize');
+    my $bsBparam = $props->getProp('blastsimilarity.Bparam');
+    my $bsVparam = $props->getProp('blastsimilarity.Vparam');
+    my $bsEparam = $props->getProp('blastsimilarity.Eparam');
+    my $wuBlastBinPathLiniac = $props->getProp('wuBlastBinPathLiniac');
+    my $ncbiBlastBinPathLiniac = $props->getProp('ncbiBlastBinPathLiniac');
+
+    return if (-e "$dotsBuildDir/$buildName/seqfiles");
+
+    &runCmd("mkdir -p $dotsBuildDir/$buildName/seqfiles");
+    &runCmd("mkdir -p $dotsBuildDir/$buildName/epcr");
+    &runCmd("mkdir -p $dotsBuildDir/$buildName/misc");
+    &runCmd("mkdir -p $dotsBuildDir/$buildName/blastSite");
+    &runCmd("mkdir -p $dotsBuildDir/$buildName/downloadSite");
+    &runCmd("mkdir -p $dotsBuildDir/$buildName/cluster/initial");
+    &runCmd("mkdir -p $dotsBuildDir/$buildName/cluster/intermed");
+    &runCmd("mkdir -p $dotsBuildDir/$buildName/cluster/gene");
+
+    makeRMDir("assemSeqs", $buildName, $dotsBuildDir, 
+	      $serverPath, $nodePath, $rmTaskSize, $rmOptions, $rmPath);
+    makeRMDir("prevDots", $buildName, $dotsBuildDir,
+	      $serverPath,  $nodePath, $rmTaskSize, $rmOptions, $rmPath);
+    makeRMDir("intermedDots", $buildName, $dotsBuildDir,
+	      $serverPath,  $nodePath, $rmTaskSize, $rmOptions, $rmPath);
+    makeRMDir("finalDots", $buildName, $dotsBuildDir,
+	      $serverPath,  $nodePath, $rmTaskSize, $rmOptions, $rmPath);
+
+    &makeMatrixDir("assemSeqs", "assemSeqs", $buildName, $dotsBuildDir, 
+		   $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
+    &makeMatrixDir("prevDots", "assemSeqs", $buildName, $dotsBuildDir, 
+		   $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
+    &makeMatrixDir("prevDots", "prevDots", $buildName, $dotsBuildDir, 
+		   $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
+    &makeMatrixDir("intermedDots", "intermedDots", $buildName, $dotsBuildDir, 
+		   $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
+    &makeMatrixDir("finalDots", "finalDots", $buildName, $dotsBuildDir, 
+		   $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
+
+    &makeSimilarityDir("finalDots", "nrdb", $buildName, $dotsBuildDir, 
+		       $serverPath, $nodePath, $bsTaskSize, $wuBlastBinPathLiniac,
+		       "nrdb.fsa", '(\d+)', 'blastx', 
+		       '-wordmask=seg+xnu', 'W=3', 'T=1000','B=$bsBparam','V=$bsVparam','E=$bsEparam');
+
+    &makeSimilarityDir("finalDots", "prodom", $buildName, $dotsBuildDir, 
+		       $serverPath, $nodePath, $bsTaskSize, $wuBlastBinPathLiniac,
+		       "prodom.fsa", '(\S+)', 'blastx', 
+		       '-wordmask=seg+xnu', 'W=3', 'T=1000','B=$bsBparam','V=$bsVparam','E=$bsEparam');
+
+    &makeSimilarityDir("finalDots", "cdd", $buildName, $dotsBuildDir, 
+		       $serverPath, $nodePath, $bsTaskSize, $ncbiBlastBinPathLiniac,
+		       "cdd/All",  '\w+\|\w+\|(\S+)', 'rpsblast', 
+		       '-a 2', '-e .1', '-p F');
+
+    &makeAssemblyDir("initial", $buildName, $dotsBuildDir);
+    &makeAssemblyDir("intermed", $buildName, $dotsBuildDir);
+
+    &runCmd("chmod -R g+w $dotsBuildDir/$buildName");
+}
+
+sub makeAssemblyDir {
+    my ($name, $buildName, $localDir) = @_;
+
+    &runCmd("mkdir -p $localDir/$buildName/assembly/$name/big");
+    &runCmd("mkdir -p $localDir/$buildName/assembly/$name/small");
+}
+
+sub downloadGenbank {
+    my $signal = "downloadGenbank";
+
+    return if $mgr->startStep("Downloading Genbank", $signal,'downloadGenbank');
+
+    $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
+
+    my $logfile = "$pipelineDir/logs/downloadGenbank.log";
+
+    my $cmd = "wget -t5 -o $logfile -b -m -np -nH --cut-dirs=1 -R \"gbest*,gbgss*,gbhtg*,gbsyn*\" -A \"*.seq.gz,README.genbank\"  -P /usr/local/db/local/genbank ftp://ftp.ncbi.nih.gov/genbank/";
+
+    $mgr->runCmd($cmd);
+
+    $mgr->endStep($signal);
+}
+
+sub downloadRefSeq {
+    my $signal = "downloadRefSeq";
+    
+    return if $mgr->startStep("Downloading RefSeq", $signal);
+
+    $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
+
+    my $logfile = "$pipelineDir/logs/downloadRefSeq.log";
+
+    my $ftpsite;
+
+    my $ftpfile;
+
+    if ($propertySet->getProp('taxonId') == 8) {
+
+	$ftpsite = "ftp://ftp.ncbi.nih.gov/ref_seq/H_sapiens/mRNA_Prot/";
+	$ftpfile = "hs.gbff.gz";
+    }
+
+    else {
+
+	$ftpsite = "ftp://ftp.ncbi.nih.gov/ref_seq/M_musculus/mRNA_Prot/";
+	$ftpfile = "mouse.gbff.gz";
+    }
+
+
+    my $cmd = "wget -t5 -o $logfile -b -m -np -nH --cut-dirs=3 -A \"$ftpfile\" -P /usr/local/db/local/refseq $ftpsite";
+
+    $mgr->runCmd($cmd);
+
+    $mgr->runCmd("gunzip /usr/local/db/local/refseq/*.gz");
+
+    $mgr->endStep($signal);
+}
+
+sub downloaddbEST {
+
+    my $signal = "downloaddbEST";
+
+    return if $mgr->startStep("Downloading dbEST", $signal,'downloaddbEST');
+
+    $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
+
+    my $logfile = "$pipelineDir/logs/downloaddbEST.log";
+
+    my $cmd = "wget -t5 -o $logfile -b -m -np -nH --cut-dirs=3 -P /usr/local/db/local/dbEST/data ftp://ftp.ncbi.nih.gov/repository/dbEST/bcp/";
+
+    $mgr->runCmd($cmd);
+
+    $mgr->runCmd("gunzip /usr/local/db/local/dbEST/*.gz");
+
+    $mgr->endStep($signal);
+    
+}
+
+sub downloadTaxon {
+    my $signal = "downloadTaxon";
+
+    return if $mgr->startStep("Downloading Taxon", $signal,'downloadTaxon');
+
+    $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
+
+    my $logfile = "$pipelineDir/logs/downloadTaxon.log";
+
+    my $cmd = "wget -t5 -o $logfile -b -m -np -nH --cut-dirs=2 -A \"gi_taxid_nucl.dmp.gz,gi_taxid_prot.dmp.gz,taxdump.tar.gz\" -P /usr/local/db/local/taxonomy ftp://ftp.ncbi.nih.gov/pub/taxonomy/"; 
+
+    $mgr->runCmd($cmd);
+
+    $mgr->runCmd("gunzip /usr/local/db/local/taxonomy/taxdump.tar.gz");
+	
+    $mgr->runCmd("tar -xf /usr/local/db/local/taxonomy/taxdump.tar.tar");
+
+    $mgr->runCmd("gunzip /usr/local/db/local/taxonomy/gi_taxid_nucl.dmp.gz");
+
+    $mgr->runCmd("gunzip /usr/local/db/local/taxonomy/gi_taxid_prot.dmp.gz");
+
+    $mgr->endStep($signal);
+
+}
+
+sub downloadNRDB {
+
+    my $signal = "downloadNRDB";
+
+    return if $mgr->startStep("Downloading NRDB", $signal, 'downloadNRDB');
+
+    $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
+    my $logfile = "$pipelineDir/logs/downloadNRDB.log";
+
+    my $cmd = "wget -t5 -b -m -np -nH -o $logfile --cut-dirs=3 -A \"nr.Z\"  -P /usr/local/db/local/nrdb ftp://ftp.ncbi.nih.gov/pub/blast/db/";
+	
+    $mgr->runCmd($cmd);
+
+    $mgr->runCmd("uncompress /usr/local/db/local/nrdb/nr.Z");
+
+    $mgr->endStep($signal);
+}
+
+sub insertTaxon {
+    
+    my $names = "/usr/local/db/local/taxonomy/names.dmp";
+    my $nodes = "/usr/local/db/local/taxonomy/nodes.dmp";
+    my $gencode = "/usr/local/db/local/taxonomy/gencode.dmp";
+    my $restart = $propertySet->getProp('insertTaxonRestart');
+
+    my $args = "--names $names --nodes $nodes --gencode $gencode --restart $restart";
+
+    $mgr->runPlugin("loadTaxon", "LoadTaxon", $args,
+	       "Loading Taxon tables");
+}
+
+sub parseGenbank {
+    if ($propertySet->getProp('downloadGenbank') eq 'yes') {
+
+	# call plugin
+
+    } else {
+	$mgr->log(" skipping... downloadGenbank property set to 'no'\n\n"); 
+    }
+}
+
+sub parsedbEST {
+   # put in mirror site, then into GUS
+}
+
+sub makeAssemSeqs {
+
+    my $taxonId = $propertySet->getProp('taxonId');
+
+    my $args = "--taxon_id=$taxonId";
+
+    $mgr->runPlugin("makeAssemSeqs", "MakeAssemblySequences", $args,
+		    "Making assembly table sequences");
+}
+
+sub extractAssemSeqs {
+
+    my $taxonId = $propertySet->getProp('taxonId');
+
+    my $outputFile = "$pipelineDir/seqfiles/assemSeqs.fsa"; 
+    my $args = "--taxon_id=$taxonId --outputfile $outputFile --extractonly";
+
+    $mgr->runPlugin("extractAssemSeqs", "ExtractAndBlockAssemblySequences", 
+		    $args, "Extracting assembly table sequences");
+
+    # a HACK until we fix the plugin (note: its not protected by a signal)
+    #my $noZeroFile = "$pipelineDir/seqfiles/assemSeqs.fsa"; 
+    #$mgr->runCmd("removeZeroLengthSeqs $outputFile | $noZeroFile") unless -e $noZeroFile;
+}
+
+
+# $name is prevDots or intermedDots
+sub extractDots {
+    my ($name, $DTprefix) = @_;
+
+    $name = "${name}Dots";
+    my $signal = "${name}Extract";
+
+    return if $mgr->startStep("Extracting $name assemblies from GUS", $signal);
+
+    my $dbPassword = $propertySet->getProp('dbPassword');
+    my $taxonId = $propertySet->getProp('taxonId');
+    my $species = $propertySet->getProp('speciesFullname');
+
+    my $seqFile = "$pipelineDir/seqfiles/$name.fsa";
+    my $logFile = "$pipelineDir/logs/${name}Extract.log";
+
+    my $cmd = "dumpSequencesFromTable.pl --outputFile $seqFile --verbose --password $dbPassword --idSQL \"select $DTprefix na_sequence_id,'[$species]',description,'('||number_of_contained_sequences||' sequences)','length='||length,sequence from Assembly where taxon_id = $taxonId\" 2>>  $logFile";
+
+    $mgr->runCmd($cmd);
+
+    $mgr->endStep($signal);
+}
+
+
+sub copyPipelineDirToLiniac {
+
+    my $buildName = $propertySet->getProp('buildName');
+    my $serverPath = $propertySet->getProp('serverPath');
+    my $liniacServer = $propertySet->getProp('liniacServer');
+
+    my $signal = "dir2liniac";
+    return if $mgr->startStep("Copying $pipelineDir/ to $serverPath on $liniacServer", $signal);
+
+    $mgr->copyToLiniac($dotsBuildDir, $buildName, $liniacServer, $serverPath);
+
+    $mgr->endStep($signal);
+}
+
+sub startBlastMatricesOnLiniac {
+
+    my $liniacServer = $propertySet->getProp('liniacServer');
+    my $buildName = $propertySet->getProp('buildName');
+    my $serverPath = $propertySet->getProp('serverPath');
+
+    my $signal = "runmatrices";
+    return if $mgr->startStep("Starting blast matrices", $signal);
+    
+    $mgr->endStep($signal);
+
+    my $liniacCmdMsg = "submitPipelineJob runInitialMatrices $serverPath/$buildName NUMBER_OF_NODES";
+    my $liniacLogMsg = "monitor $serverPath/$buildName/logs/*.log and xxxxx.xxxx.stdout";
+
+    $mgr->exitToLiniac($liniacCmdMsg, $liniacLogMsg, 1);
+}
+
+sub copyBlastMatricesFromLiniac {
+
+    my $serverPath = $propertySet->getProp('serverPath');
+    my $liniacServer = $propertySet->getProp('liniacServer');
+
+    my $signal = "matricesFromLiniac";
+    return if $mgr->startStep("Copying matrices from $liniacServer", $signal);
+    
+    $mgr->copyFromLiniac($liniacServer,
+                       "$serverPath/$buildName/repeatmask/assemSeqs/master/mainresult",
+                       "blocked.err",
+                       "$pipelineDir/repeatmask/assemSeqs");
+
+    my @names = ("assemSeqs-assemSeqs", "prevDots-assemSeqs", "prevDots-prevDots");
+    foreach my $name (@names) {
+	$mgr->copyFromLiniac($liniacServer,
+			     "$serverPath/$buildName/matrix/$name/master/mainresult",
+			     "blastMatrix.out",
+			     "$pipelineDir/matrix/$name");
+    }
+    
+    $mgr->endStep($signal);
+}
+
+sub cluster {
+    my ($name, @matrices) = @_;
+
+    my $signal = "${name}Cluster";
+
+    return if $mgr->startStep("Clustering $name", $signal);
+
+    my $length = $propertySet->getProp("$signal.length");
+    my $percent = $propertySet->getProp("$signal.percent");
+    my $logbase = $propertySet->getProp("$signal.logbase");
+    my $consistentEnds = $propertySet->getProp("$signal.consistentEnds");
+    my $cliqueSzArray = $propertySet->getProp("$signal.cliqueSzArray");
+    my $logbaseArray = $propertySet->getProp("$signal.logbaseArray");
+    
+    my @matrixFileArray;
+    foreach my $matrix (@matrices) {
+	push(@matrixFileArray,
+	     "$pipelineDir/matrix/$matrix/blastMatrix.out");
+    }
+    my $matrixFiles = join(",", @matrixFileArray); 
+
+    my $ceflag = ($consistentEnds eq "yes")? "--consistentEnds" : "";
+
+    my $outputFile = "$pipelineDir/cluster/$name/cluster.out";
+    my $logFile = "$pipelineDir/logs/$signal.log";
+
+    my $cmd = "buildBlastClusters.pl --lengthCutoff $length --percentCutoff $percent --verbose --files '$matrixFiles' --logBase $logbase --iterateCliqueSizeArray $cliqueSzArray $ceflag --iterateLogBaseArray $logbaseArray --sort > $outputFile 2>> $logFile";
+
+    $mgr->runCmd($cmd);
+
+    $mgr->endStep($signal);
+}
+
+sub assemble {
+    my ($old, $reassemble, $name) = @_;
+
+    my $signal = "${name}Assemble";
+
+    return if $mgr->startStep("Assemble $name", $signal);
+
+    my $clusterFile = "$pipelineDir/cluster/$name/cluster.out";
+    my $splitCmd = "splitClusterFile $clusterFile";
+    $mgr->runCmd($splitCmd);
+    
+    &runAssemblePlugin($clusterFile, "big", $name, $old, $reassemble);
+    &runAssemblePlugin($clusterFile, "small", $name, $old, $reassemble);
+    $mgr->endStep($signal);
+    my $msg = 
+"EXITING.... PLEASE DO THE FOLLOWING:
+ 1. resume when assembly completes (validly) by re-runnning 'dotsbuild $propertiesFile'
+";
+    print STDERR $msg;
+    print $msg;
+    $mgr->goodbye($msg);
+}
+
+sub runAssemblePlugin {
+    my ($file, $suffix, $name, $assembleOld, $reassemble) = @_;
+
+    my $taxonId = $propertySet->getProp('taxonId');
+
+    my $reass = $reassemble eq "yes"? "--reassemble" : "";
+    my $args = "--clusterfile $file.$suffix $assembleOld $reass --taxon_id $taxonId";
+    my $pluginCmd = "ga --commit $args --comment '$args' UpdateDotsAssembliesWithCap4";
+
+    my $logfile = "$pipelineDir/logs/${name}Assemble.$suffix.log";
+    
+    my $assemDir = "$pipelineDir/assembly/$name/$suffix";
+    $mgr->runCmd("mkdir -p $assemDir");
+    chdir $assemDir || die "Can't chdir to $assemDir";
+
+    my $cmd = "runUpdateAssembliesPlugin --clusterFile $file.$suffix --pluginCmd \"$pluginCmd\" 2>> $logfile"; 
+    $mgr->runCmdInBackground($cmd);
+}
+
+sub matrix {
+    my ($name) = @_;
+
+    &copyDotsToLiniac($name);
+
+    &startDotsMatrixOnLiniac($name);  
+
+    &copyDotsMatrixFromLiniac($name);
+}
+
+sub copyDotsToLiniac {
+    my ($name) = @_;
+
+    my $buildName = $propertySet->getProp('buildName');
+    my $serverPath = $propertySet->getProp('serverPath');
+    my $liniacServer = $propertySet->getProp('liniacServer');
+
+    my $seqfilesDir = "$pipelineDir/seqfiles";
+    my $f = "${name}Dots.fsa";
+
+    my $signal = "${name}Dots2liniac";
+    return if $mgr->startStep("Copying $seqfilesDir/$f to $serverPath/$buildName/seqfiles on $liniacServer", $signal);
+
+    $mgr->copyToLiniac($seqfilesDir, $f, $liniacServer, "$serverPath/$buildName/seqfiles");
+
+    $mgr->endStep($signal);
+}
+
+sub startDotsMatrixOnLiniac {
+    my ($name) = @_;
+
+    my $buildName = $propertySet->getProp('buildName');
+    my $serverPath = $propertySet->getProp('serverPath');
+
+    my $signal = "${name}DotsMatrix";
+    return if $mgr->startStep("Starting ${name}Dots matrix", $signal);
+    
+    $mgr->endStep($signal);
+
+    my $cmd = "run" . ucfirst($signal);
+
+    my $liniacCmdMsg = "submitPipelineJob $cmd $serverPath/$buildName NUMBER_OF_NODES";
+    my $liniacLogMsg = "monitor $serverPath/$buildName/logs/*.log and xxxxx.xxxx.stdout";
+
+    $mgr->exitToLiniac($liniacCmdMsg, $liniacLogMsg, 0);
+}
+
+sub copyDotsMatrixFromLiniac {
+    my($name) = @_;
+
+    my $serverPath = $propertySet->getProp('serverPath');
+    my $liniacServer = $propertySet->getProp('liniacServer');
+
+    my $signal = "${name}DotsMatrixFromLiniac";
+
+    return if $mgr->startStep("Copying ${name}Dots matrix from $liniacServer", 
+			 $signal);
+
+    $mgr->copyFromLiniac($liniacServer, 
+			 "$serverPath/$buildName/matrix/${name}Dots-${name}Dots/master/mainresult", 
+			 "blastMatrix.out", 
+			 "$pipelineDir/matrix/${name}Dots-${name}Dots");
+
+    $mgr->endStep($signal);
+}
+
+sub sortClusters {
+    my $signal = "sortClusters";
+
+    return if $mgr->startStep("Sort clusters into descending order", $signal);
+
+    my $in = "$pipelineDir/cluster/gene/cluster.out";
+    my $out = "$pipelineDir/cluster/gene/cluster.out.descending";
+
+    $mgr->runCmd("sort --numeric-sort --field-separator ' ' --key 2.2 --reverse $in > $out");
+
+    $mgr->endStep($signal);
+}
+
+sub loadRNAClusters {
+    my $file = "$pipelineDir/cluster/gene/cluster.out.descending";
+    my $args = "--sort_desc --clusterfile $file";
+
+    $mgr->runPlugin("loadRNAClusters", "MakeRNAClustersForAssemblies", $args,
+	       "Loading RNA Clusters");
+}
+
+
+sub insertNRDB {
+
+    my $logFile = "$pipelineDir/logs/loadNRDB.info";
+
+    my $gitax = "/usr/local/db/local/taxonomy/gi_taxid_prot.dmp";
+
+    my $nrdb = "/usr/local/db/local/nrdb/nr";
+
+    my $temp_login = $propertySet->getProp('nrdbTempLogin');  
+
+    my $temp_password = $propertySet->getProp('nrdbTempPassword'); 
+
+    my $restart = $propertySet->getProp('nrdbRestart');
+
+    my $args = "--verbose --temp_login $temp_login --temp_password $temp_password --restart --gitax $gitax --nrdb $nrdb --maketemp --plugin --delete";
+
+    $mgr->runPlugin("loadNRDB", "LoadNRDB", $args, "Loading NRDB", 'downloadNRDB');
+}	
+
+ 
+
+sub extractNRDB {
+
+    my $sql = "select aa_sequence_id,'source_id='||source_id,'secondary_identifier='||secondary_identifier,description,'length='||length,sequence from ExternalAASequence where external_db_id = 4194";
+    
+    extractProteinSeqs("nrdb", $sql);
+}
+
+sub extractProteinSeqs {
+    my ($name, $sql) = @_;
+
+    my $signal = "${name}Extract";
+
+    return if $mgr->startStep("Extracting $name protein sequences from GUS", $signal);
+
+    my $dbPassword = $propertySet->getProp('dbPassword');
+
+    my $seqFile = "$pipelineDir/seqfiles/$name.fsa";
+    my $logFile = "$pipelineDir/logs/${name}Extract.log";
+
+    my $cmd = "dumpSequencesFromTable.pl --password $dbPassword --outputFile $seqFile --idSQL \"$sql\" --verbose 2>> $logFile";
+
+    $mgr->runCmd($cmd);
+
+    $mgr->endStep($signal);
+}
+
+sub downloadCDD {
+
+    # produces seqfiles/cdd.tar
+
+    my $signal = "downloadCDD";
+
+    return if $mgr->startStep("Downloading CDD", $signal, 'downloadGOStuff');
+
+    $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
+
+    my $dbDir = "/usr/local/db/local/cdd";
+    my $logfile = "$pipelineDir/logs/$signal.log";
+
+    $mgr->runCmd("mkdir -p $dbDir");
+    $mgr->runCmd("/bin/rm -fr $dbDir/*");
+
+    my $cmd = "wget -t5 -b -m -np -nH -o $logfile --cut-dirs=3 -A \"cdd.tar.gz\"  -P /$dbDir ftp://ftp.ncbi.nih.gov/pub/mmdb/cdd/";
+	
+    $mgr->runCmd($cmd);
+
+    $mgr->endStep($signal);
+}
+
+sub unpackCDD {
+
+    my $signal = "unpackCDD";
+    return if $mgr->startStep("Unpacking CDD files", $signal, 'downloadGOStuff');
+    
+    my $logFile = "$pipelineDir/logs/$signal.log";
+    my $dbDir = "/usr/local/db/local/cdd";
+
+    chdir $dbDir;
+
+    $mgr->runCmd("gunzip cdd.tar.gz");
+	
+    $mgr->runCmd("tar -xf cdd.tar");
+
+    $mgr->runCmd("cat LOAD*.csq >LOAD");
+
+    $mgr->runCmd("cat pfam*.csq >PFAM");
+
+    $mgr->runCmd("cat smart*.csq >SMART");
+
+    $mgr->runCmd("rm -r cdd.tar");
+	
+    $mgr->endStep($signal);
+}
+
+sub insertCDD {
+
+    my $loadDB = $propertySet->getProp('load_db_id');
+    
+    # >gnl|CDD|3794 LOAD_ACT, ACT, small ligand binding domain
+    my $regex_src_id = "^\\>\\w+\\|\\w+\\|\\w+\\s(LOAD[\\_\\w]+)\\,\\s";
+    my $regex_name = "^\\S+\\sLOAD[\\_\\w]+\\,\\s([\\w\\_\\s]+)\\,\\s";
+    my $regex_desc = "^\\S+\\sLOAD[\\_\\w]+\\,\\s(.*)";
+    
+    my $loadArgs = "--verbose --table_name 'MotifAASequence' --sequencefile '/usr/local/db/local/cdd/LOAD' --external_db_id $loadDB --regex_source_id \"$regex_src_id\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
+
+    $mgr->runPlugin("insertLoad", "InsertNewExternalSequences", $loadArgs,
+		   "Inserting Load", 'downloadGOStuff');
+
+    my $pfamDB = $propertySet->getProp('pfam_db_id');
+
+    #>gnl|Pfam|pfam00291 PALP, Pyridoxal-phosphate dependent enzyme
+    $regex_src_id = "^\\>\\w+\\|\\w+\\|\\w+\\s(pfam\\w+)";
+    $regex_name = "^\\S+\\spfam\\w+\\,\\s([\\w\\_\\s]+)\\,\\s";
+    $regex_desc = "^\\S+\\spfam\\w+\\,\\s(.*)";
+    
+    my $pfamArgs = "--verbose --table_name 'MotifAASequence' --sequencefile '/usr/local/db/local/cdd/PFAM' --external_db_id $pfamDB --regex_source_id \"$regex_src_id\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
+    
+    $mgr->runPlugin("insertPfam", "InsertNewExternalSequences", $pfamArgs,
+		   "Inserting Pfam", 'downloadGOStuff');
+    
+    my $smartDB = $propertySet->getProp('smart_db_id');
+    
+    #>gnl|Smart|smart00238 BIR, Baculoviral inhibition of apoptosis protein repeat; Domain found in inhibitor of apoptosis proteins (IAPs) and other proteins. Acts as a direct inhibitor of caspase enzymes
+    $regex_src_id = "^\\>\\w+\\|\\w+\\|\\w+\\s(smart\\w+)";
+    $regex_name = "^\\S+\\ssmart\\w+\\,\\s([\\w\\_\\s]+)\\,\\s";
+    $regex_desc = "^\\S+\\ssmart\\w+\\,\\s(.*)";
+    
+    my $smartArgs = "--verbose --table_name 'MotifAASequence' --sequencefile '/usr/local/db/local/cdd/SMART' --external_db_id $smartDB  --regex_source_id \"$regex_src_id\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
+    
+    $mgr->runPlugin("insertSmart", "InsertNewExternalSequences", $smartArgs,
+	       "Inserting Smart", 'downloadGOStuff');
+
+}
+
+sub downloadProdom {
+
+    my $signal = "downloadProdom";
+
+    return if $mgr->startStep("Downloading Prodom", $signal, 'downloadGOStuff');
+
+    my $prodomRelease = $propertySet->getProp('prodomRelease');
+
+    my $dbDir = "/usr/local/db/local/prodom";
+    my $file = "$prodomRelease.forblast.gz";
+    my $logfile = "$pipelineDir/logs/$signal.log";
+
+    $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
+
+    $mgr->runCmd("mkdir -p $dbDir");
+    $mgr->runCmd("/bin/rm -f $dbDir/*");
+
+    my $cmd = "wget -t5 -b -m -np -nH -o $logfile  --cut-dirs=3 -A \"$file\"  -P $dbDir ftp://ftp.toulouse.inra.fr/pub/prodom/$prodomRelease/";
+    
+    $mgr->runCmd($cmd);
+    $mgr->runCmd("gunzip $dbDir/$file");
+    
+    $mgr->endStep($signal);
+}
+
+sub insertProdom {
+
+    my $prodomRelease = $propertySet->getProp('prodomRelease');
+
+    my $prodomFile = "/usr/local/db/local/prodom/$prodomRelease.forblast";
+    my $logFile = "$pipelineDir/logs/insertProdom.log";
+
+    my $prodomDB = $propertySet->getProp('prodom_db_id');
+
+    # PD000001 p2001.3 (5328) KIT(16) KPC1(13) CDC2(13) // KINASE TRANSFERASE ATP-BINDING SERINE/THREONINE-PROTEIN RECEPTOR TYROSINE-PROTEIN 2.7.1.-PHOSPHORYLATION PRECURSOR
+
+    my $regex_src_id = "^\\>(\\w+)";  
+    my $regex_contained_seqs = "\\((\\d+)";
+    my $regex_name = "(\\(.+)\\s\\/\\/";
+    my $regex_desc = "\\/\\/\\s(.+)";
+
+    my $args = "--verbose --table_name MotifAASequence --sequencefile $prodomFile --external_db_id $prodomDB --regex_source_id \"$regex_src_id\"  --regex_contained_seqs \"$regex_contained_seqs\" --regex_name \"$regex_name\"  --regex_desc \"$regex_desc\"";
+
+    $mgr->runPlugin("insertProdom", "InsertNewExternalSequences", $args,
+		   "Inserting Prodom", 'downloadGOStuff');
+
+}
+
+sub extractProdom {
+
+    my $prodomDB = $propertySet->getProp('prodom_db_id');
+
+    my $sql = "select aa_sequence_id,'source_id='||source_id,'secondary_identifier='||secondary_identifier,description,'length='||length,sequence from MotifAASequence where external_db_id = $prodomDB";
+    
+    &extractProteinSeqs("prodom", $sql);
+}
+
+sub copyProteinDBsToLiniac {
+
+    my ($name) = @_;
+
+    my $buildName = $propertySet->getProp('buildName');
+    my $serverPath = $propertySet->getProp('serverPath');
+    my $liniacServer = $propertySet->getProp('liniacServer');
+
+    my $signal = "proteinDBs2Liniac";
+    return if $mgr->startStep("Copying NRDB, CDD and Prodom to $serverPath/$buildName/seqfiles on $liniacServer", $signal);
+
+    my $seqfilesDir = "$pipelineDir/seqfiles";
+    my $f = "nrdb.fsa";
+    $mgr->copyToLiniac($seqfilesDir, $f, $liniacServer, 
+		       "$serverPath/$buildName/seqfiles");
+
+    $mgr->copyToLiniac("/usr/local/db/local", "cdd", $liniacServer, 
+		       "$serverPath/$buildName/seqfiles");
+
+    $f = "prodom.fsa";
+    $mgr->copyToLiniac($seqfilesDir, $f, $liniacServer, 
+		       "$serverPath/$buildName/seqfiles");
+
+    $mgr->endStep($signal);
+}
+
+sub startSimilaritiesOnLiniac {
+    my ($name) = @_;
+
+    my $buildName = $propertySet->getProp('buildName');
+    my $serverPath = $propertySet->getProp('serverPath');
+
+    my $signal = "findSimilarites";
+    return if $mgr->startStep("Starting NRDB, CDD and Prodom similarites on liniac", $signal);
+    
+    $mgr->endStep($signal);
+
+    my $liniacCmdMsg = "submitPipelineJob runSimilarities $serverPath/$buildName NUMBER_OF_NODES";
+    my $liniacLogMsg = "monitor $serverPath/$buildName/logs/*.log and xxxxx.xxxx.stdout";
+
+    $mgr->exitToLiniac($liniacCmdMsg, $liniacLogMsg, 1);
+}
+
+sub copySimilaritiesFromLiniac {
+
+    my $serverPath = $propertySet->getProp('serverPath');
+    my $liniacServer = $propertySet->getProp('liniacServer');
+
+    my $signal = "copySimilaritiesFromLiniac";
+    return if $mgr->startStep("Copying protein similarities from $liniacServer", 
+			 $signal);
+    my @names = ("nrdb", "prodom", "cdd");
+    foreach my $name (@names) {
+	$mgr->copyFromLiniac($liniacServer, 
+			     "$serverPath/$buildName/similarity/$name/master/mainresult", 
+			     "blastSimilarity.out", 
+			     "$pipelineDir/similarity/$name");
+    }
+    $mgr->endStep($signal);
+}
+
+sub deleteOldSimilarities {
+
+    my $taxonId = $propertySet->getProp('taxonId');
+    
+   my $sql = "select similarity_id from gusdev.humansimstodelete where subject_table_id in (83,84,277)";
+
+    my $args = "--idSQL \"$sql\" --doNotVersion";
+
+    $mgr->runPlugin("deleteProteinSims", "DeleteSimilarities", $args, 
+	       "Deleting old protein similarities");
+}
+
+sub insertProteinSimilarities {
+    my ($name, $subjectTable) = @_;
+
+    my $file = "$pipelineDir/similarity/$name/blastSimilarity.out";
+    $file .= ".correctPK" if ($name eq "cdd");
+
+    my $restart = $propertySet->getProp('iPSRestart');
+
+    my $args = "--files $file --verbose --restart $restart --query_table Assembly --subject_table $subjectTable --log_frequency 10 --limit_sub 50 --limit_hsp 10";
+
+    $mgr->runPlugin("loadSims_$name", "LoadBlastSimilaritiesPK", $args,
+	       "Loading $name similarities");
+}
+
+sub substituteCDDPKs {
+    
+    my $smartDB = $propertySet->getProp('smart_db_id');
+
+    my $pfamDB = $propertySet->getProp('pfam_db_id');
+
+    my $loadDB = $propertySet->getProp('load_db_id');
+
+    my $signal = "substituteCDDPKs";
+
+    return if $mgr->startStep("Substitituting primary keys into CDD similarities file",
+			 $signal);
+    
+    my $infile = "$pipelineDir/similarity/cdd/blastSimilarity.out";
+    my $outfile = "$pipelineDir/similarity/cdd/blastSimilarity.out.correctPK";
+    my $logfile = "$pipelineDir/logs/$signal.log";
+
+    $mgr->runCmd("cat $infile | substitutePrimKeysInSimilarity --subjectSQL \"select source_id,aa_sequence_id from motifaasequence where external_db_id in ($smartDB,$pfamDB,$loadDB)\" --verbose > $outfile 2>> $logfile");
+
+    $mgr->endStep($signal);
+}
+
+sub assignSequenceDescription {
+
+    my $taxonId = $propertySet->getProp('taxonId');
+
+    my $dotsRelease = $propertySet->getProp('dotsRelease');
+    my $speciesNickname = $propertySet->getProp('speciesNickname');
+
+    my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}"; 
+
+    my $assignDescriptionRestart = $propertySet->getProp('assignDescriptionRestart');
+
+    my $restart = ($assignDescriptionRestart) ? "select na_sequence_id from assembly where row_alg_invocation_id in ($assignDescriptionRestart)" : "";
+
+    my $dotsMGIfile = "$pipelineDir/misc/${prefix}_bestNRDBHits.dat";
+    my $sql = "select na_sequence_id,na_sequence_id from Assembly where taxon_id = $taxonId";
+
+    my $args = "--update_rna_descriptions --copy_manual_descriptions --taxon_id $taxonId --table Assembly --query_table Assembly --doNotVersion --dots_mgi_file $dotsMGIfile --restart \"$restart\" --idSQL \"$sql\"";
+
+    $mgr->runPlugin("assignSeqDescrip", "AssignSequenceDescription", $args, 
+	       "Assigning sequence descriptions from MGI"); 
+}
+
+sub deleteIndexWords {
+    
+    my $signal = "deleteIndexWords";
+
+    return if $mgr->startStep("Deleting anatomy percents from GUS", $signal);
+
+    my $taxonId = $propertySet->getProp('taxonId');
+
+    my $logFile = "$pipelineDir/logs/$signal.log";
+
+    my $sql = "select index_word_link_id from indexwordlink l,assembly a where a.taxon_id = $taxonId and a.na_sequence_id = l.target_id and l.target_table_id = 56";
+
+    my $cmd = "deleteEntries.pl --table IndexWordLink --idSQL \"$sql\" --verbose 2>> $logFile";
+    
+    $mgr->runCmd($cmd);
+
+    $mgr->endStep($signal);
+}
+
+sub makeIndexWords {
+    
+    my $taxonId = $propertySet->getProp('taxonId');
+
+    my $sql = "select na_sequence_id,description from Assembly where taxon_id = $taxonId";
+
+    my $args = "--attribute description --table Assembly --idSQL \"$sql\"";
+
+    $mgr->runPlugin("makeIndexWords", "MakeIndexWordLink", $args, 
+	       "Indexes assembly description words and adds entries to IndexWordLink");
+}
+ 
+
+sub deleteNRDBIndexWords {
+    
+	my $signal = "deleteNRDBIndexWords";
+	
+	return if $mgr->startStep("Deleting nrdb index word links from GUS", $signal, 'downloadNRDB');
+	
+	my $buildDate = $propertySet->getProp('buildDate');
+	
+	my $logFile = "$pipelineDir/logs/$signal.log";
+	
+	my $sql = "select index_word_link_id from indexwordlink l,externalaasequence e where e.aa_sequence_id = l.target_id and l.target_table_id = 83 and e.external_db_id = 4194 and e.modification_date > '$buildDate'";
+	
+	my $cmd = "deleteEntries.pl --table IndexWordLink --idSQL \"$sql\" --verbose 2>> $logFile";
+	
+	$mgr->runCmd($cmd);
+	
+	$mgr->endStep($signal);
+}   
+
+sub makeNRDBIndexWordLink {
+	
+	my $sql = "select aa_sequence_id, description from ExternalAASequence where external_db_id=4194 and aa_sequence_id not in (select target_id from IndexWordLink where target_table_id=83)";
+
+	my $args = "--attribute description --table ExternalAASequence --idSQL \"$sql\"";
+
+	$mgr->runPlugin("makeNRDBIndexWordLink", "MakeIndexWordLink", $args, 
+	       "Making nrdb index word links", 'downloadNRDB');
+}
+ 
+sub indexSimilarityWords { 
+
+    my $taxonId = $propertySet->getProp('taxonId');
+
+    my $sql = "select distinct a.na_sequence_id from similarity s, assembly a where s.query_table_id = 56 and s.subject_table_id = 277 and s.query_id = a.na_sequence_id and a.taxon_id = $taxonId";
+    
+    my $args = "--similarity_table MotifAASequence --target_table Assembly --idSQL \"$sql\"";
+
+    $mgr->runPlugin("indexSimilarityWords", "MakeIndexWordSimLink", $args, 
+	       "Indexing words in similarity descriptions");
+}
+
+sub indexNRDBWords { 
+
+    my $taxonId = $propertySet->getProp('taxonId');
+
+    my $sql = "select distinct a.na_sequence_id from similarity s, assembly a where s.query_table_id = 56 and s.subject_table_id = 83 and s.query_id = a.na_sequence_id and a.taxon_id = $taxonId";
+    
+    my $args = "--similarity_table ExternalAASequence --target_table Assembly --idSQL \"$sql\"";
+
+    $mgr->runPlugin("indexNRDBWords", "MakeIndexWordSimLink", $args, 
+	       "Indexing words in NRDB descriptions");
+}
+
+
+sub getIdsPerAssembly {
+
+    my $signal = "getIdsPerAssembly";
+
+    return if $mgr->startStep("Getting ids per assembly", $signal);
+
+    my $taxonId = $propertySet->getProp('taxonId');
+
+    my $dotsRelease = $propertySet->getProp('dotsRelease');
+    my $speciesNickname = $propertySet->getProp('speciesNickname');
+
+    my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+    my $output  = "$pipelineDir/misc/${prefix}_accessionsPerAssembly.dat";
+
+    my $cmd = "getIdsPerAssembly --taxon_id $taxonId > $output";
+
+    $mgr->runCmd($cmd);
+
+    $mgr->endStep($signal);
+
+}
+
+sub getImcloneOnlyAssemblies {
+
+    my $signal = "getImcloneOnlyAssemblies";
+
+    return if $mgr->startStep("Getting Imclone assembly ids", $signal);
+
+    my $taxonId = $propertySet->getProp('taxonId');
+
+    my $sql = "select distinct (s.assembly_na_sequence_id) from assemblysequence s, externalnasequence e where s.na_sequence_id = e.na_sequence_id and e.taxon_id = 14 and e.external_db_id = 3892 minus (select s.assembly_na_sequence_id from assemblysequence s, externalnasequence e where s.na_sequence_id = e.na_sequence_id and e.taxon_id = $taxonId and e.external_db_id != 3892)";
+
+    my $output = "$pipelineDir/misc/imcloneOnlyAssemblies.dat";
+
+    my $logfile = "$pipelineDir/logs/${signal}.log";
+
+    my $dbPassword = $propertySet->getProp('dbPassword');
+
+    my $cmd = "getPrimaryIds --outputfile $output --password $dbPassword --idSQL \"$sql\" --verbose 2>> $logfile";
+
+    $mgr->runCmd($cmd);
+
+    $mgr->endStep($signal);
+
+}
+
+
+sub prepareDownloadSiteFiles {
+
+    my $signal = "prepareDownloadSiteFiles";
+
+    return if $mgr->startStep("Preparing files for download site", $signal);
+
+    my $dotsRelease = $propertySet->getProp('dotsRelease');
+    my $speciesNickname = $propertySet->getProp('speciesNickname');
+    my $speciesFullname = $propertySet->getProp('speciesFullname');
+
+    my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+    my $fastaFile = "${prefix}.fasta";
+
+    my $predictedProteinsFile = "${prefix}_predictedProteins.fasta";
+
+    my $dbPassword = $propertySet->getProp('dbPassword');
+    my $taxonId = $propertySet->getProp('taxonId');
+
+    my $logFile = "$pipelineDir/logs/${fastaFile}Extract.log";
+
+    my $cmd = "dumpSequencesFromTable.pl --outputFile $pipelineDir/seqfiles/$fastaFile --verbose --password $dbPassword --idSQL \"select 'DT.'||na_sequence_id,'[$species]',description,'('||number_of_contained_sequences||' sequences)','length='||length,sequence from Assembly where taxon_id = $taxonId\" 2>>  $logFile";
+
+
+    $mgr->runCmd($cmd);
+
+    my $accsPerAssemFile = "${prefix}_accessionsPerAssembly.dat";
+    my $nrdbHitsFile = "${prefix}_bestNRDBHits.dat";
+
+    my @files = ("$pipelineDir/seqfiles/$fastaFile",
+		 "$pipelineDir/misc/$accsPerAssemFile",
+		 "$pipelineDir/misc/$nrdbHitsFile",
+                 "$pipelineDir/seqfiles/$predictedProteinsFile");
+
+    my $filterfile = "$pipelineDir/misc/imcloneOnlyAssemblies.dat";
+
+    my $logfile = "$pipelineDir/logs/${signal}.log";
+
+    my $filterpattern = "\>?(\S+)";
+
+    my $inputpattern = "\>?DT\.(\S+)";
+
+    foreach my $file (@files) {
+	my $outputfile = "$pipelineDir/downloadSite/" . &basename($file);
+	
+	my $cmd = "filterIds $file $filterfile $filterpattern $inputpattern > $outputfile 2>> $logfile";
+
+	$mgr->runCmd($cmd);
+
+        my $cmd = "gzip $outputfile";
+
+	$mgr->runCmd($cmd);
+    }
+
+    &writeReadmeFile($prefix, $dotsRelease, $speciesNickname,$speciesFullname,
+		     $fastaFile, $accsPerAssemFile, $nrdbHitsFile);
+
+    &writeHtaccessFile();
+
+    $mgr->endStep($signal);
+
+}
+
+sub writeHtaccessFile {
+    
+    my $htaccess = "$pipelineDir/downloadSite/.htaccess";
+
+    open(F, ">$htaccess") || $mgr->error("Can't open $htaccess for writing");
+
+    print F '
+AddDescription "The sequence for the consensus transcripts" *fasta*
+AddDescription "The Genbank accessions of ESTs and mRNAs contained in each assembled transcript" *acc*
+AddDescription "The best hit in NRDB for each consensus transcript" *NRDB*
+';
+    close(F);
+
+}
+
+sub writeReadmeFile {
+    my ($prefix, $dotsRelease, $speciesNickname, $speciesFullname, $fastaFile, 
+	$accsPerAssemFile, $nrdbHitsFile, $proteinsFile) = @_;
+
+    my $readme = "$pipelineDir/downloadSite/${speciesNickname}_README.txt";
+
+    open(F, ">$readme") || $mgr->error("Can't open $readme for writing");
+
+    my $date = `date`;
+    chomp $date;
+
+    print F "
+Release ${dotsRelease} of the Database of Transcribed Sequences (DoTS) for $speciesFullname 
+was completed on $date.
+
+The data sources include:
+    * GenBank (Release 129 04/15/2002)
+    * NRDB (06/17/2002)
+    * dbEST (05/20/2002)
+    * Pfam
+    * ProDom (Version 2001.1)
+    * CDD (06/18/2001)
+    * Gene Ontology (GO) consortium ontologies and assignments
+    * German Gene Trap Consortium (GGTC)
+    * Gene traps from the Skarnes and Tessier-Lavigne labs
+ 
+
+The files available are:
+
+    $fastaFile         
+       The consensus sequence of each putative transcript.
+
+    $accsPerAssemFile   
+       The Genbank accessions of ESTs and mRNAs which were assembled to
+       form the consensus sequence of each putative transcript.
+
+    $nrdbHitsFile      
+       The best hit in NRDB for each consensus sequence.
+
+    $proteinsFile
+       The sequence of predicted translations for each consensus sequence.
+
+";
+    close(F);
+}
+
+sub prepareBlastSiteFiles {
+    
+    my $signal = "prepareBlastSiteFiles";
+
+    return if $mgr->startStep("Preparing files for blast site", $signal);
+
+    my $dotsRelease = $propertySet->getProp('dotsRelease');
+    my $speciesNickname = $propertySet->getProp('speciesNickname');
+    my $blastBinDir = $propertySet->getProp('wuBlastBinPath');
+
+    my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+    my $fastafile = "$pipelineDir/downloadSite/${prefix}.fasta";
+    my $fastalink = "$pipelineDir/blastSite/${speciesNickname}DoTS";
+    $mgr->runCmd("ln -s $fastafile $fastalink");
+    $mgr->runCmd("$blastBinDir/xdformat -n $fastalink");
+
+    my $completedSpeciesBuildName =
+	$propertySet->getProp('completedSpeciesBuildName');
+
+    if ($completedSpeciesBuildName ne 'notdone') {
+	my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
+	my $otherPipelineDir = "$dotsBuildDir/$completedSpeciesBuildName";
+	my $otherSpeciesNickname = $speciesNickname eq 'mus'? 'hum' : 'mus';
+
+	my $prefix = "${otherSpeciesNickname}DoTS_rel${dotsRelease}";
+	my $fastafile2 = "$otherPipelineDir/downloadSite/${prefix}.fasta";
+	my $fastalink2 = "$pipelineDir/blastSite/${otherSpeciesNickname}DoTS";
+	$mgr->runCmd("ln -s $fastafile2 $fastalink2");
+	$mgr->runCmd("cat $fastalink $fastalink2 > $pipelineDir/blastSite/allDoTS");
+	$mgr->runCmd("$blastBinDir/xdformat -n $pipelineDir/blastSite/allDoTS");
+
+	$mgr->runCmd("rm -rf $fastalink2");
+	$mgr->runCmd("rm -rf $pipelineDir/blastSite/allDoTS");
+    }
+
+    $mgr->runCmd("rm -rf $fastalink");
+
+    $mgr->endStep($signal);
+
+}
+
+sub markBadSeqs {
+    my $file = "$pipelineDir/repeatmask/assemSeqs/blocked.err";
+
+    my $regex = "\\>(\\d+)";
+
+    my $args = "--filename $file --processed_category repeat --regex_id \"$regex\"";
+
+    $mgr->runPlugin("markBadSeqs", "MarkAssemblySequencesBad", $args, 
+		    "Marking bad assembly table sequences");
+}
+
+
+sub extractMarkers {
+    my $signal = "extractMarkers";
+
+    return if $mgr->startStep("Extracting Markers", $signal);
+
+    my $taxonId = $propertySet->getProp('taxonId');
+
+    my $dbPassword = $propertySet->getProp('dbPassword');
+
+    my $dbUser = $propertySet->getProp('dbUser');
+
+    my $markerFile = "$pipelineDir/epcr/rh.sts";
+
+    my $cmd = "extractMarkers $taxonId $dbUser $dbPassword > $markerFile";
+
+    $mgr->runCmd($cmd);
+
+    $mgr->endStep($signal);
+
+}
+
+sub runEPCR {
+    my $signal = "runEPCR";
+
+    return if $mgr->startStep("Running e-PCR", $signal);
+
+    my $ePCRinPath = $propertySet->getProp('ePCRinPath');
+
+    my $seqFile = "$pipelineDir/seqfiles/finalDots.fsa";
+
+    my $markersFile = "$pipelineDir/epcr/rh.sts";
+    my $epcrFile = "$pipelineDir/epcr/finalDots.epcr";
+    my $logFile = "$pipelineDir/logs/$signal.log";
+
+    my $cmd = "$ePCRinPath/e-PCR $markersFile $seqFile > $epcrFile 2>> $logFile";
+    
+    $mgr->runCmd($cmd);
+
+    $mgr->endStep($signal);
+
+}
+
+sub insertEPCR {
+    my $signal = "insertEPCR";
+
+    my $epcrFile = "$pipelineDir/epcr/finalDots.epcr";
+    my $logFile = "$pipelineDir/logs/$signal.log";
+
+    my $args = "--maptable GeneMap --idcol string1 --file $epcrFile --dir $pipelineDir/plugins/$signal --log $logFile --maptableid 366 --seqsubclassview Assembly";
+
+    $mgr->runPlugin($signal, "LoadEPCR", $args, "Inserting EPCR");
+}
+
+sub downloadGOAssoc{
+
+    # individual species from Go
+    # maybe go to ebi or go to find file of combined trembl and swissprot
+    # mapping from mgi to swissprot (ask sharon)
+}
+
+sub downloadArabidopsis {
+
+}
+
+sub insertArabidopsis {
+
+}
+
+sub downloadFly{
+
+}
+
+sub insertFly{
+
+}
+
+sub downloadSwissprot {
+
+}
+
+sub insertSwissprot {
+
+}
+
+sub downloadTREMBL {
+
+}
+
+sub findTREMBLWithAssociations {
+
+}
+
+sub insertTREMBLSubset {
+
+}
+
+sub downloadWorm {
+
+}
+
+sub insertWorm {
+
+}
+
+sub downloadYeast {
+
+}
+
+sub insertYeast {
+
+}
+
+sub downloadGOTerms {
+
+    # funtion.ontology
+
+}
+
+sub insertGOTerms{
+
+    # LoadGoOntology.pm
+}
+
+sub insertGOAssoc{
+
+    # LoadGoOntology.pm
+    # mapping from mgi to swissprot (ask sharon)
+}
+
+sub extractArabidopsis {
+
+}
+
+sub extractFly{
+
+}
+
+sub extractSwissprot{
+
+}
+
+sub extractTREMBL {
+
+}
+
+sub extractWorm {
+
+}
+
+sub extractYeast {
+
+}
+
+sub copyGOSeqsToLiniac{
+
+}
+
+sub blastGOSeqsAgainstMotifs{
+
+}
+
+sub copySimsFromLiniac{
+
+}
+
+sub learnGORules{
+
+}
+
+sub applyGORules{
+    my $makeNewGORules = $propertySet->getProp('makeNewGORules');
+    my $GOversion = $propertySet->getProp('GOversion');
+    my $species = $propertySet->getProp('speciesNickname');
+    my $prodom_db_id = $propertySet->getProp('prodom_db_id');
+    my $load_db_id = $propertySet->getProp('load_db_id');
+    my $pfam_db_id = $propertySet->getProp('pfam_db_id');
+    my $smart_db_id = $propertySet->getProp('smart_db_id');
+    
+    my $sql = " rs.row_alg_invocation_id >= 111286 and ( rs.confidence in ('high','medium') OR (rs.confidence = 'low' AND rs.reviewer_id is NULL))";
+
+    my $xdb = "$prodom_db_id,$load_db_id,$pfam_db_id,$smart_db_id";
+    my $likeGOVer = "\%$GOversion\%";
+    my $sqlFilter = "sim.pvalue_exp <= -5";
+    my $ignore_existing = $makeNewGORules eq 'yes'? 0 : 1; 
+
+    my $args = " --verbose --mode add  --rule-sql-filter \"$sql\" --guide ${species}dots --qs-type na --go-ver \"$likeGOVer\" --pv-ratio .80 --pv-threshold 1e-30 --ss-xdb $xdb --ignore-expred $ignore_existing  --sql-filter \"$sqlFilter\"";
+
+    $mgr->runPlugin("applyGORules", "MakeGoPredictions", $args, 
+		    "Applying GO Rules"); 
+
+}
+
+sub deleteProteinGOPredictions {
+
+    my $makeNewGORules = $propertySet->getProp('makeNewGORules');
+
+    return if $makeNewGORules eq "yes";  # hack for now 
+
+    my $GOversion = $propertySet->getProp('GOversion');
+    my $taxonId = $propertySet->getProp('taxonId');
+    
+    my $sql = "SELECT pgf.protein_go_function_id FROM RNA r, Protein p, ProteinGoFunction pgf, GOFunction gf,  Assembly ass, RNASequence rs, NAFeature naf  WHERE ass.taxon_id = $taxonId and ass.na_sequence_id = naf.na_sequence_id and naf.na_feature_id = rs.na_feature_id and r.rna_id = rs.rna_id and p.rna_id = r.rna_id and  pgf.protein_id = p.protein_id and pgf.manually_reviewed = 0 and pgf.go_function_id = gf.go_function_id and gf.go_cvs_version  = '$GOversion'";
+
+    my $args = "--idSQL \"$sql\" --table_name 'ProteinGOFunction' --primary_key 'protein_go_function_id'";
+
+    $mgr->runPlugin("deleteProteinGOPredictions", "DeleteGoPredictions", 
+	
+	    $args, "Deleting Protein GO predictions"); 
+
+}
+
+sub copyGOPredictions {
+
+    my $GOversion = $propertySet->getProp('GOversion');
+    my $taxonId = $propertySet->getProp('taxonId');
+    my $GOrootId = $propertySet->getProp('GOrootId');
+
+    my $alg_inv_id = 125852;  # must be obtained for current run of MakeGoPredictions - see applyGORules sub
+
+    # HACK: must hard code the alg_inv_id (this sub is going away next build)
+
+    # remove the following line when you have set $alg_inv_id for hum
+    #$mgr->error("MUST SET alg_inv_id in copyGOPredictions()") if ($taxonId != 14);
+    
+    my $idSQL = "select aa_sequence_go_function_id from aasequencegofunction where row_alg_invocation_id = $alg_inv_id and go_function_id != $GOrootId";
+
+    my $idExclSQL = "select distinct pgf.protein_id from RNA r, Protein p, ProteinGoFunction pgf, GOFunction gf, Assembly ass, RNASequence rs, NAFeature naf where ass.taxon_id = $taxonId and ass.na_sequence_id = naf.na_sequence_id and naf.na_feature_id = rs .na_feature_id and r.rna_id = rs.rna_id and p.rna_id = r.rna_id and pgf.protein_id = p.protein_id and pgf.manually_reviewed = 1 and pgf.go_function_id = gf.go_function_id and gf.go_cvs_version  = '$GOversion'";
+
+    my $args = "--idSQL \"$idSQL\" --idExclSQL \"$idExclSQL\" --verbose";
+
+    $mgr->runPlugin("copyGOPredictions", "CopyAASeqGoFuncToProtGoFunc", $args, 
+		    "Copying GO predictions from AA to Protein"); 
+}
+
+sub deleteAnatomyPercent {
+
+    my $signal = "deleteAnatomyPercent";
+
+    return if $mgr->startStep("Deleting index word links from GUS", $signal);
+    
+    my $taxonId = $propertySet->getProp('taxonId');
+
+    my $logFile = "$pipelineDir/logs/${signal}.log";
+
+    my $sql = "select assembly_anatomy_percent_id from assemblyanatomypercent where na_sequence_id in (select  na_sequence_id from assembly where taxon_id = $taxonId)";
+
+    my $cmd = "deleteEntries.pl --table AssemblyAnatomyPercent --idSQL \"$sql\" --verbose 2>> $logFile";
+    
+    $mgr->runCmd($cmd);
+
+    $mgr->endStep($signal);
+}
+
+sub insertAnatomyPercent {
+    
+    my $taxonId = $propertySet->getProp('taxonId');
+
+    my $idSQL = "select na_sequence_id from Assembly where taxon_id = $taxonId";
+
+    my $args = "--idSQL \"$idSQL\" --taxonId $taxonId";
+
+    $mgr->runPlugin("insertAnatomyPercent", "AssignLibraryDistributionToAssemblies", $args, "mapping assemblies onto anatomy_id in AssemblyAnatomypercent");
+
+} 
+
+
+sub makeFrameFinder {
+
+    my $taxonId = $propertySet->getProp('taxonId');
+
+    my $idSQL = "select na_sequence_id from assembly where taxon_id = $taxonId";
+
+    my $wordfile = $propertySet->getProp('wordfile'); 
+
+    my $restart = $propertySet->getProp('ffRestart');
+
+    my $args = "--wordfile $wordfile --restart $restart --idSQL \"$idSQL\" ";
+
+    $mgr->runPlugin("makeFramefinder", "FrameFinder", $args, "running FrameFinder plugin"); 
+
+}
+
+sub cleanGORules{
+    my $taxonId = $propertySet->getProp('taxonId');
+}
+
+sub versionGeneTrapAssembly {
+
+    my $signal = "versionGeneTrapAssembly";
+
+    return if $mgr->startStep("Versioning entries from GeneTrapAssembly", $signal);
+    
+    my $taxonId = $propertySet->getProp('taxonId');
+
+    my $userId = $propertySet->getProp('userId');
+
+    my $logFile = "$pipelineDir/logs/${signal}.log";
+
+    my $sql = "select gene_trap_assembly_id from genetrapassembly g, assembly a where a.na_sequence_id=g.assembly_na_sequence_id and a.taxon_id=$taxonId";
+
+    my $cmd = "versionEntries.pl --table GeneTrapAssembly --idSQL \"$sql\" --tablePK 'gene_trap_assembly_id' --userId $userId --verbose 2>> $logFile";
+    
+    $mgr->runCmd($cmd);
+}
+
+sub deleteGeneTrapAssembly {
+
+    my $signal = "deleteGeneTrapAssembly";
+
+    return if $mgr->startStep("Deleting entries from GeneTrapAssembly", $signal);
+    
+    my $taxonId = $propertySet->getProp('taxonId');
+
+    my $logFile = "$pipelineDir/logs/${signal}.log";
+
+    my $sql = "select gene_trap_assembly_id from genetrapassembly g, assembly a where a.na_sequence_id=g.assembly_na_sequence_id and a.taxon_id=$taxonId";
+
+    my $cmd = "deleteEntries.pl --table GeneTrapAssembly --idSQL \"$sql\" --verbose 2>> $logFile";
+    
+    $mgr->runCmd($cmd);
+} 
+
+
+sub assemblyProteinIntegration {
+
+    my $taxonId = $propertySet->getProp('taxonId');
+
+    my $args = "--taxon_id $taxonId";
+
+    $mgr->runPlugin("integrateAssemblyProtein", "AssemblyProteinInstance", $args, "integrating assemblies and proteins"); 
+}
+
+sub RNAProteinIntegration {
+
+    my $taxonId = $propertySet->getProp('taxonId');
+
+    my $args = "--taxon_id $taxonId";
+
+    $mgr->runPlugin("integrateRNAProtein", "RNAProteinIntegration", $args, "integrating RNA and proteins");
+} 
+
+sub makeStatisticsPage {
+
+    my $signal = "makeStatisticsPage";
+
+    return if $mgr->startStep("Making statistics html file", $signal);
+    
+    my $GOversion = $propertySet->getProp('GOversion');
+
+    my $output = "$pipelineDir/misc/statistics.html";
+
+    my $logfile = "$pipelineDir/logs/${signal}.log";
+    
+    my $cmd = "printAllGenesStats.pl --dropTmpTable --go_cvs_version $GOversion > $output 2>> $logfile"; 
+
+    $mgr->runCmd($cmd);
+}
+
+sub downloadMGIInfo {
+
+    my $signal = "downloadMGIInfo";
+
+    return if $mgr->startStep("Downloading MGI Info", $signal,'downloadMGIInfo');
+
+    $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
+
+    my $logfile = "$pipelineDir/logs/downloadMGIInfo.log";
+
+    my $cmd = "wget -t5 -o $logfile -b -m -np -nH --cut-dirs=3 -A \"MRK_List2.sql.rpt\"  -P /usr/local/db/local/mgi ftp://www.informatics.jax.org/pub/informatics/reports/";
+
+    $mgr->runCmd($cmd);
+
+    $mgr->endStep($signal);
+} 
+
+
+sub loadMGIToDoTS {
+
+    my $args = "--mappingfiles '$pipelineDir/misc/DT_MGI_via_GB_graph_one_one_table,$pipelineDir/misc/MGI_DT_via_GB_graph_one_many_table' --db_id 4893";
+
+    $mgr->runPlugin("loadMGIMapping", "InsertDbRefAndDbRefNASequence", $args, "loading MGI to DoTS mapping",'loadMGIAndGeneCards');
+}
+
+sub loadMGIInfo {
+
+    my $args = "--inputfile /usr/local/db/local/mgi/MRK_List2.sql.rpt";
+
+    $mgr->runPlugin("loadNRDB", "LoadNRDB", $args, "Loading NRDB", 'downloadNRDB');
+    
+}
+    
+sub loadGeneCardsToDoTS {
+
+    my $args = "--mappingfiles '$pipelineDir/misc/???? --db_id 4892";
+
+    $mgr->runPlugin("loadGeneCardsMapping", "InsertDbRefAndDbRefNASequence", $args, "loading GeneCards to DoTS mapping",'loadMGIAndGeneCards');
+}
+
+#sub to dump framefinder translations for download site
+
+#sub dumpDoTSTranslations {
+#dumpSequencesFromTable.pl --outputFile humDoTSTransl_rel5.fasta --password 'pskwa82' --idSQL "select 'DT.'||a.na_sequence_id,'[Homo sapiens]','protein identifier='||s.aa_sequence_id, s.sequence from Assembly a, rnafeature r, translatedaafeature t, translatedaasequence s where a.taxon_id = 8 and a.na_sequence_id=r.na_sequence_id and r.na_feature_id=t.na_feature_id and t.aa_sequence_id=s.aa_sequence_id" > & humDoTSTransl.log &
+#alter for mus, etc
+#}
+
+sub loadGEAToDoTS {
+
+    my $args = "--mappingfiles  --db_id ";
+
+    $mgr->runPlugin("loadGEAMapping", "InsertDbRefAndDbRefNASequence", $args, "loading GEA to DoTS mapping",'loadMGIAndGeneCards');
+}
+
+
+sub usage {
+    print STDERR "usage:  dotsbuild propertiesfile\n";
+    exit 1;
+}
+
+
+

@@ -1,0 +1,68 @@
+#!/usr/bin/perl
+
+my $inputFile = $ARGV[0];
+my $filterFile = $ARGV[1];
+my $filterPattern = $ARGV[2];
+my $inputPattern = $ARGV[3];
+my $reverseFilter = $ARGV[4];
+
+
+usage() if (scalar(@ARGV) < 4);
+
+# read filter file into hash
+open(FILTERFILE, $filterFile) || die "Can't open filter file $filterFile";
+my %filter;
+while (<FILTERFILE>) {
+    #/\>?(\S+)/;
+    /$filterPattern/;
+    $filter{$1} = 1;
+}
+close(FILTERFILE);
+
+my $print;
+open(INPUTFILE, $inputFile) || die "Can't open input file $inputFile";
+while (<INPUTFILE>) {
+    my $line = $_;
+    $print = setPrint($line, $print, $reverseFilter, \%filter);
+    print if $print;
+}
+close(INPUTFILE);
+
+
+  
+sub setPrint {
+    my ($line, $print, $reverseFilter, $filter) = @_;
+    #if ($line =~ /\>?DT\.(\S+)/) {
+    if ($line =~ /$inputPattern/) {
+	my $id = $1;
+	if ($reverseFilter) {
+	    $print = $filter->{$id};
+	} else {
+	    $print = !$filter->{$id};
+	}
+    }
+    return $print;
+}
+  
+sub usage {
+    print "
+Usage: filterIds inputFile filterFile [-r]
+
+Write the inputFile to stdout, filtering away entries whose id is found in
+the filter file.
+
+-r means reverse filter, ie, keep the entries whose ids are in the filter file
+
+The input file is assumed to have entries of the form:
+>xxxxxxxx then a bunch of stuff
+followed by optional other stuff
+
+The filter file is of the form:
+>xxxxxx
+>yyyyyy
+
+(but the leading '>' is optional)
+";
+    exit 1;
+}
+

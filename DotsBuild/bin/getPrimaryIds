@@ -1,0 +1,50 @@
+#!/usr/bin/perl
+
+##gets the na_sequence_id of assemblies that consist entirely of MClone sequences 
+
+##Deborah Pinney 2002-07-19
+
+use strict;
+use DBI;
+use Getopt::Long;
+use Objects::GUS::ObjRelP::DbiDatabase;
+
+my ($login,$password,$debug,$verbose,$outFile,$idSQL,$minLength,$database);
+&GetOptions("verbose!"=> \$verbose,
+            "outputFile=s" => \$outFile,"idSQL=s" => \$idSQL, 
+	    "login=s" => \$login,"password=s" => \$password,
+            "database=s" => \$database );
+
+if(!$idSQL || !$outFile){
+	die "usage: getPrimaryIds.pl --outputFile <outfile> --verbose --debug --idSQL 'sql stmt that returns primary_identifiers' --login [GUSrw] --database [GUSdev]\n";
+}
+
+##set the defaults
+$database = $database ? $database : "GUSdev";
+$login = $login ? $login : 'gusrw';
+
+if(!$password){
+  print STDERR "Enter the password for login $login\n";
+  $password = <STDIN>;
+  chomp $password;
+}
+
+print STDERR "Establishing dbi login\n" if $verbose;
+my $db = new GUS::ObjRelP::DbiDatabase( undef, $login, $password, $verbose, 0, 1, $database );
+
+my $dbh = $db->getQueryHandle();
+
+
+open(OUT,">>$outFile");
+
+print STDERR "SQL: $idSQL\n" if $verbose;
+my $count = 0;
+my $idStmt = $dbh->prepareAndExecute($idSQL);
+
+while(my ($id) = $idStmt->fetchrow_array()){
+  $count++;
+  print OUT "$id\n";
+}
+
+
+

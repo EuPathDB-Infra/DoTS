@@ -1,0 +1,255 @@
+          ================ DOTS BUILD TODO ================
+BUILD ISSUES
+
+There are missing assemblies discovered by Angel-investigate - there are only 8 truly missing
+
+There are 81 duplications of assemblies in the MergeSplit table that are the result of a merge-7 occured during our build process. I have manually removed duplicates or entries without extant assemblies-60 remain that have valid (apparently non-overlapping) new_id (assembly ids)
+
+Information from the MGI info file needs to be loaded into the dbref table-probably in gus development and production-rewrite the script and add to pipeline
+
+PLUGIN BUGS
+Angel 1 3.0 - dbEST parser 
+             - misassigning IMAGE ids (angel)
+             - should go deeper in the anatomy mapping
+
+d 1  2.00 - why aren't identical RNAs in the same assembly 
+
+d 1  0.50 - investigate the assemblies that are missing rna, protein, and 
+            rnasequence --should have been created during the gene cluster 
+            entry-validation issue too!
+
+s 2  0.50 - InsertNewExternalSequences:  must fail on regex parse problem (not 
+            just log error)
+
+s 2  0.25 - MakeRNAAssembliesForCluster:  must fail if dbi error
+
+s 2  0.25 - MakeAssemblySequences: shouldn't put out bogus final "Making 0 ..."
+
+
+PLUGIN IMPROVEMENTS
+Schg 1 10 - Upgrade GO plugins for GUS 3.0
+
+s 1  7.00 - improve clustering algorithm
+            - use genome
+            - cope with graph-based clustering algorithm's memory problems
+            - shouldn't cluster multiple REFSEQ mRNAs in the same cluster in 
+              opposite orientations. 
+    
+ds 1 15.0 - convert scripts and plugins to gus 3.0  [will our next build be 
+            2.0  or 3.0 gus?]
+
+d 1  1.50 - the script to create the statistics page should
+             - query for Blat alignment
+             - output into text file format
+             - use cgi-bin script to generate html
+
+d 2  3.00 - MakeRNAClustersForAssemblies: produce report of RNAs that have 
+              changed gene cluster wrt manually_reviewed bit
+
+
+
+PLUGIN OPTIMIZATIONS
+
+ds 2 3.00 - Rewrite DeleteSimilarities:  generalize use of temp table, and 
+            break the set into subsets.  consider using distribjob
+
+d 2  3.00 - runUpdateAssembliesPlugin: 
+            - have cap4 produce assembly files (on liniac?)
+            - use distribjob to send those files through plugin
+            - smartly order clusters to distribute big guys across subtasks
+
+NEW PLUGINS
+
+
+
+PIPELINE STEP IMPROVEMENTS
+
+
+d 1  2.00 - use distribjob to run MakeIndexWordSimLink from indexNRDBWords 
+
+d 1  0.50 - look for other plugins that could use distribjob
+
+s 1  0.25 - add predicted proteins to makeDownloadSite
+
+s 2  0.25 - unpackCDD doesn't seem to fail in absence of cdd.tar file
+
+s 2  0.50 - add -debug and -verbose and -nocommit flags to pass to plugins
+
+s 3  0.50 - pipeline steps should be able to take zipped files as input
+
+
+NEW PIPELINE STEPS
+
+d 1  0.5  - extract problem assembly numbers (length=0, 
+            bad number_of_contained_sequences,etc), put in cluster format, reassemble.
+           
+d 1  0.50 - gene trap insertion
+
+d 1  0.25 - make mapping from dots to novartis (taking gea->gb as input)
+
+d 1  0.25 - fix MGI mapping to dots (if there is a new MGI file)
+
+d 1  0.50 - load GeneCards, novartis and MGI mappings
+
+d 1  0.50 - dump predicted proteins
+
+d 1  0.25 - merge-split
+
+s 1  3.00 - genbank, dbest parsing (use distribjob for genbank parser) (include HTC division)
+
+d 1  1.00 - index prodom and cdd and nrdb
+            - have property to say whether to do it or not
+            - deleteIndexWords and makeIndexWords
+
+d 1  1.00 - find out more about: delete go evidence
+
+Schug 1 10 - 30 or so steps for GO rule creation 
+
+d 1  0.25 - call the statistics statistics script
+            - use property to say if this should be done (eg, after mus&hum)
+  
+s 1  0.25 - final step to provide todo list, including:
+            - copy statistics file to allgenes site
+            - copy blastable files to allgenes site
+            - get DoTS files to MGI and GeneCards folks
+            - update servlet-config to use new blastable files
+            - copy downloadSite files
+            - AssemblyAnatomyPercent query in servlet-config should use project
+
+
+d 1  0.50 - if downloading new cdd and prodom, delete IndexWordLinks and then 
+            reindex
+
+d 1  0.50 - script to assign project
+            - create an entry in project table
+            - insert into ProjectLink
+
+Crab 1 1.00 - generate EPConDB blastable files (requires making temp table)
+
+d 2  1.00 - clean up after assembly is done (eg assemblies w/ len=0, if we 
+            have them)
+
+s 2  0.25 - reminder to do manual library assignment as soon as ESTs are loaded
+
+s 2  0.50 - pipeline should zip files (at end?) 
+
+s 2  0.50 - Pipeline API should support sub-pipelines
+
+
+
+VALIDATION
+  - add validation after each step
+  - genbank & dbest parsers can write out how many seqs they put in.  should 
+    agree with extractAssemSeqs (minus low qual)
+  - loadNRDB should report its numbers
+  - dumpDB should initially print the count of seqs (plus separate count for 
+    0 len)
+
+
+-------------------------------------------------------------------------------
+
+DONE
+d 1  0.25 - add step to insert information about MGI into dbref table
+	    [0.25]
+d 1  1.00 - plugin to load MGI info into dbref
+	    [0.5]
+d 1  0.25 - add step to download MGI info file 
+	    [0.25]
+d 1  0.50 - Investigate why we have 0 len assemblies
+            [done with ExtractAndBlock: fix bug that extracts 0 len seqs-sql stmt wrong]
+d 1  0.25 - ExtractAndBlock: fix bug that extracts 0 len seqs
+            sql used by plugin to extract ids altered to ignore quality sequences less than 50 bp
+	    [0.5 approx time, 99.9% of time in investigation] 
+d 1 0.5   - plugin to load MGI and GeneCard mappings
+            [took 1.5 ouch]
+d 1  0.25 - alter InsertDbRefAndDbRefNASequence.pm to handle GeneCards info
+            [took 0.25]
+d 1 0.25  - alter AssignLibraryDistributionToAssemblies.pm to insert taxon_id
+            into AssemblyAnatomyPercent 
+            [took <0.25]
+d 1  0.50 - 7 DoTS assemblies in gusdev have number_of_contained_sequences = 0.
+            Ex:DT.451366 and DT.92475205 (in allgenes) have 1 valid 
+            input sequence-
+            lacking an RNA sequenceAdding- Assembly.length reasonable values.
+	    [1.0 turns out to be an unknown problem generated turning the 
+            UpdateAssembliesWithCap4 run 
+            there were in fact ~1750 entries where 
+            number_of_contained_sequences != number of AssemblySequences
+            so only 0.1%-step added to todo to reassemble these and other 
+            problem assemblies-script to extract 
+	    essentially written (~pinney/bin/queryDB) reassembled these but 
+            not annotated-28 remained unfixed-still looking into these 28]-
+            Brian changed Assembly and AssemblySequence objects-seems to have f            ixed the problem
+d 3  2.00 - LoadNRDB: rewrite
+            [1.0]
+d 1  0.25 - insertNRDB should handle zip file
+            [fixed by fixing LoadNRDB to accomodate .Z,gz, and uncompressed fil            es]
+d 1  0.25 - add step to download tax_id to na file from ncbi
+            [0.25]
+d 1  0.50 - genbank, dbest, taxon download 
+	    [0.5]
+d 1  0.25 - add step to download NRDB file
+	    [0.25]
+d 1  1.00 - rewrite loadTaxon.pm
+d 1  0.25 - rearrange steps so that taxon to na/protein map files are downloaded 
+            early and LoadTaxon is run as a first priot to loading GenBank and dbEST
+	    [0.25]
+d 1 0.25  - dbRef plugin handle case insensitive matches
+            [0.25]
+d 1  0.25 - add B, V and E params to blastsimilarity (in createDotsPipelineDir)
+	    [0.25]
+d 2  0.25 - include as comments the deflines used for regexs
+	    [0.25]
+d 1  0.25 - change download subroutine to use a current finalDoTS file 
+            [0.25] 
+d 1  0.50 - for AssemblyAnatomyPercent, find out if you really need to delete 
+            first. (the plugin says it deletes rows with existing asemblies
+            and that's what we do with DeleteEntries.pl). see if you can 
+            delete them all rather than just the ones that join to Assembly 
+            so that queries can work directly to AAP without a join
+	    [0.25 The present method of deleting first with deleteEntries.pl 
+            worked more efficiently than exercising the update option with the 
+	    plugin. I left it as is]
+d 1  0.25 - revise filterIds to generalize input file pattern 
+	    [0.25]
+d 1  0.25 - add sub to load taxon info into tables
+	    [0.25]
+sd 2 1.00 - LoadBlastSimilaritiesPK, add debugging output (stalled with nrdb
+            reason unknown)
+	    [0.25 I added verbose to the args - debug gives too much output]
+s 1  0.50 - generate fasta files for allgenes blast, and run xdformat on them:
+            - all, hum, mus, EPConDBall, EPConDBhum, EPConDBmus,...
+            [took .25.  doesn't include EPConDB stuff]
+
+prepareDownloadSite: write the filterOutIds script
+integration
+change dotsUpdateDir to dotsBuildDir
+include gus objects in path
+write to log
+include date in step logging
+gusConfigFile property
+property to specify stopping place
+makeAssemSeqs
+option for full/incremental build
+describe in readme how to use ssh2
+use tar to copy stuff to liniac
+why did makeAssemSeqs and extractAssemSeqs say '0' seqs, and where is the processing msg
+zip up stuff before copying to alpha, and unzip
+get file from debbie -- plugin taxon & loadnrdb
+copyFromLiniac must check existence of to file
+write error messages to dotsbuild.err
+protect against running two dotsbuilds at one time
+run anti-DT script on cluster
+consider writing alpha logs to a logs/ directory
+SORT CLUSTER
+use -abortonfatal for blast  [not nec.]
+We need to do something about the assemblies with length=0 so that the db isn't left with these at the finish. 
+fix assemble sub
+Do we really want to have the updateDOTSAssemblies.log to be in the /usr/local/db/local/dotsbuild directory? Changing this would require changing the plugin as it creates this log automatically and uses the log for restarts.
+find a way to move the MGI file from the plugin to the download directory
+need a step to filter proprietary from  MGI, finalDots.fsa, assembilesfile
+  and put em on download site
+add download directory to directory structure (same lecvel as seqfiles)
+
+
+

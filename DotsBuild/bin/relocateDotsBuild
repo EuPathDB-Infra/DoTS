@@ -1,0 +1,25 @@
+#!/bin/sh -e
+
+if [ "$3" = "" ]; then
+  echo "Relocate a dots build dir to another machine, and move it to inactive/"
+  echo "Usage:  relocateDotsBuild buildname machine targetdir"
+  echo
+  exit 1
+fi
+
+name=$1
+server=$2
+targetDir=$3
+
+dotsBuildDir=/usr/local/db/local/dotsBuilds
+
+cd $dotsBuildDir
+
+echo Copying $dotsBuildDir/$name* to $server:$targetDir
+tar cf - $name* | gzip -c | ssh $server "cd $targetDir; gunzip -c | tar xf -"
+
+echo Moving $dotsBuildDir/$name* to $dotsBuildDir/inactive
+mkdir -p inactive
+mv $name* inactive
+echo
+

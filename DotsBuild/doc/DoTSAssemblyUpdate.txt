@@ -1,0 +1,189 @@
+Overview:
+  1.  Make assembly sequences...finds new sequences in ExternalNASequence, makes quality and writes into the AssemblySequence table.
+  2.  Block these sequences (and relevant DoTS) with repeatmasker.
+  3.  Cluster (run blast matrix in e2k and then transitive closure to form clusters)
+  4.  Update the assemblies from the cluster file
+        -extract updated consensus sequences, block and recluster/reassemble to compress...
+  5.  Annotate the resulting Assemblies and regenerate materialized views..
+        -blast runs vs nrdb, prodomm, CDD and load sims
+        -GOFunction predictions
+        -assign assembly.description
+        -index things (description, via similarities)
+        -EPCR
+        -AssemblyAnatomyPercent
+        -AssemblySNPS
+        -cluster and make Genes from clusters...
+        -update the RNA.descriptions
+        
+
+
+Protocol for updating DOTS assembly sequences toward total automation (HURAA).
+NOTE: all plugins should be run with -help first to see what the options are:
+                 ga -help MakeAssemblySequences
+
+
+Overall steps for the sequence reconstruction.
+1. Make quality sequences
+ga -help MakeAssemblySequence
+Other scripts generally give usage statements if run without args
+General script for retrieving data from the nodes following any runs there that don't store the data on shared disks which is most of the scripts. This script just prints the files to stdout so that can be redirected into a single file.
+Usage: getDataFilesFromNodes.pl -file <file> --path <path.. may have wild cards> --gzipped -nodes <33, 34>
+1a Note
+If you haven't exported the sequences during MakeAssemblySequence, then you need to extract the new assemblysequences. NOTE that can run without blocking as blocking should now be another step as can parallellize on e2kbinf.
+ga --taxon 14 --outputfule musNew.seq --commit --extractonly --comment "--taxon 14 --outputfile musNew.seq --commit --extractOnly "ExtractAndBlockAssemblySequences >&extractAndBlock.log&
+
+2.  Block the sequences using repeat masker. NOTE that this is likely only necessary if using primate or rodent sequences ; no libraries for others.
+block mouse sequences...
+/Bioinformatics/usr/local/bin/setupAnd RunRepeatMaskerOnNodes.pl -nodes '21, 16' -trimDangling -file <filename of input sequences> --rmOptions '-mus'
+
+##getting the blocked data from nodes..
+get the data from nodes: --path 'scratch1/username_rep?' -file blocked.seq (and blocked.err)
+Note
+blocked.err contains a list of sequences tha are too short (<50bp) following blocking. These should be propagated to GUSdev with the plugin: MarkAssemblySequencesBad with a processed_category =repeat
+
+3 Cluster with the existing DOTS sequences ... run on e2k
+-this is actually three separate things... assign all to existing DOTS clusters, do a self matrix with all new sequences, and self cluster DoTS. This latter is both to cluster any sequences not assigned to DOTS assemblies and to do chimera detection.
+The scripts use blastn to find similar sequences at threshold of 92% identity and 40 bp overlap minimum. Algorithm does extensive post analysis of the results to identify potential chimeras and also mask out regions that appear to be repeats that were not blocked in the blocking step.
+##note that different scripts are used depending on if running on quads or duals as 1 process is run/processor. Nore that some requirements here as for generating blast similarity... database must be in /export/Bioinformatics/scratch/db/others/blast and a tracking file with a .num extension will be created for the sequence file.
+
+SetUpBMBlastOnQuadNodes.sh
+SetUpBMBlastOnDualNodes.sh
+
+StartBlastMatrixOnQuads.sh
+StartBlastMatrixOnDuals.sh
+
+Examples from human clustering for new sequences...
+/Bioinformatics/usr/local/bin/setUpBMBlastOnDualNodes.sh humNewAssSeqs.blocked pressdb 68 69
+
+##new Vs Dots
+startBlastMatrix.pl --db musDoTS.blocked  --seqFile /export/Bioinformatics/scratch/db/cbil/DOTS/AssemblyUpdate/Mouse_11-14-01/musNewVsDoTS --pValCutoff 1e-5 --lengthCutoff 40 --percentCutoff 92 --endSlop 15 --outputFile blastn.matrix --maskRepeats --nodes '39, 40, 41, 66, 67, 68'
+
+##new Vs Self
+startBlastMatrix.pl --db musNewAssSeqs.blocked  --seqFile /export/Bioinformatics/scratch/db/cbil/DOTS/AssemblyUpdate/Mouse_11-14-01/musNewVsSelf --pValCutoff 1e-5 --lengthCutoff 40 --percentCutoff 92 --endSlop 15 --outputFile blastn.matrix --maskRepeats --nodes '25, 26, 27, 28, 37, 38'
+
+##musDots vs Self
+startBlastMatrix.pl --db musDoTS.blocked  --seqFile /export/Bioinformatics/scratch/db/cbil/DOTS/AssemblyUpdate/Mouse_11-14-01/musDoTSVsSelf --pValCutoff 1e-5 --lengthCutoff 40 --percentCutoff 92 --endSlop 15 --outputFile blastn.matrix --maskRepeats --nodes '69, 70, 71, 72, 73, 74, 75'
+
+
+##get data from nodes:
+/Bioinformatics/usr/local/bin/getDataFromNodes.pl -path '/scratch1/<username>/proc_?' -file blastn.matrix 
+with chimeras in the chimera.list
+
+
+
+2. Run dotsBlastTransClosure.pl to generate the clusters...this should be run on persephone
+(/Bioinformatics/usr/local/bin/dotsBlastTransClosure.pl --taxon_id 8 --lengthCutoff 40 --percentCutoff 92 --chimeraFile humNewVsSelf.chimera --verbose humNewVDots.matrix humNewVSelf.matrix >humNew.cluster) > & cluster.err &
+for the chimeras... run script to enter them into AssemblySequences
+ga MarkASsemblySequencesBad with processed_category = chimera
+NOTE: in case of "mega" cluster (cluster with way too many sequences).
+The mega cluster can be split apart by running the dotsBlastTransClosure.pl with stringent params:
+a. --lengthCutoff 40 --percentCutoff 95 .. if needed
+b. --lengthCutoff 80 --percentCutoff 95 .. if needed
+c. --lengthCutoff 80 --percentCutoff 98 .. if needed
+
+3. Incremental assembly of the new "clusters" with DOTS existing clusters.this should be run on persephone in three directories.
+This results in merging of genes/RNAs (genes based on the "cluster") and RNAs if two separate assemblies are joined by cap2 in the update process.
+Merges are tracked in the MergeSplit table explicitly... also versioned of course.
+I split the cluster into 4 different directories and run 4 processes at once.
+NOTE: must be in different subdirectories and also have different names for cluster file. 
+Script ~brunkb/bin/splitClusterFile....if have broken up a mega cluster, it is critical to -use --renumber if one has broken up a mega-cluster as the cluster Ids are not distinct in this case...
+
+I put the command in a command file so it can be restarted..includes the restart command..
+
+ga --commit --clusterfile musNew1.cluster --reassemble --taxon_id 14 --comment "--commit --clusterfile musNew1.cluster --reassemble --taxon_id 14" UpdateDotsAssembliesWithCap4 > & assemble.err &
+
+
+~brunkb/bin/restartAssembly.pl --clusterFile musNew1.cluster --restartCmd 'ga --commit --clusterfile musNew1.cluster --reassemble --taxon_id 14 --comment "--commit --clusterfile musNew1.cluster --reassemble --taxon_id 14" UpdateDotsAssembliesWithCap4 > assemble.err 2>&1' >& restartAssembly.err &
+
+restartAssembly.pl is also a little script that monitors for sql errors and restart appropriately...
+both these commands must be run from the directory where the cluster files is.
+
+4.  extract the consensus sequences, block with repeat masker, self cluster and then assemble with --assembly_old on the command line and NOT --reassemble which causes it to reassemble from input sequences..
+
+6. Annotate the consensus sequences. 
+
+We have a whole set of plugins and scripts to do this. Currently they are not in a workflow but should be headed that way some time this month.
+
+
+
+ANOTHER NOTE: the latest commands for blasting and getting data from nodes are located at the e2kbinf ~/babenko/MouseBlastRuns in the CDD.cmd, Prodom.cmd and nrdb.cmd, correspondingly.
+      --------------------------------------------------------------------------------------------------------------
+Brian, below is a whole list of commands from you which we could put on some notified place, so it is a shorter from of previous results. I'm not sure which style is better - once I've written all above, I realized that it could much be much better accepted in a form below.
+
+9.  Dump aa_sequences to a file so can run blast (vs nrdb, prodom, CDD)
+	~/bin/databases/dumpSequencesFromTable.pl --outputFile newhumDoTS.seq --idSQL "na_sequence_id,sequence from assembly where taxon_id = 8"  --verbose
+
+10.  transfer sequence file to e2kbinf and run blast against nrdb, prodom, CDD
+        NOTE:  need to re-run prodom and cdd with all sequences as new dbs and GO prediction alg...
+
+     Dependencies:
+       -Must create a link to the input sequence file for each db queried as a tracking file is
+        generated that appends .num to that name.  Thus, if use same filename then the tracking will
+        not work.  I typically make the filename/link relevant to the query being run such as:
+          plas_v3.1VsProdom.cds
+
+##versus Prodom2001
+/Bioinformatics/usr/local/bin/setUpSMPBlastOnNodes.sh prodom2001 setdb 72 73 
+
+##NOTE: create soft link to the sequence file for each differeent blast run...
+startRunGenerateBlastSimilarity.pl --regex '(\S+)' --blastProgram blastp --database prodom2001 --seqFile ~/BlastRuns/plas_v3.1VsProdom.cds --setsize 500 --nodes '72, 73' --blastParams '-wordmask=seg+xnu W=3 T=1000'
+
+getDataFilesFromNodes.pl when finished....
+
+##vs nrdb
+/Bioinformatics/usr/local/bin/setUpSMPBlastOnNodes.sh nrdb setdb 72 73 74 75
+
+startRunGenerateBlastSimilarity.pl --regex '(\d+)' --blastProgram blastp --database nrdb --seqFile ~/BlastRuns/plasNew_v3.1VsNRDB.cds --setsize 500 --nodes '72, 73,  74, 75' --blastParams '-wordmask=seg+xnu W=3 T=1000'
+
+~/bin/getDataFilesFromNodes.pl --file blastSimilarity.all.gz --path '/scratch1/brunkb/proc_1' --nodes '72, 73, 74, 75' > newPlasVsNRDB.sim.gz
+
+##vs CDD
+/Bioinformatics/usr/local/bin/setUpRpsBlastOnNodes.sh All 74 75
+
+startRunGenerateBlastSimilarity.pl --regex '\w+\|\w+\|(\S+)' --pValCutoff 1e-2 --lengthCutoff 20 --percentCutoff 10 --blastProgram rpsblast --database All --seqFile ~/BlastRuns/plas_v3.1VsCDD.cds --blastParams '-a 2 -e .1 -p T' --setSize 500 --nodes '74, 75'
+
+getDataFilesFromNodes.pl when finished....
+
+11.  loadBlastSimilarities into  the  database (GUSdev) after scp them from e2kbinf
+
+     NOTE:  THIS MUST BE DONE ONLY AFTER REMOVING/VERSIONING THE EXISTING SIMILARITIES!!!!
+
+     ##deleting/versioning the similarities...example is for deleting mouse nrdb similarities...
+     ga --commit --idSQL "select /*+ RULE */ similarity_id from similarity s, assembly a where s.query_table_id = 56 and s.query_id = a.na_sequence_id and a.taxon_id = 14 and s.subject_table_id = 83" DeleteSimilarities >& delMusNRDB.log &
+
+     ##nrdb
+	ga --commit --files newPlasVsNRDB.sim.gz --query_table TranslatedAASequence --subject_table ExternalAASequence --log_frequency 10 --limit_sub 50 --limit_hsp 10 --comment " --commit --files newPlasVsNRDB.sim.gz --query_table TranslatedAASequence --subject_table ExternalAASequence --log_frequency 10 --limit_sub 50 --limit_hsp 10"  LoadBlastSimilaritiesPK > & loadnrdb.log &
+
+        ##prodom
+	ga --commit --files <fileName> --query_table TranslatedAASequence --subject_table MotifAASequence --log_frequency 10 --limit_sub 50 --limit_hsp 10 --comment "--commit --files <fileName> --query_table TranslatedAASequence --subject_table MotifAASequence --log_frequency 10 --limit_sub 50 --limit_hsp 10 " LoadBlastSimilaritiesPK > & loadnrdb.log &
+
+        ##CDD...need to first substitute the identifiers so have primary keys...
+        gunzip -c <infile> | ~brunkb/bin/substitutePrimKeysInSimilarity.pl --subjectSQL "select source_id,aa_sequence_id from motifaasequence where external_db_id in (2595, 2594, 2492)" --verbose | gzip >  <outfile>
+
+	ga --commit --files <fileName> --query_table TranslatedAASequence --subject_table MotifAASequence --log_frequency 10 --limit_sub 50 --limit_hsp 10 --comment "--commit --files <fileName> --query_table TranslatedAASequence --subject_table MotifAASequence --log_frequency 10 --limit_sub 50 --limit_hsp 10 " LoadBlastSimilaritiesPK > & loadnrdb.log &
+
+12.  Assign Assembly.description...only AFTER nrdb is  fully loaded..
+	AssignSequenceDescription
+	ga --commit --table Assembly --query_table Assembly --doNotVersion --dots_mgi_file musDoTS_for_MGI.dat  --idSQL "select na_sequence_id,na_sequence_id from Assembly where taxon_id = 14" --comment '' AssignSequenceDescription > & assdescription.log &
+
+13.  Assign GOFunctions..
+        NOTE:  need to re-run prodom and cdd with all sequences as new dbs and GO prediction alg...
+	NOTE:  WE RERAN THESE THINGS....TURNS OUT THAT THE LOW COMPLEXITY SEQUENCE A PROBLEM
+	WITH PRODOM AND FUNCTION PREDICTOR.  RE-RAN WITH -FILTER=seg+xnu and separately
+	with -wordmask=seg+xnu and loaded the wordmask similaritities for subjects that
+	also had a significant -filter hit.  This eliminated those sequences with only matches
+	due to low complexity sequences...
+
+14.  Index the Assembly.description field..field.
+	MakeIndexWordLink
+     ga --commit --attribute description --table Assembly --idSQL "select a.na_sequence_id,a.description from Assembly a where a.taxon_id = 14" MakeIndexWordLink >& indexGF.product.log &
+
+15.  Index the aasequences based on similarities (motifs and nrdb)
+	MakeIndexWordSimLink
+        ga --commit --similarity_table MotifAASequence --target_table Assembly --idSQL "select distinct a.na_sequence_id from similarity s, gusdev.updatedassembliestmp a where s.query_table_id = 56 and s.subject_table_id = 277 and s.query_id = a.na_sequence_id" MakeIndexWordSimLink >& indexMotifSims.log &
+
+        do the same for nrdb wheree simialrity_table = ExternalAASequence...need appropriate query as well...
+
+16.  Need to update EPCR (shannon has done this in the past)
+
+     

@@ -1,0 +1,132 @@
+#!/usr/bin/perl
+
+## takes in sql strings so can determine mapping from ids in similarity file to primary keys
+## SQL must return (idFromWhichtoChange, PrimaryKeyId)
+## takes in the similarity file on STDIN and does the substitution for both subject and query
+
+## Brian Brunk 07/14/2000
+
+use strict;
+use DBI;
+use Getopt::Long;
+use Objects::GUS::ObjRelP::DbiDatabase;
+
+my ($querySQL,$subjectSQL,$verbose,$nrdbFile);
+&GetOptions("querySQL=s" => \$querySQL, 
+						"subjectSQL=s" => \$subjectSQL, 
+						"verbose!"=> \$verbose,
+            "nrdbFile=s" => \$nrdbFile);
+
+die "you MUST provide --querySQL and/or --subjectSQL and optionally --nrdbFile --verbose on command line each of which must return the idFromWhichtoChange, PrimaryKeyId\n" unless ($querySQL || $subjectSQL); 
+
+my $db = new GUS::ObjRelP::DbiDatabase( undef, 'GUSrw', 'pskwa82', $verbose, 0, 1, 'GUSdev' );
+my $dbh = $db->getQueryHandle();
+
+$verbose = 1;
+
+my %query;
+my %subject;
+my $stmt;
+
+##first do the mapping to the query..
+my $ct = 0;
+if($querySQL){
+	print STDERR "Getting mapping for the query\n" if $verbose;
+	$stmt = $dbh->prepare($querySQL);
+	$stmt->execute();
+	while(my($change,$pkid) = $stmt->fetchrow_array()){
+		$query{$change} = $pkid;
+		$ct++;
+		print STDERR "Query: processing $ct\n" if ($verbose && $ct % 1000 == 0);
+	}
+	print STDERR "Mapped $ct query_ids\n" if $verbose;
+}
+
+##now do the subject...
+if($subjectSQL){
+	print STDERR "Getting mapping for the subject\n" if $verbose;
+	$stmt = $dbh->prepare($subjectSQL);
+	$stmt->execute();
+	$ct = 0;
+	while(my($change,$pkid) = $stmt->fetchrow_array()){
+		$subject{$change} = $pkid;
+		$ct++;
+		print STDERR "Subject: processing $ct\n" if ($verbose && $ct % 10000 == 0);
+	}
+	print STDERR "Mapped $ct subject_ids\n" if $verbose;
+}
+
+$dbh->disconnect();
+
+##now need to get gi number mapping from the nrdb file.....
+my $gimap = {};
+my $first = {};
+if($nrdbFile){
+  print STDERR "generating mapping for gi numbers...\n" if $verbose;
+  open(F,"$nrdbFile") || die "Unable to open nrdb file $nrdbFile\n";
+  my $ginum;
+  while(<F>){
+    if(/^\>gi\|(\d+)/){
+      $ginum = $1;
+      while(m/gi\|(\d+)\|/g){
+        push(@{$gimap->{$ginum}}, $1);
+#        $first->{$1} = $ginum;  ##Note: uncomment this line and change foreach line using $first below
+                                ## for greater liklihood of hitting gi number if don't have original nrdb file
+      }	
+    }
+  }
+  close F;
+  print STDERR "mapped gi numbers for ",scalar(keys%$gimap)," nrdb entries\n" if $verbose;
+}
+
+##now do the substitution..
+my $ctLine = 0;
+my $ctQueryErrs = 0;
+my $ctSbjctErrs = 0;
+my $print = 1;
+while(<STDIN>){
+	$ctLine++;
+	if($querySQL && /^\>(\S+)/){
+		if(!exists $query{$1}){
+			$print = 0;
+			$ctQueryErrs++;
+			print STDERR "$ctLine: unable to map query $1 Not printing this entry\n";
+			next;
+		}else{$print = 1;}
+		$_ =~ s/^(\>)(\S+)/$1$query{$2}/;
+		print $_;
+	}elsif($subjectSQL && /^(\s+)(Sum|HSP\d+):\s(.*)/){ 
+		next unless $print;
+		my @tmp = split(':', $3);
+		chomp $tmp[-1];
+    if(exists $subject{$tmp[0]}){
+      $tmp[0] = $subject{$tmp[0]};
+      print "$1$2: ".join(':',@tmp)."\n";
+    }elsif($nrdbFile){
+      my $bad = 1;
+      foreach my $id (@{$gimap->{$tmp[0]}}){
+#      foreach my $id (@{$gimap->{$first->{$tmp[0]}}}){
+        if(exists $subject{$id}){
+          $tmp[0] = $subject{$id};
+          print "$1$2: ".join(':',@tmp)."\n";
+          $bad = 0;
+          last;
+        }
+      }
+      if($bad){
+        $ctSbjctErrs++;
+        print STDERR "$ctLine: unable to map subject $tmp[0]\n";
+      }
+    }else{
+      $ctSbjctErrs++;
+      print STDERR "$ctLine: unable to map subject $tmp[0]\n";
+    }
+	}else{
+		print $_ if $print;
+	}
+}
+
+print STDERR "Substitution finished: $ctQueryErrs query errors and $ctSbjctErrs subject errors detected\n" if $verbose;
+
+$db->logout();
+

@@ -1,0 +1,8 @@
+masterdir=/home/sfischer/test/master
+inputdir=/home/sfischer/test/DotsBuild/rminput
+nodedir=/scratch/user/sfischer/test
+slotspernode=1
+subtasksize=3
+taskclass=DotsBuild::RepeatMaskerTask
+nodeclass=DistribJob::BprocNode
+restart=no

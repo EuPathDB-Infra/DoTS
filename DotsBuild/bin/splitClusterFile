@@ -1,0 +1,30 @@
+#!/usr/bin/perl
+
+use strict;
+use CBIL::Util::Utils;
+
+my $file = $ARGV[0];
+
+die "cluster file $file doesn't exist" unless -e $file;
+
+my ($singletons) = `grep "(1 seq" $file | wc`;
+
+$singletons =~ s/(\d+)\s+\d+\s+\d+/$1/;
+
+my ($total) = `wc $file`;
+
+$total =~ s/(\d+)\s+\d+\s+\d+\s+.*/$1/;
+
+my $nonsingletons = $total - $singletons;
+
+my $small = $singletons + int ($nonsingletons/2);
+
+my $big = int($nonsingletons/2);
+#my $small = int ($total/2);
+#my $big = ($total-$small);
+my $head = "head -$small $file > $file.small";
+
+my $tail = "tail -$big $file > $file.big";
+
+&runCmd($head);
+&runCmd($tail);

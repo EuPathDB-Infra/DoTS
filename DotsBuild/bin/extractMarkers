@@ -1,0 +1,44 @@
+#!/usr/bin/perl
+
+use DBI;
+
+use DBD::Oracle;
+
+
+my $taxon = shift
+my $user = shift;
+my $passwd = shift;
+
+
+
+$dbh = DBI->connect("dbi:Oracle:host=erebus.pcbi.upenn.edu;sid=gusdev", $user, $passwd);
+
+$dbh->{RaiseError} = 1;
+
+$dbh->{AutoCommit} = 0;
+
+
+
+my $sth = $dbh->prepare ("select GeneMap_Id, forward_primer, reverse_primer, product_length from gusdev.GeneMap where taxon_id = $taxon");
+
+$sth->execute ();
+
+
+
+while (@ary = $sth->fetchrow_array ())
+
+{
+
+    print join ("\t", @ary), "\n";
+
+}
+
+$sth->finish ();
+
+
+
+$dbh->disconnect ();
+
+exit (0);
+
+
