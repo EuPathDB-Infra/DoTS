@@ -520,15 +520,15 @@ sub downloadTaxon {
 
     my $downloadSubDir = "$externalDbDir/taxonomy/$date";
 
-    $mgr->runCmd("mkdir -p $downloadSubDir");
+    #$mgr->runCmd("mkdir -p $downloadSubDir");
 
-    my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=2 -A \"gi_taxid_nucl.dmp.gz,gi_taxid_prot.dmp.gz,taxdump.tar.gz\" -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/pub/taxonomy/"; 
+    #my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=2 -A \"gi_taxid_nucl.dmp.gz,gi_taxid_prot.dmp.gz,taxdump.tar.gz\" -P $downloadSubDir  ftp://ftp.ncbi.nih.gov/pub/taxonomy/"; 
 
-    $mgr->runCmd($cmd);
+    #$mgr->runCmd($cmd);
 
-    $mgr->runCmd("gunzip $downloadSubDir/taxdump.tar.gz");
+    #$mgr->runCmd("gunzip $downloadSubDir/taxdump.tar.gz");
 	
-    $mgr->runCmd("tar -xf $downloadSubDir/taxdump.tar.tar");
+    $mgr->runCmd("tar -xf $downloadSubDir/taxdump.tar");
 
     $mgr->runCmd("gunzip $downloadSubDir/gi_taxid_nucl.dmp.gz");
 
