@@ -110,7 +110,8 @@ my @properties =
  ["refseqRel", "","RefSeq release, e.g 2001-01-08"],
  ["refseq_rel_id", "","external_database_release_id for the RefSeq release"],
  ["refseqFile", "","RefSeq file. e.g. mouse.gbff.gz"],
- ["dbESTRestart", "","number (dbest_id_est from dots.est) to restart parsedbEST plugin on, get from log"]
+ ["dbESTRestart", "","number (dbest_id_est from dots.est) to restart parsedbEST plugin on, get from log"],
+ ["phrapDir", "","phrap directory"]
  ); 
 
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
@@ -659,8 +660,10 @@ sub makeAssemSeqs {
   my $taxonId = $propertySet->getProp('taxonId');
   
   my $repeatFile = "$externalDbDir/repeat/$file";
+	
+  my $phrapDir = $propertySet->getProp('phrapDir');
     
-  my $args = "--taxon_id=$taxonId --repeatFile $repeatFile";
+  my $args = "--taxon_id=$taxonId --repeatFile $repeatFile --phrapDir $phrapDir";
   
   $mgr->runPlugin("makeAssemSeqs", 
 		  "DoTS::DotsBuild::Plugin::MakeAssemblySequences", $args,
