@@ -18,6 +18,7 @@ NOW
   - rename all-predictions
   - fix all rna with no gene_id
   - during build8 mouse, the job on liniac did not exit but held on with killBadBlast programs running after running final DoTS vs cdd and prodom-watch for this and figure out why
+  - deal with descriptions with ^M
  
 steve
   - look into brian's observation about the promoter regions
