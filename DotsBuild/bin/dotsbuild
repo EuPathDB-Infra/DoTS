@@ -357,15 +357,15 @@ sub createDotsPipelineDir {
 
     return if (-e "$dotsBuildDir/$buildName/seqfiles");
 
-    &runCmd("mkdir -p $dotsBuildDir/$buildName/seqfiles");
-    &runCmd("mkdir -p $dotsBuildDir/$buildName/epcr");
-    &runCmd("mkdir -p $dotsBuildDir/$buildName/misc");
-     &runCmd("mkdir -p $dotsBuildDir/$buildName/genetrap");
-    &runCmd("mkdir -p $dotsBuildDir/$buildName/blastSite");
-    &runCmd("mkdir -p $dotsBuildDir/$buildName/downloadSite");
-    &runCmd("mkdir -p $dotsBuildDir/$buildName/cluster/initial");
-    &runCmd("mkdir -p $dotsBuildDir/$buildName/cluster/intermed");
-    &runCmd("mkdir -p $dotsBuildDir/$buildName/cluster/gene");
+    $mgr->runCmd("mkdir -p $dotsBuildDir/$buildName/seqfiles");
+    $mgr->runCmd("mkdir -p $dotsBuildDir/$buildName/epcr");
+    $mgr->runCmd("mkdir -p $dotsBuildDir/$buildName/misc");
+     $mgr->runCmd("mkdir -p $dotsBuildDir/$buildName/genetrap");
+    $mgr->runCmd("mkdir -p $dotsBuildDir/$buildName/blastSite");
+    $mgr->runCmd("mkdir -p $dotsBuildDir/$buildName/downloadSite");
+    $mgr->runCmd("mkdir -p $dotsBuildDir/$buildName/cluster/initial");
+   $mgr->runCmd("mkdir -p $dotsBuildDir/$buildName/cluster/intermed");
+    $mgr->runCmd("mkdir -p $dotsBuildDir/$buildName/cluster/gene");
 
     makeRMDir("assemSeqs", $buildName, $dotsBuildDir, 
 	      $serverPath, $nodePath, $rmTaskSize, $rmOptions, $rmPath);
@@ -408,7 +408,7 @@ sub createDotsPipelineDir {
     &makeAssemblyDir("initial", $buildName, $dotsBuildDir);
     &makeAssemblyDir("intermed", $buildName, $dotsBuildDir);
 
-    &runCmd("chmod -R g+w $dotsBuildDir/$buildName");
+    $mgr->runCmd("chmod -R g+w $dotsBuildDir/$buildName");
 }
 
 sub makeAssemblyDir {
