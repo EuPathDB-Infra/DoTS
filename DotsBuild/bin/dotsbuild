@@ -214,7 +214,9 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
 
    &getIdsPerAssembly(); 
 
-   &getImcloneOnlyAssemblies(); 
+   &getImcloneOnlyAssemblies();
+
+   &getAssembliesPerGene();
 
    &makeFrameFinder();
 
@@ -1522,6 +1524,31 @@ sub getImcloneOnlyAssemblies {
 
 }
 
+sub getAssembliesPerGene {
+
+  my $signal = "getAssembliesPerGene";
+
+  return if $mgr->startStep("Getting assemblies per gene", $signal);
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+  my $output  = "$pipelineDir/misc/${prefix}_DTperDG.dat";
+
+  my $cmd = "getAssPerGene --taxon_id $taxonId --gusConfigFile $gusConfigFile  > $output";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+}
 
 sub prepareDownloadSiteFiles {
 
