@@ -15,7 +15,7 @@ sub new {
     my $self = {};
     bless($self,$class);
     
-    my $usage = 'Plug_in to populate the NRDBEntry table';
+    my $usage = 'Plug_in to load additional information from MGI files to entries in DbRef';
     
     my $easycsp =
 	[{o => 'testnumber',
