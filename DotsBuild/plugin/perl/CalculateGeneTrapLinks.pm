@@ -74,7 +74,7 @@ sub run {
 	my $srcId = $t->{source_id};
 	my $len = $t->{length};
 
-	my $bfile = $blastDir . "/$srcId-musdots.blastn";
+	my $bfile = $blastDir . "/$naSeqId-musdots.blastn";
 
 	if (!-e $bfile) {
 	    print STDERR "ERROR - could not find $bfile\n";
@@ -177,6 +177,7 @@ if ($0 !~ /ga$/i) {
 
     my $usg = 'Calculate the correspondence between gene trap tag sequences and DoTS assemblies.';
     my $name = $0; $name =~ s/\.pm$//; $name =~ s/^.+\///;
+    my $md5 = `/usr/bin/md5sum $0`;
     chomp $md5;
     $md5 =~ s/^(\S+).+/$1/;
 
