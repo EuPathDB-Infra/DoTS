@@ -1746,11 +1746,9 @@ sub extractMarkers {
 
     my $taxonId = $propertySet->getProp('taxonId');
 
-    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
-
     my $markerFile = "$pipelineDir/epcr/rh.sts";
 
-    my $cmd = "extractMarkers $taxonId $gusConfigFile > $markerFile";
+    my $cmd = "extractMarkers --taxon_id $taxonId --outputFile $markerFile";
 
     $mgr->runCmd($cmd);
 
