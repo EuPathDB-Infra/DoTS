@@ -51,7 +51,7 @@ print STDERR "Committing insert\n";
 $dbh->commit();
 
 my $updateSql =
-"update $tableName pa set pa.na_feature_id = (select rf.na_feature_id from dots.rnafeature rf where rf.na_sequence_id = pa.na_sequence_id)";
+"update $tableName pa set pa.na_feature_id = (select rf.na_feature_id from dots.rnafeature rf where rf.na_sequence_id = pa.na_sequence_id and rf.name = 'assembly')";
 
 print STDERR "Updating \n";
 print STDERR "updateSql: $updateSql\n" if $verbose;
@@ -61,7 +61,7 @@ $dbh->do($updateSql) || die "Update failed.\nSQL: $updateSql";
 print STDERR "Committing update\n";
 $dbh->commit();
 
-my $updateSql =
+my $updateSql = 
 "update $tableName pa set pa.rna_id = (select rs.rna_id from dots.rnainstance rs where rs.na_feature_id = pa.na_feature_id)";
 
 print STDERR "Updating \n";
