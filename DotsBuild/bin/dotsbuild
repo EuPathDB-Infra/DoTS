@@ -390,6 +390,8 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &makePromoterRegionTable();
 
+&makePancreasAssembliesTable();
+
 &createManuallyReviewedDoTSFile();
 
 &writeReadmeFile();
@@ -2903,6 +2905,28 @@ sub makePromoterRegionTable {
   my $args = "--verbose --taxon $taxonId --allgenesSchema $allgenesSchema";
 
   my $cmd = "makePromoterRegionTable $args 2>> $logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+}
+
+sub makePancreasAssembliesTable {
+
+  my $signal = "makePancreasAssembliesTable";
+
+  return if $mgr->startStep("Insert entries in Allgenes.PancreasAssemblies table", $signal);
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $allgenesSchema = $propertySet->getProp('allgenesSchema');
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $args = "--verbose --taxon $taxonId --allgenesSchema $allgenesSchema";
+
+  my $cmd = "makePancreasAssemblies $args 2>> $logFile";
 
   $mgr->runCmd($cmd);
 
