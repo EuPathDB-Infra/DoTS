@@ -183,8 +183,8 @@ sub makeTranAAFeat {
     my $self = shift;
     my($rnaf) = @_;
     my $is_predicted = 0;
-    my $manually_reviewed = 0;
-    my $TranAAFeat = GUS::Model::DoTS::TranslatedAAFeature->new({'manually_reviewed'=>$manually_reviewed, 'is_predicted'=>$is_predicted});
+    my $review_status_id = 0;
+    my $TranAAFeat = GUS::Model::DoTS::TranslatedAAFeature->new({'review_status_id'=>$review_status_id, 'is_predicted'=>$is_predicted});
     $TranAAFeat->setParent($rnaf);
     return $TranAAFeat;
 }
