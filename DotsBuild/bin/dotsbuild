@@ -72,6 +72,9 @@ my @properties =
  ["epconDB_makefile", "","make file of input seqs for EPConDB array, yes or no"],
  ["ePCRinPath",   "", "where to find e-PCR, eg /usr/local/src/bio/e-PCR/src"],
  ["externalDbDir", "", "directory for downloading data from external databases"],
+ ["fantom_db_rel_id", "","external_database_release_id for Fantom"],
+ ["fantom_db_id", "","external_database_id for Fantom"],
+ ["loadFantom", "","yes or no"],
  ["fileOfRepeats", "","subdirectory and library(file) of repeats, e.g. unknown_release/vector_humMitoRibo.lib"],
  ["frameFinderDir" ,  "","directory in which to find the framefinder program"],
  ["frameFinderRestart" ,  "","list of algorithm_invocation_id for restart of FrameFinder plugin, eg '1,2,3'"],
@@ -137,6 +140,8 @@ my @properties =
  ["locuslink_db_rls_id" , "","the external_database_release_id for LL"],
  ["makeAllgenesTable", "","make table ProteinAssembl, yes or no"],
  ["makeNewGORules",   "",  "yes or no. Regenerate the GO rules from scratch"],
+ ["mgc_db_id", "","database id for mgc"],
+ ["mgc_db_rel_id", "", "database release id for mgc"],
  ["mgi_db_rls_id",   "",  "database release id for mgi"],
  ["mgiFiles","","mgi mapping files, a comma delimited list"],
  ["ncbiBlastBinPathLiniac",         "",  "path of ncbi blast bin dir on Liniac"],
@@ -435,8 +440,46 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &loadGeneCardsToDoTS($mgr);
 
+&deleteMGC($mgr);
+
+&parseMGC($mgr);
+
+&loadMGCToNaSeq($mgr);
+
+&loadMGCInfo($mgr);
+
+&deleteFantom($mgr);
+
+&parseFantom($mgr);
+
+&loadFantomToNaSeq($mgr);
+
 &deleteGEAToDoTS($mgr);
 
 &parseGEA($mgr);
 
 &loadGEA($mgr);
+
+&makeProjectLink($mgr);
+
+&updateProteinAssemblyTable($mgr);
+
+&updateCentralDogmaTable($mgr);
+
+&updateDTOrfPValueTable($mgr);
+
+&updateAssemblySignalPSummaryTable($mgr);
+
+&updateAssemblyTMDomainSummaryTable($mgr);
+
+&updatePromoterRegionTable($mgr);
+
+&updatePancreasAssembliesTable($mgr);
+
+&createPredTranslDetailsFile($mgr);
+
+#&createManuallyReviewedDoTSFile();
+
+#&makeStatisticsPage();
+
+$mgr->goodbye("Pipeline complete!\n");
