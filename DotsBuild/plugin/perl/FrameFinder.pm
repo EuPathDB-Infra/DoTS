@@ -14,7 +14,7 @@ use GUS::Model::Core::Algorithm;
 use GUS::Model::DoTS::TranslatedAAFeatSeg;
 use GUS::Common::Sequence;
 use CBIL::Bio::SequenceUtils;
-
+use CBIL::Bio::TrivTrans;
 # ----------------------------------------------------------
 # GUSApplication
 # ----------------------------------------------------------
@@ -353,7 +353,7 @@ if ($stpos<=0)
     #
     my @trSeqs = $naSeq->getTranslatedAASequences(1);
     my $tr_AASeq;  # TranslatedAASequence object
-    my @transsegs; # TranslatedAAFeatureSegment objects;
+    my @transsegs; # TranslatedAAFeatureSeg objects;
     if (scalar(@trSeqs) > 1) {  # check if there is prediction_algo
       ##want to only use the one that has  correct prediction_algo...
       print STDERR "ERROR:  There is more than one translatedaasequence for $naSeqId\n";
@@ -368,7 +368,7 @@ if ($stpos<=0)
     my $translate = $tr_AASeq->getChild('DoTS::TranslatedAAFeature'); #should be already there
     if ($updating)              #for now it is abundant
       {
-        foreach my $seg ($translate->getChildren('DoTS::TranslatedAAFeatureSegment',1)) {
+        foreach my $seg ($translate->getChildren('DoTS::TranslatedAAFeatureSeg',1)) {
           $seg->markDeleted();  #deleting all old segments
         }
       }
@@ -459,7 +459,7 @@ if ($stpos<=0)
       
       my $currpos =0;
 #      my @transsegs;
-      # Set children TranslatedAAFeatureSegment objects;
+      # Set children TranslatedAAFeatureSeg objects;
       
       # checking if there are pseudo segments consisting only of XXX or empty string (framefinder artifact)
       my $realsegs = $numofsegs;
@@ -595,9 +595,9 @@ else {
     ##put in the sanity check here to make certain that the locations are correct
     my @failed = 0;
     my $i = 0;
-    print "Number of segments is ".$translate->getChildren('DoTS::TranslatedAAFeatureSegment')."\n" if $verbose;
+    print "Number of segments is ".$translate->getChildren('DoTS::TranslatedAAFeatureSeg')."\n" if $verbose;
     foreach my $seg(@transsegs) {
-#           ($translate->getChildren('TranslatedAAFeatureSegment')){
+#           ($translate->getChildren('DoTS::TranslatedAAFeatureSeg')){
     
 #   print " NA and AA positions ".$seg->getStartPos()."  ".$seg->getEndPos()." ".$seg->getAaStartPos()."  ".$seg->getAaEndPos()."\n";
     my $naseg = $seg->getNASequenceSegment(); 
