@@ -106,7 +106,10 @@ my @properties =
  ["genbankRel", "", "GenBank release number found in the README file"],
  ["gb_db_rel_id", "", "external_database_release_id for GenBank"],
  ["gbFiles", "", "list of comma delinieated genbank files to be parsed into GUS"],
- ["fileOfRepeats", "","subdirectory and library(file) of repeats, e.g. unknown_release/vector_humMitoRibo.lib"]
+ ["fileOfRepeats", "","subdirectory and library(file) of repeats, e.g. unknown_release/vector_humMitoRibo.lib"],
+ ["refseqRel", "","RefSeq release, e.g 2001-01-08"],
+ ["reseq_rel_id", "","external_database_release_id for the RefSeq release"],
+ ["refseqFile", "","RefSeq file. e.g. mouse.gbff.gz"]
  ); 
 
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
@@ -134,9 +137,9 @@ my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFil
 
 &insertTaxon();
 
-exit();
-
 &parseGenbank();
+
+&parseRefSeq();
 
 &parsedbEST();
 
@@ -472,7 +475,7 @@ sub downloadRefSeq {
 
     $mgr->runCmd($cmd);
 
-    $ftpsite = "ftp://ftp.ncbi.nih.gov/ref_seq/M_musculus/mRNA_Prot/";
+    $ftpsite = "ftp://ftp.ncbi.nih.gov/refseq/M_musculus/mRNA_Prot/";
     $ftpfile = "mouse.gbff.gz";
 
     $mgr->runCmd($cmd);
@@ -596,10 +599,11 @@ sub parseGenbank {
   my @gbFiles = split (/,/, $propertySet->getProp('gbFiles'));
   
   my $externalDbDir = $propertySet->getProp('externalDbDir');
+
   
   foreach my $file (@gbFiles) {
     
-    my $dirAndFile = "$externalDbDir/genbank/$file";
+    my $dirAndFile = "$externalDbDir/genbank/$genbankRel/$file";
     
     my $log = "$pipelineDir/logs/${file}.err";
     
@@ -608,6 +612,29 @@ sub parseGenbank {
     my $signal = "gbParse_${file}";
     
     $mgr->runPlugin($signal, "GUS::Common::Plugin::GBParser", $args, "Loading GenBank files into GUS");
+    
+  }
+}
+
+sub parseRefSeq {
+
+  my $refseqRel = $propertySet->getProp('refseqRel');
+  
+  my $refseq_rel_id = $propertySet->getProp('refseq_rel_id');
+  
+  my $refseqFile = $propertySet->getProp('refseqFile');
+  
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+
+  my $dirAndFile = "$externalDbDir/refseq/$refseqRel/$refseqFile";
+    
+  my $log = "$pipelineDir/logs/${refseqFile}.err";
+    
+  my $args = "--gbRel $refseqRel --file $dirAndFile --log $log --db_rel_id $refseq_rel_id";
+    
+  my $signal = "refseq_${file}";
+    
+  $mgr->runPlugin($signal, "GUS::Common::Plugin::GBParser", $args, "Loading RefSeq files into GUS");
     
   }
 }
