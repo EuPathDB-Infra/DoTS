@@ -642,7 +642,9 @@ sub parsedbEST {
 
   my $restart = $propertySet->getProp('dbESTRestart');
 
-  my $args = "--log $pipelineDir/logs/dbest.log --span 500 --restart_number $restart";
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $args = "--log $pipelineDir/logs/dbest.log --span 500 --taxon_id $taxonId --restart_number $restart";
   
   $mgr->runPlugin("loadDbEst", "GUS::Common::Plugin::dbEST", $args, 
 		  "Loading dbEST files into GUS", 'loadDbEst');
