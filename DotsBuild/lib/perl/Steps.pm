@@ -603,32 +603,54 @@ sub startGenomicAlignmentOnCluster {
 }
 
 sub insertGenome {
-  my ($mgr) = @_;
+  my ($mgr, $genomeSrcIdRegEx) = @_;
   my $propertySet = $mgr->{propertySet};
   my $signal = "insertGenome";
-  return if $mgr->startStep("Inserting genome sequences into GUS", $signal, 'insertGenome');
+print "before startStep(genome)\n";
+  return if $mgr->startStep("Inserting genome sequences into GUS", $signal);
+print "after startStep(genome)\n";
   my $externalDbDir = $propertySet->getProp('externalDbDir');
   my $genomeVer = $propertySet->getProp('genomeVersion');
   my $genomeDir = $propertySet->getProp('genomeDir');
   my $dbi_str = $propertySet->getProp('dbi_str');
   my $genomeDir = "$externalDbDir/$genomeDir/$genomeVer";
-  my $gapDir = "$externalDbDir/$genomeDir/$genomeVer" . 'gaps';
+#  my $gapDir = "$externalDbDir/$genomeDir/$genomeVer" . 'gaps';  huh?
   my $temp_login = $propertySet->getProp('tempLogin');  
   my $temp_password = $propertySet->getProp('tempPassword'); 
-  my $gd = CBIL::Util::GenomeDir->new($genomeDir);
+  my $gd = CBIL::Util::GenomeDir->new($genomeDir, $genomeSrcIdRegEx);
+print "after genomedir->new()\n";
   my $taxon = $propertySet->getProp('taxonId');
   my $genome_rel = $propertySet->getProp('genome_db_rls_id');
-#  my $dbrXml = "$genomeDir/gusExtDbRel.xml";
-#  $gd->makeGusExtDbRelXML($taxon, $genome_rel, $dbrXml);
+  my $dbrXml = "$genomeDir/gusExtDbRel.xml";
 
-#  my $args = "--comment \"add this ext db rel for $genomeVer\" --filename $dbrXml";
-#  $mgr->runPlugin("makeGenomeReleaseId", "GUS::Common::Plugin::UpdateGusFromXML",
-#		    $args, "Making genome release", 'insertGenome');
+  $gd->makeGusVirtualSequenceXml($taxon, $genome_rel, $dbrXml, $genomeSrcIdRegEx);
 
-  my $args = "--comment \"load genomic seqs for $genomeVer\" "
-	. "--genomeDir $genomeDir --genomeVersion $genomeVer";
-  $mgr->runPlugin("insertGenomeSequences", "GUS::Common::Plugin::UpdateNASequences",
-		  $args, "Loading genomic sequences", 'insertGenome');
+  my $args = "--comment \"add this ext db rel for $genomeVer\" --filename $dbrXml";
+  $mgr->runPlugin("populateVirtualSequence", "GUS::Common::Plugin::UpdateGusFromXML",
+		    $args, "Populating Virtual Sequence");
+
+
+  my $gRlsId = $propertySet->getProp('genome_db_rls_id');
+
+  if ($genomeSrcIdRegEx) {
+    my @seqs = $gd->getSequenceFiles();
+    foreach my $seqfile (@seqs) {
+      my $seq = $1 if $seqfile =~ /([^\/\s]+)\.fa/;
+      my $args = "--comment \"load genomic seqs for $genomeVer\" "
+	. "--fasta_files $seqfile --external_database_release_id $gRlsId";
+      $mgr->runPlugin("${signal}sequence_$seq", "GUS::Common::Plugin::UpdateNASequences",
+		      $args, "Loading genomic sequences");
+    }
+  } else {
+    my @chr_files = $gd->getChromosomes();
+    foreach my $cf (@chr_files) {
+      my $chr = $1 if $cf =~ /chr(\S+)\.fa/;
+      my $args = "--comment \"load genomic seqs for $genomeVer\" "
+	. "--fasta_files $cf --external_database_release_id $gRlsId";
+      $mgr->runPlugin("${signal}Chr$chr", "GUS::Common::Plugin::UpdateNASequences",
+		      $args, "Loading genomic sequences");
+    }
+  }
 
   $mgr->endStep($signal);
 }
@@ -649,12 +671,6 @@ sub insertGenomeGaps {
   my $gd = CBIL::Util::GenomeDir->new($genomeDir);
   my $taxon = $propertySet->getProp('taxonId');
   my $genome_rel = $propertySet->getProp('genome_db_rls_id');
-#  my $dbrXml = "$genomeDir/gusExtDbRel.xml";
-#  $gd->makeGusExtDbRelXML($taxon, $genome_rel, $dbrXml);
-
-#  my $args = "--comment \"add this ext db rel for $genomeVer\" --filename $dbrXml";
-#  $mgr->runPlugin("makeGenomeReleaseId", "GUS::Common::Plugin::UpdateGusFromXML",
-#		    $args, "Making genome release", 'insertGenome');
 
   my $args = "--tempLogin \"$temp_login\" --tempPassword \"$temp_password\" "
     . "--dbiStr \"$dbi_str\" --gapDir $gapDir";
@@ -737,19 +753,18 @@ sub loadGenomeAlignments {
 
   my $qTabId = ($queryName =~ /dots/i ? 56 : 57);
   #--gap_table_space $gapTabSpace
-  my $regEx = $propertySet->getProp('genomeSrcIdRegEx');
   my $args = "--blat_dir $pslDir --query_file $qFile --keep_best 2 "
     . "--query_table_id $qTabId --query_taxon_id $taxonId "
       . "--target_table_id 245 --target_db_rel_id $genomeId --target_taxon_id $taxonId "
 	. "--max_query_gap 5 --min_pct_id 95 max_end_mismatch 10 "
-	  . "--end_gap_factor 10 --min_gap_pct 90 --reg_ex '$regEx' "
+	  . "--end_gap_factor 10 --min_gap_pct 90 "
 	    . "--ok_internal_gap 15 --ok_end_gap 50 --min_query_pct 10";
   if ($qTabId == 57) {
     my $gb_db_rel_id = $propertySet->getProp('gb_db_rel_id');
     $args .= " --query_db_rel_id $gb_db_rel_id";
   }
 
-  $mgr->runPlugin("LoadBLATAlignments",
+  $mgr->runPluginNoCommit("LoadBLATAlignments",
 			  "GUS::Common::Plugin::LoadBLATAlignments",
 			  $args, "loading genomic alignments of $queryName vs $targetName");
 }
