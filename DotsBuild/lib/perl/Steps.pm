@@ -749,7 +749,7 @@ sub loadGenomeAlignments {
     $args .= " --query_db_rel_id $gb_db_rel_id";
   }
 
-  $mgr->runPlugin("LoadBLATAlignments", 
+  $mgr->runPlugin("LoadBLATAlignments",
 			  "GUS::Common::Plugin::LoadBLATAlignments",
 			  $args, "loading genomic alignments of $queryName vs $targetName");
 }
