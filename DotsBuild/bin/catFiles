@@ -1,0 +1,37 @@
+#!@perl@
+
+use strict;
+use lib "$ENV{GUS_HOME}/lib/perl";
+use Getopt::Long;
+
+my ($fileGlob,$outFile);
+&GetOptions("fileGlob=s"=>\$fileGlob,"outFile=s"=>\$outFile);
+print "$fileGlob\n";
+#my @fileArr = `ls $fileGlob`;
+
+my @fileArr = glob($fileGlob);
+
+chomp @fileArr;
+
+my $num = scalar @fileArr;
+
+my $numCat =  0;
+
+foreach my $file (@fileArr) {
+  `cat $file >> $outFile`;
+  $numCat++;
+}
+
+print "total number file = $num : number of files concatenated = $numCat\n";
+
+  
+
+
+
+
+
+
+
+
+
+
