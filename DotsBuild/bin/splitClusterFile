@@ -18,11 +18,10 @@ $total =~ s/(\d+)\s+\d+\s+\d+\s+.*/$1/;
 
 my $nonsingletons = $total - $singletons;
 
-my $small = $singletons + int ($nonsingletons/2);
+my $small = $singletons + int (3 * $nonsingletons / 4);
 
-my $big = int($nonsingletons/2);
-#my $small = int ($total/2);
-#my $big = ($total-$small);
+my $big = ($total-$small);
+
 my $head = "head -$small $file > $file.small";
 
 my $tail = "tail -$big $file > $file.big";
