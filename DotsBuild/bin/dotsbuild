@@ -610,11 +610,11 @@ sub parseGenbank {
     
     my $log = "$pipelineDir/logs/${file}.err";
     
-    my $args = "--gbRel $genbankRel --file $dirAndFile --log $log --db_rel_id $gb_db_rel_id";
+    my $args = "--gbRel $genbankRel --file $dirAndFile  --db_rel_id $gb_db_rel_id";
     
     my $signal = "gbParse_${file}";
     
-    $mgr->runPlugin($signal, "GUS::Common::Plugin::GBParser", $args, "Loading GenBank files into GUS",'downloadGenbank');
+    $mgr->runPlugin($signal, "GUS::Common::Plugin::GBParser", $args, "Loading GenBank files into GUS");
     
   }
 }
@@ -637,7 +637,7 @@ sub parseRefSeq {
     
   my $signal = "refseq_${refseqFile}";
     
-  $mgr->runPlugin($signal, "GUS::Common::Plugin::GBParser", $args, "Loading RefSeq files into GUS",'downloadGenbank');
+  $mgr->runPlugin($signal, "GUS::Common::Plugin::GBParser", $args, "Loading RefSeq files into GUS");
 }
 
 sub parsedbEST {
