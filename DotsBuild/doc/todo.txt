@@ -1,6 +1,8 @@
           ================ DOTS BUILD TODO ===============
 NEW ISSUES 
 
+make all big files .gz
+
 Add properties for version numbers for cdd, mgi
 
 Discover what makes All on liniac-we made All but rpsblast replaced it.
@@ -59,7 +61,7 @@ other stuff
 
 PLUGIN BUGS
 
-d 1  2.00 - why aren't identical RNAs in the same assembly 
+ud 1  2.00 - why aren't identical RNAs in the same assembly 
 
 d 1  0.50 - investigate the assemblies that are missing rna, protein, and 
             rnasequence --should have been created during the gene cluster 
