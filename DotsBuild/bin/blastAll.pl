@@ -25,8 +25,7 @@ my ($BLASTN,$SEQFILE,$MUSDOTS,$TARGETDIR);
             "targetdirlogin=s" => \$TARGETDIR);
 
 if(!$BLASTN || !$SEQFILE || !$MUSDOTS || !$TARGETDIR){
-    die "usage: blastAll.pl --blastn full path of blastn file to use --seqfile fasta file of all the gene tag sequences  --musdots fasta file of the final dots sequences --targetdirlogin directory to which the blastn output will be written\n";}
-
+    die "usage: blastAll.pl --blastn full path of blastn file to use --seqfile fasta file of all the gene tag sequences  --musdots fasta file of the final dots sequences that has been xdformatted --targetdirlogin directory to which the blastn output will be written\n";}
 
 my $blastSeq = sub {
     my $s = shift;
