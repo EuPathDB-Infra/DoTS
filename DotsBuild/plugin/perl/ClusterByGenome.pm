@@ -11,9 +11,9 @@ sub new {
   my ($class) = @_;
   my $self = {};
   bless($self,$class);
-  
+
   my $usage = 'DoTS Clustering using genome alignments';
-  
+
   my $easycsp =
       [{o => 'stage',
 	t => 'string',
@@ -44,7 +44,7 @@ sub new {
 	h => 'whether to sort the output by cluster size (ascending)'
 	}
        ];
-  
+
   $self->initialize({requiredDbVersion => {},
 		     cvsRevision => '$Revision$ $',  # cvs fills this in!
 		     cvsTag => '$Name$', # cvs fills this in!
@@ -53,7 +53,7 @@ sub new {
 		     easyCspOptions => $easycsp,
 		     usage => $usage
 		    });
-  
+
   return $self;
 }
 
@@ -62,7 +62,7 @@ $| = 1;
 
 sub run {
   my $self   = shift;
-  
+
   $self->logCommit;
   $self->logArgs;
 
@@ -272,7 +272,7 @@ sub addNewMembers {
 
       # HACK: put seqs on each chr in a group if they do not overlap any dgs
       unless ($has_dg_overlap) {
-	$no_dg_seqs++; 
+	$no_dg_seqs++;
 	$clusters->{"c$assSeqs{$assSeq}[2]"} = {} unless ($clusters->{"c$assSeqs{$assSeq}[2]"});
 	$clusters->{"c$assSeqs{$assSeq}[2]"}->{$assSeq} = '';
 	# print "*** adding seq $assSeqs on chr $chr_id to a group\n";
