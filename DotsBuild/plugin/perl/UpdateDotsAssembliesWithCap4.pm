@@ -23,6 +23,10 @@ sub new {
 	  t => 'string',
 	  h => 'name of cluster file for input',
          },
+	 {o => 'cap4Dir',
+          t => 'string',
+	  h => 'location of executable cap4',
+         },
 	 {o => 'directory',
           t => 'string',
 	  h => 'location of working directory accessible from both current machine and cap4_machine',
@@ -104,9 +108,7 @@ my @trimmedAssemblySequences;   ##global list of assembly sequences that get rem
 
 my $assCache;                   ##note that this will be used to manage the assembly cache....nothing more!!
     
-#my $cap4Dir = '/usr/local/src/bio/CAP4/CurrentRelease/bin.x86-linux-2.2';
-my $cap4Dir = '/files/cbil/software/cap4/current/bin';
-#my $tmpLib = "tmpLib.$$";
+my $cap4Dir = $ctx->{cla}->{'cap4Dir'};
 my $tmpLib = "tmpLib";
 my $count = 0;
 my $oldTotal = 0;
@@ -120,6 +122,10 @@ sub run {
 
   print $ctx->{cla}->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
   print "Testing on $ctx->{cla}->{'testnumber'}\n" if $ctx->{cla}->{'testnumber'};
+
+  if (!(-e "$cap4Dir/cap4")) {
+    die "cap4 does not exist";
+  }
 
   ##set no version on if not committing
   $ctx->{self_inv}->setGlobalNoVersion(1) unless $ctx->{cla}->{commit};
