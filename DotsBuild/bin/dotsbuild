@@ -78,6 +78,8 @@ my @properties =
  ["cog_db_rls_id", "","a new id,COG of CDD,for the external_database_release table"],
  ["cd_db_rls_id", "","a new id, CD of CDD, for the external_database_release table"],
  ["nrdb_db_rls_id" , "","the external_database_release_id for nrdb"],
+ ["ucgt_db_rls_id", "","the external_database_release_id for the UC gene tag db"],
+ ["ggtc_db_rls_id", "","the external_database_release_id for the GGTC"],
  ["imclone_db_rls_id" , "","the external_database_release_id for imclone"],
  ["locuslink_db_rls_id" , "","the external_database_release_id for LL"],
  ["gea_db_rls_id" , "","the external_database_release_id for GEA"],
@@ -89,6 +91,7 @@ my @properties =
  ["wordfile" ,   "", "file of word probabilities for framefinder"],
  ["frameFinderRestart" ,  "","list of algorithm_invocation_id for restart of FrameFinder plugin, eg '1,2,3'"],
  ["frameFinderDir" ,  "","directory in which to find the framefinder program"],
+ ["NewGeneTags", "", "yes or no"],
  ["dianaDir" ,  "","directory in which to find the diana program"],
  ["userId" ,  "","database user_id from UserInfo table in GUS"],
  ["iPSRestart" , "","list of algorithm_invocation_id for restart of insertProteinSimilaritiesPK, see ffRestart"],
@@ -104,7 +107,7 @@ my @properties =
  ["loadLocusLink", "", "yes or no"],
  ["projectLinkRestart", "", "yes or no"],
  ["allgenesVersion", "", "version number for allgenes, e.g. 5.0"],
- ["externalDbDir", "", "directory for downloaded data from external databases"],
+ ["externalDbDir", "", "directory for download data from external databases"],
  ["genbankRel", "", "GenBank release number found in the README file"],
  ["gb_db_rel_id", "", "external_database_release_id for GenBank"],
  ["gbFiles", "", "list of comma delinieated genbank files to be parsed into GUS"],
@@ -348,6 +351,14 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 &versionGeneTrapAssembly();
 
 &deleteGeneTrapAssembly();
+
+&insertUCGeneTags();
+
+&downloadGGTC();
+
+&makeGGTCFastaFile();
+
+&insertGGTCGeneTags();
 
 &extractGeneTrapTags();
 
@@ -1239,8 +1250,6 @@ sub downloadProdom {
 
 sub insertProdom {
 
-    my $prodomRelease = $propertySet->getProp('prodomRelease');
-
     my $externalDbDir = $propertySet->getProp('externalDbDir');
 
     my $date = $propertySet->getProp('buildDate');
@@ -1758,7 +1767,7 @@ sub writeHtaccessFile {
 
     print F '
 AddDescription "The sequence for the consensus transcripts" *fasta*
-AddDescription "The Genbank accessions of ESTs and mRNAs contained in each assembled transcript" *acc*
+AddDescription "The Genbank accessions of ESTs and mRNAs contained in each assembled transcript" *_acc*
 AddDescription "The best hit in NRDB for each consensus transcript" *NRDB*
 AddDescription "Assembled transcripts belonging to each gene" *DTperDG*
 AddDescription "The Genbank accessions of mRNAs contained in each assembled transcript" *mRNA*
@@ -1793,7 +1802,7 @@ The data sources include:
     * CDD (06/18/2001)
     * Gene Ontology (GO) consortium ontologies and assignments
     * German Gene Trap Consortium (GGTC)
-    * Gene traps from the Skarnes and Tessier-Lavigne labs
+    * Gene traps from the BayGenomics consortium
  
 
 The files available are:
@@ -2236,88 +2245,193 @@ sub deleteGeneTrapAssembly {
     $mgr->endStep($signal);
 } 
 
-sub extractGeneTrapTags {
+sub insertUCGeneTags {
 
-    my $signal = "extractGeneTags";
+    my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-    return if $mgr->startStep("Extracting gene trap tags from GUS", $signal, 'loadGeneTrapAssembly');
+    my $date = $propertySet->getProp('buildDate');
+    
+    my $downloadSubDir = "$externalDbDir/genetags/UC/$date";
 
-    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+    my $geneTagFile = "$downloadSubDir/baygenomics.fasta";
+
+    my $logFile = "$pipelineDir/logs/baygenomics.log";
+
+    my $geneTagDB = $propertySet->getProp('ucgt_db_rls_id');
 
     my $taxonId = $propertySet->getProp('taxonId');
-    my @DBs = split(/,/, $propertySet->getProp('geneTrapDbRls'));
 
-    foreach my $db (@DBs) {
-	my ($name, $id) = split(/:/, $db);
-	my $seqFile = "$pipelineDir/genetrap/${name}.fsa";
-	my $logFile = "$pipelineDir/logs/geneTrapTag${name}.log";
+    # >CT141 (Mus musculus, clone IMAGE:3983821, mRNA, partial cds 
+    # >CT082 (Gtl7: gene trap locus 7)
+    # >TEA122
 
-	my $sql = "select na_sequence_id,sequence from dots.ExternalNASequence where taxon_id = 14 and external_database_release_id = $id";
+    my $regex_src_id = "^\\>(\\w+)";  
+    my $regex_desc = "^\\>\\w+\\s(.+)";
 
-	my $cmd = "dumpSequencesFromTable.pl --outputFile $seqFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"$sql\" 2>>  $logFile";
+    my $args = "--verbose --table_name DoTS::ExternalNASequence --sequencefile $geneTagFile --external_database_release_id $geneTagDB --regex_source_id \"$regex_src_id\"  --regex_desc \"$regex_desc\" --taxon_id $taxonId";
 
-	$mgr->runCmd($cmd);
-    }
+    $mgr->runPlugin("insertUCGeneTag", 
+		    "GUS::Common::Plugin::InsertNewExternalSequences", $args,
+		    "Inserting UC Gene Tags", 'NewGeneTags');
+}
 
-    $mgr->endStep($signal);
+sub downloadGGTC {
+
+  my $signal = "getGGTCSeqs";
+
+  return if $mgr->startStep("Getting all GGTC files", $signal, 'NewGeneTags');
+
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+
+  my $date = $propertySet->getProp('buildDate');
+    
+  my $downloadSubDir = "$externalDbDir/genetags/GGTC/$date";
+
+  my $indexFile = "$downloadSubDir/ggtc-index.html";
+
+  my $logfile = "$pipelineDir/logs/${signal}.log";
+
+  my $cmd = "getAllSeqs $indexFile $downloadSubDir >$logfile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+
+}
+
+sub makeGGTCFastaFile {
+
+  my $signal = "makeGGTCFastaFile";
+
+  return if $mgr->startStep("Making GGTC fasta file", $signal, 'NewGeneTags');
+
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+
+  my $date = $propertySet->getProp('buildDate');
+    
+  my $sourceDir = "$externalDbDir/genetags/GGTC/$date";
+
+  my $logfile = "$pipelineDir/logs/${signal}.log";
+
+  my $fastaFile = "$sourceDir/ggtc.fsa";
+
+  my $cmd = "makeFastaFile $sourceDir > $fastaFile 2>>  $logfile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+}
+
+sub insertGGTCGeneTags {
+
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+  
+  my $date = $propertySet->getProp('buildDate');
+  
+  my $downloadSubDir = "$externalDbDir/genetags/GGTC/$date";
+  
+  my $geneTagFile = "$downloadSubDir/ggtc.fsa";
+  
+  my $logFile = "$pipelineDir/logs/insertGGTCGeneTag.log";
+  
+  my $geneTagDB = $propertySet->getProp('ggtc_db_rls_id');
+  
+  my $taxonId = $propertySet->getProp('taxonId');
+  
+  # >M022D07 - 01382
+  # >W007A01 - 00001
+  
+  my $regex_src_id = "\\-\\s(\\d+)";  
+  my $secondary_identifier = "^\\>(\\S+)";
+  my $regex_desc = "^\\>(.*)";
+  
+  my $args = "--verbose --table_name DoTS::ExternalNASequence --sequencefile $geneTagFile --external_database_release_id $geneTagDB --regex_source_id \"$regex_src_id\"  --regex_secondary_id \"$secondary_identifier\" --regex_desc \"$regex_desc\" --taxon_id $taxonId";
+  
+  $mgr->runPlugin("insertGGTCGeneTag", 
+		  "GUS::Common::Plugin::InsertNewExternalSequences", $args,
+		  "Inserting GGTC Gene Tags", 'NewGeneTags');
+}
+ 
+
+sub extractGeneTrapTags {
+  
+  my $signal = "extractGeneTags";
+  
+  return if $mgr->startStep("Extracting gene trap tags from GUS", $signal, 'loadGeneTrapAssembly');
+  
+  my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+  
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my @DBs = split(/,/, $propertySet->getProp('geneTrapDbRls'));
+  
+  foreach my $db (@DBs) {
+    my ($name, $id) = split(/:/, $db);
+    my $seqFile = "$pipelineDir/genetrap/${name}.fsa";
+    my $logFile = "$pipelineDir/logs/geneTrapTag${name}.log";
+    
+    my $sql = "select na_sequence_id,sequence from dots.ExternalNASequence where taxon_id = $taxonId and external_database_release_id = $id";
+    
+    my $cmd = "dumpSequencesFromTable.pl --outputFile $seqFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"$sql\" 2>>  $logFile";
+    
+    $mgr->runCmd($cmd);
+  }
+  
+  $mgr->endStep($signal);
 }
 
 sub blastGeneTrapTags {
-
-    my $geneTagSource = @_;
-
-    my $signal = "blastGeneTrapTags";
-
-    return if $mgr->startStep("Blasting gene trap tags vs final mouse DoTS", $signal, 'loadGeneTrapAssembly');
-
+  
+  my $geneTagSource = @_;
+  
+  my $signal = "blastGeneTrapTags";
+  
+  return if $mgr->startStep("Blasting gene trap tags vs final mouse DoTS", $signal, 'loadGeneTrapAssembly');
+  
+  my $dotsFile = "$pipelineDir/blastSite/musDoTS";
+  
+  my $blastBinDir = $propertySet->getProp('wuBlastBinPath');
+  
+  my $blastn = "${blastBinDir}blastn";
+  
+  my @DB = split (/,/, $propertySet->getProp('geneTrapDbRls'));
+  
+  foreach my $db (@DB) {
+    
+    my ($name, $id) = split(/:/, $db);
+    
+    my $tagFile = "$pipelineDir/genetrap/${name}.fsa";
+    
     my $dotsRelease = $propertySet->getProp('dotsRelease');
-
-    my $speciesNickname = $propertySet->getProp('speciesNickname');
-
-    my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
-
-    my $fastafile = "${prefix}.fasta";
-
-    my $dotsFile = "$pipelineDir/misc/blastableDots/$fastafile";
-
-    my $blastBinDir = $propertySet->getProp('wuBlastBinPath');
     
-    my $blastn = "$blastBinDir/blastn";
+    my $outputDir = "$pipelineDir/genetrap/$name";
 
-    my @DB = split (/,/, $propertySet->getProp('geneTagDB'));
-
-    foreach my $db (@DB) {
-
-      my ($name, $id) = split(/:/, $db);
-      
-      my $tagFile = "$pipelineDir/genetrap/${name}.fsa";
-      
-      my $dotsRelease = $propertySet->getProp('dotsRelease');
-      
-      my $outputDir = "$pipelineDir/genetrap/$name";
-      
-      my $mkdir = "mkdir $outputDir";
-      
-      $mgr->runCmd($mkdir);
-      
-      my $cmd = "blastAll.pl --blastn $blastn --seqfile $tagFile --musdots $dotsFile --targetdir $outputDir";
-      
-      $mgr->runCmd($cmd);
-    }
+    my $logFile = "$pipelineDir/logs/${name}Blast.log";
     
-    $mgr->endStep($signal);
+    my $mkdir = "mkdir $outputDir";
+    
+    $mgr->runCmd($mkdir);
+    
+    my $cmd = "blastAll.pl --blastn $blastn --seqfile $tagFile --musdots $dotsFile --targetdirlogin $outputDir 2>> $logFile";
+    
+    $mgr->runCmd($cmd);
+  }
+  
+  $mgr->endStep($signal);
 }
 
 sub loadGeneTrapAssembly {
-
-    my @DB = split (/,/, $propertySet->getProp('geneTagDB'));
-
-    foreach my $db (@DB) {
-	my ($name, $id) = split(/:/, $db);
-	my $blastDir = "$pipelineDir/genetrap/$name";
-	my $args = "--extDbId $id --blastDir $blastDir";
-	$mgr->runPlugin("load${name}GeneTrapBlast", "DoTS::DotsBuild::Plugin::CalculateGeneTrapLinks", $args, "loading blast results for $name gene trap tags");
-    } 
+  
+  my @DB = split (/,/, $propertySet->getProp('geneTrapDbRls'));
+  
+  foreach my $db (@DB) {
+    my ($name, $id) = split(/:/, $db);
+    my $blastDir = "$pipelineDir/genetrap/$name";
+    my $args = "--extDbId $id --blastDir $blastDir";
+    $mgr->runPlugin("load${name}GeneTrapBlast", "DoTS::DotsBuild::Plugin::CalculateGeneTrapLinks", $args, "loading blast results for $name gene trap tags",'loadGeneTrapAssembly');
+  } 
 }
 
 sub assemblyProteinIntegration {
