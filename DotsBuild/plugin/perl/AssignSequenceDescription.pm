@@ -377,31 +377,24 @@ sub getPValue {
   return $mant . (($exp != -999999 && $exp != 0) ? "e" . $exp : "");
 }
 
+
 sub updateRNA {
     my ($dbh) = @_;
-    my $rows = $dbh->prepareAndExecute ("update RNA set description = substr((
-      select a.description from rnafeature rf, rnasequence rs, assembly a 
-      where rs.rna_id = rna.rna_id and rf.na_feature_id = rs.na_feature_id
-      and a.na_sequence_id = rf.na_sequence_id ),0,255)
-      where rna_id in (
-      select rs1.rna_id from rnasequence rs1, rnafeature rf1, assembly a1
-      where a1.taxon_id = $ctx->{cla}->{taxon_id} and a1.na_sequence_id = rf1.na_sequence_id
-      and rs1.na_feature_id = rf1.na_feature_id )
-      and ( (rna_category_id != 17 or rna_category_id is null )
-      or (rna_category_id = 17 and (description like '%identity%' or description like 'No NR%')))"); 
+    my $rows = $dbh->prepareAndExecute ("update dots.RNA set description = substr ((select a.description from dots.rnafeature rf, dots.rnainstance rs, dots.assembly a where rs.rna_id = dots.rna.rna_id and rf.na_feature_id = rs.na_feature_id and a.na_sequence_id = rf.na_sequence_id ),0,255)where rna_id in (select rs1.rna_id from dots.rnainstance rs1, dots.rnafeature rf1, dots.assembly a1 where a1.taxon_id = $ctx->{cla}->{taxon_id} and a1.na_sequence_id = rf1.na_sequence_id and rs1.na_feature_id = rf1.na_feature_id) and (rna_id in ( select c.rna_id from dots.rnarnacategory c where c.rna_category_id != 17) or rna_id not in (select c.rna_id from dots.rnarnacategory c) or rna_id in (select c.rna_id from dots.rnarnacategory c where c.rna_category_id = 17 and (dots.rna.description like '%identity%' or dots.rna.description like 'No NR%')))"); 
     if ($ctx->{cla}->{'commit'}) { $dbh->commit;}
     return $rows;
 }
 
+
 sub manualDescriptions {
     my ($dbh) = @_;
-    my $rows = $dbh->prepareAndExecute ("update assembly set description = 
-     (select r.description from RNA r, rnasequence rs, rnafeature rf
-     where rf.na_sequence_id = assembly.na_sequence_id
+    my $rows = $dbh->prepareAndExecute ("update dots.assembly set description = 
+     (select r.description from dots.RNA r, dots.rnainstance rs, dots.rnafeature rf
+     where rf.na_sequence_id = dots.assembly.na_sequence_id
      and rs.na_feature_id = rf.na_feature_id and rs.rna_id = r.rna_id )
      where taxon_id = $ctx->{cla}->{taxon_id}
-     and na_sequence_id in ( select rf1.na_sequence_id from rnafeature rf1, rnasequence rs1, rna r1
-     where r1.manually_reviewed = 1 and rs1.rna_id = r1.rna_id
+     and na_sequence_id in ( select rf1.na_sequence_id from dots.rnafeature rf1, dots.rnainstance rs1, dots.rna r1
+     where r1.review_status_id = 1 and rs1.rna_id = r1.rna_id
      and rf1.na_feature_id = rs1.na_feature_id)");
     if ($ctx->{cla}->{'commit'}) { $dbh->commit;}
     return $rows;
