@@ -72,7 +72,8 @@ sub run {
     
     $dbh = $ctx->{self_inv}->getQueryHandle();
 
-    my $dbrel = $ctx->{'cla'}->{'ext_db_rel'});
+    my $dbrel = $ctx->{'cla'}->{'ext_db_rel'} || die "you must provide a comma delimited list of 
+                                                      ext_db_rel_id for dots.nrdbentry";
     
     my $time = `date`;
     chomp($time);
