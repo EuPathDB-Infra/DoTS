@@ -1266,7 +1266,8 @@ sub loadGeneTrapAssembly {
   foreach my $db (@DB) {
     my ($name, $id) = split(/:/, $db);
     my $blastDir = "$mgr->{pipelineDir}/genetrap/$name";
-    my $args = "--external_db_release $id --blast_dir $blastDir";
+    my $log = "$mgr->{pipelineDir}/logs/load${name}GeneTrapBlast.out";
+    my $args = "--external_db_release $id --blast_dir $blastDir --logfile $log";
     $mgr->runPlugin("load${name}GeneTrapBlast", "DoTS::DotsBuild::Plugin::CalculateGeneTrapLinks", $args, "loading blast results for $name gene trap tags",'loadGeneTrapAssembly');
   } 
 
