@@ -24,7 +24,7 @@ sub new {
 	  h => 'name of cluster file for input',
          },
 	 {o => 'directory',
-          t => 'string',                                       
+          t => 'string',
 	  h => 'location of working directory accessible from both current machine and cap4_machine',
 	  d => `pwd`,
          },
@@ -616,7 +616,7 @@ sub submitUpdatedAssemblies {
       #      $c->markDeleted() if scalar($c->getChildren('GUS::Model::DoTS::AssemblySequence')) < 1;
       if ($c->getId()) {        ##want to get the manually reviewed things...
         my $rna = $c->getRNA(1,1);
-        if ($rna && $rna->getManuallyReviewed()) {
+        if ($rna && $rna->getReviewStatusId() == 1 ) {
           if ($c->isMarkedDeleted()) {
             push(@delReviewed,[$rna->getId(),$c->getId()]);
           } else {
