@@ -120,8 +120,8 @@ sub run {
   my $M   = shift;
   $ctx = shift;
 
-  print $ctx->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
-  print "Testing on $ctx->{'testnumber'}\n" if $ctx->{'testnumber'};
+  print $ctx->{cla}->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
+  print "Testing on $ctx->{cla}->{'testnumber'}\n" if $ctx->{cla}->{'testnumber'};
 
   ##set no version on if not committing
   $ctx->{self_inv}->setGlobalNoVersion(1) unless $ctx->{cla}->{commit};
@@ -136,7 +136,7 @@ sub run {
 
   chomp $ctx->{cla}->{directory};
 
-  if ((!$ctx->{'clusterfile'} && !$ctx->{cla}->{debug_assem_file}) || !$ctx->{'taxon_id'} || !$ctx->{cla}->{cap4_machine}) {
+  if ((!$ctx->{cla->}->{'clusterfile'} && !$ctx->{cla}->{debug_assem_file}) || !$ctx->{cla}->{'taxon_id'} || !$ctx->{cla}->{cap4_machine}) {
     die "You must include --clusterfile --taxon_id and --cap4_machine on the command line\n";
   }
 
@@ -193,7 +193,7 @@ sub run {
   if ($ctx->{cla}->{debug_assem_file}) {
     &runDebugFromFile();
   } else {
-    open(F,"$ctx->{'clusterfile'}") || die "clusterfile $ctx->{cla}->{'clusterfile'} not found\n";
+    open(F,"$ctx->{cla}->{'clusterfile'}") || die "clusterfile $ctx->{cla}->{'clusterfile'} not found\n";
 
     while (<F>) {
       ##reset variables...
@@ -223,7 +223,7 @@ sub run {
         my $cluster = $1;
         next if exists $finished{$cluster}; # && !$debug;
         $count++;
-        last if $ctx->{'testnumber'} && $count > $ctx->{'testnumber'}; 
+        last if $ctx->{cla}->{'testnumber'} && $count > $ctx->{cla}->{'testnumber'}; 
         foreach my $id (split(', ',$2)) {
           if ($id =~ /^DT\.(\d+)/) {
             push(@oldIds,$1);
@@ -432,7 +432,7 @@ sub run {
               print LOG "  REVIEWED merged: rna.",$r->[0],", DT.",$r->[1],"\n";
             }
           }
-          if ($ctx->{'reassemble'} && $totalNewIds != $assSeqCt) {
+          if ($ctx->{cla}->{'reassemble'} && $totalNewIds != $assSeqCt) {
             print LOG "  Number of AssemblySequences ($assSeqCt) does not match total input for reassembly ($totalNewIds)\n";
           }
         } else {
