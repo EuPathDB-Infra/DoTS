@@ -26,7 +26,6 @@ my @properties =
  ["dotsRelease",          "",  "eg 5 or 6"],
  ["completedSpeciesNickName", "",  "nick name of the other species (eg mus if this is a hum build) if that one completed first. use 'notdone' if it isn't done."],
  ["reassemble",           "",  "yes or no"],
-
  ["serverPath",           "",  "full path of dots update dir on liniac server"],
  ["nodePath",             "",  "full path of scratch dir on liniac node"],
  ["repeatmask.taskSize",  "",  "number of seqs to process per repeatmask subtask"],
@@ -194,6 +193,8 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
 
 &assemble("", $propertySet->getProp('reassemble'), "initial");
 
+&reassemble("initial");
+
 &extractDots("intermed", "'DT.'||");
 
 &matrix("intermed");
@@ -203,6 +204,8 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
 &splitCluster("intermed");
 
 &assemble("--assemble_old", "no", "intermed");
+
+&reassemble("intermed");
 
 &extractDots("final", "");
 
@@ -736,9 +739,6 @@ sub extractAssemSeqs {
 		   "DoTS::DotsBuild::Plugin::ExtractAndBlockAssemblySequences",
 		    $args, "Extracting assembly table sequences");
 
-    # a HACK until we fix the plugin (note: its not protected by a signal)
-    #my $noZeroFile = "$pipelineDir/seqfiles/assemSeqs.fsa"; 
-    #$mgr->runCmd("removeZeroLengthSeqs $outputFile | $noZeroFile") unless -e $noZeroFile;
 }
 
 
@@ -908,6 +908,43 @@ sub runAssemblePlugin {
 
     my $cmd = "runUpdateAssembliesPlugin --clusterFile $file.$suffix --pluginCmd \"$pluginCmd\" 2>> $logfile"; 
     $mgr->runCmdInBackground($cmd);
+}
+
+sub reassemble {
+  my ($name) = @_;
+
+  my $signal = "${name}Reassemble";
+  
+  return if $mgr->startStep("Reassemble $name", $signal);
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $sql = "select na_sequence_id from dots.assembly where taxon_id = $taxonId  and (assembly_consistency < 90 or length < 50 or length is null";
+
+  my $clusterFile = "$pipelineDir/cluster/$name/reassembleCluster.out";
+
+  my $cmd = "makeClusterFile --idSQL \"$sql\" --clusterFile $clusterFile";
+
+  $mgr->runCmd($cmd);
+
+  my $args = "--clusterfile $clusterFile  --reassemble --taxon_id $taxonId";
+
+  my $pluginCmd = "ga DoTS::DotsBuild::Plugin::UpdateDotsAssembliesWithCap4 --commit $args --comment '$args'";
+
+  my $logfile = "$pipelineDir/logs/${name}Reassemble.log";
+
+  my $assemDir = "$pipelineDir/assembly/$name/${name}reassemble";
+
+  $mgr->runCmd("mkdir -p $assemDir");
+
+  chdir $assemDir || die "Can't chdir to $assemDir";
+
+  my $cmd = "runUpdateAssembliesPlugin --clusterFile  $clusterFile --pluginCmd \"$pluginCmd\" 2>> $logfile"; 
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
 }
 
 sub matrix {
@@ -2429,7 +2466,7 @@ sub loadGeneTrapAssembly {
   foreach my $db (@DB) {
     my ($name, $id) = split(/:/, $db);
     my $blastDir = "$pipelineDir/genetrap/$name";
-    my $args = "--extDbId $id --blastDir $blastDir";
+    my $args = "--external_db_release $id --blast_dir $blastDir";
     $mgr->runPlugin("load${name}GeneTrapBlast", "DoTS::DotsBuild::Plugin::CalculateGeneTrapLinks", $args, "loading blast results for $name gene trap tags",'loadGeneTrapAssembly');
   } 
 }
