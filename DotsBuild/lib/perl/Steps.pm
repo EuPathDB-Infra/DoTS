@@ -2897,7 +2897,9 @@ sub parseLocusLink {
 
   $mgr->runCmd($cmd);
 
-  &updateHtaccessFile($mgr, "AddDescription \"A mapping of DoTS to LocusLink\" *LL*\n");
+  my $descrip = "A mapping of DoTS to LocusLink";
+
+  &updateHtaccessFile($mgr, "AddDescription \"$descrip\" *LL*\n");
 
   &addFileToReadme($mgr, "${pipelineDir}/downloadSite/${species}DoTS_rel${dotsRelease}_LL2DoTS", $descrip);
 
@@ -3642,7 +3644,6 @@ sub createManuallyReviewedDoTSFile {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
 
-  my $signal = "createPredTranslDetailsFile";
   my $signal = "createManuallyReviewedDoTSFile";
 
   return if $mgr->startStep("Preparing manually reviewed DoTs file", $signal);
