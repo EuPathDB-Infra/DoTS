@@ -83,46 +83,39 @@ sub makeDataHash {
     my $num = 0;
     
     open (FILE, $inputfile) || die "Can't open the input file\n"; 
+
     while (<FILE>) {
-	if ((/-/) && (/^[\s-]+$/)) {
-	    $_ = <FILE>;
-	    last;
-	}
-    }
-    
-    while (<FILE>) {
-	last if (/^\s*$/);
+      chomp;
+      my $line = $_;
+
+      my @arr = split(/\t/,$line);
+      
+      my $id = $arr[0];
+      my $chrom = $arr[4];
+      my $cm = $arr[3];
+      my $symbol = $arr[1];
+      $cm = undef if (!($cm =~ /^[\d\.]+$/));
+      my $descr = $arr[2];
+      $descr =~ s/^(\s+)//;
+      $descr =~ s/(\s+)$//;
+      
+      $entryHash{$id}++;
+      
+      if ($entryHash{$id} > 1) {
+	print STDERR ("Duplicate entries for $id\n");
+      }
+      
+      $dataHash{$id}= [$chrom,$cm,$symbol,$descr];
+      
+      $num++;
+      
+      if ($testnum && $num >= $testnum) {
 	
-	if (/^ (MGI:\d+)\s+(\d+|UN|X|Y|XY|MT)\s+([\d\.]+|syntenic|N\/A|NULL)\s+(\S.*\S|\S)\s+([.\s]+)$/) {
-	    my $id = $1;
-	    my $chrom = $2;
-	    my $cm = $3;
-	    my $symbol = $4;
-	    $cm = undef if (!($cm =~ /^[\d\.]+$/));
-	    
-	    my $descr = $5;
-	    $descr =~ s/^(\s+)//;
-	    $descr =~ s/(\s+)$//;
-	    
-	    $entryHash{$id}++;
-	    
-	    if ($entryHash{$id} > 1) {
-		print STDERR ("Duplicate entries for $id\n");
-	    }
-	    
-	    $dataHash{$id}= [$chrom,$cm,$symbol,$descr];
+	last;
+      }
 
-	    $num++;
-
-	    if ($num >= $testnum) {
-		
-		last;
-	    }		  
-	    
-	} else {
-	    print STDERR ("Unable to parse '$_' \n");
-	}
-    }
+    }		  
+     
     close(FILE);
     
     print STDERR ("$num MGI entries will be processed\n");
