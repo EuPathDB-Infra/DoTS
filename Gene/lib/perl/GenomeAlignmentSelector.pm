@@ -47,9 +47,9 @@ sub getAlignments {
     print "running cntSql: $cntSql ...\n";
     my $cntSth = $dbh->prepareAndExecute($cntSql);
     my $cnt = $cntSth->fetchrow_array();
-    if ($cnt > 10000) {
-	print "increasing object cache size to $cnt + 1000 (>10000)\n";
-	$self->{db}->setMaximumNumberOfObjects($cnt + 1000);
+    if ($cnt > 4000) {
+	print "increasing object cache size to 2 * $cnt + 2000 (>10000)\n";
+	$self->{db}->setMaximumNumberOfObjects(2 * $cnt + 2000);
     }
 
     my $sql = $self->getSelectSql($sort);

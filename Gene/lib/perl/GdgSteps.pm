@@ -466,10 +466,12 @@ sub createGenomeDotsGene {
 
     my $propertySet = $mgr->{propertySet};
     my $taxonId = $propertySet->getProp('taxonId');
+    my $genomeVer = $propertySet->getProp('genomeVersion');
     my $genomeId = $propertySet->getProp('genome_db_rls_id');
+    my $dotsVer = $propertySet->getProp('dotsRelease');
     my $tmpLogin = $propertySet->getProp('tempLogin');
 
-    my $args = "--taxon_id $taxonId --genome_db_rls_id $genomeId --temp_login $tmpLogin --est_pair_cache EstClonePair";
+    my $args = "--taxon_id $taxonId --genome_db_rls_id $genomeId --temp_login $tmpLogin --est_pair_cache EstClonePair --copy_table_suffix dt$dotsVer$genomeVer";
     # $args .= ' --skip_chrs 1,2';
 
     $mgr->runPlugin('CreateGenomeDotsGene', "DoTS::Gene::Plugin::CreateGenomeDotsGene",

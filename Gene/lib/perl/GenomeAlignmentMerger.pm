@@ -72,9 +72,9 @@ sub _seed {
 
     my $srt_aln = $self->{sa};
     my $c = scalar(@$srt_aln);
-    if ($c > 10000) {
-        print "increasing object cache size to 2 x $c + 1000 (>10000)\n";
-        $self->{db}->setMaximumNumberOfObjects(2 * $c + 1000);
+    if ($c > 3000) {
+        print "increasing object cache size to 3 * $c + 1000 (>10000)\n";
+        $self->{db}->setMaximumNumberOfObjects(3 * $c + 1000);
     }
 
     foreach my $aln (@$srt_aln) {
@@ -411,6 +411,9 @@ sub _combineOrderedGenomeFeatures {
 	}
 	push @res, $g1 if $j == $c;
     }
+
+    for (; $j < $c; $j++) { push @res, $mgfs->[$j]; }
+
     return \@res;
 }
 
