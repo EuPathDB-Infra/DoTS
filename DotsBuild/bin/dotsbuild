@@ -56,14 +56,15 @@ my @properties =
  ["dbestDate", "","approx date for dbEST files"],
  ["dbESTRestart", "","number (dbest_id_est from dots.est) to restart parsedbEST plugin on, get from log"],
  ["dbi_str", "", "string used to identify server and login for LoadNRDB temp table"],
+ ["deleteGeneId", "", "delete DbRef rows with InsertDbRefAndDbRefNASequence, yes or no"],
  ["dianaDir" ,  "","directory in which to find the diana program"],
  ["dotsBuildDir",         "",  "local dots update dir"],
  ["dotsRelease",          "",  "eg 5 or 6"],
  ["downloadCDD",   "",  "yes or no"],
  ["downloadGenbank",   "",  "yes or no"],
+ ["downloadGeneId", "", "yes or no"],
  ["downloadGenome",   "",  "yes or no"],
  ["downloadHinvitational", "", "yes or no"],
- ["downloadLocusLink", "","download the loc2acc file for LocusLink, yes or no"],
  ["downloadNRDB",   "",  "yes or no"],
  ["downloadProdom",   "",  "yes or no"],
  ["downloadTaxon",   "",  "yes or no"],
@@ -87,6 +88,8 @@ my @properties =
  ["gea_db_rls_id", "","comma delimited list of gea external_database_release_ids"],
  ["geaFiles", "","comma delimited list of input files with <gea><LocusLink><accession>:external_database_release_id"],
  ["genbankRel", "", "GenBank release number found in the README file"],
+ ["gene_db_id", "","db id for GeneId"],
+ ["gene_db_rls_id", "","db release id for GeneId"],
  ["genecards_db_rls_id",   "",  "database release id for genecards"],
  ["geneCluster.cliqueSzArray",  "",  ""],
  ["geneCluster.consistentEnds",         "",  ""],
@@ -130,16 +133,12 @@ my @properties =
  ["iPSRestart_finalDots-prodom" , "","list of algorithm_invocation_id for restart of insertProteinSimilaritiesPK for prodom, see ffRestart"],
  ["kog_db_rls_id", "","a new id,KOG of CDD,for the external_database_release table"],
  ["clusterUser", "","user for copyToCluster sub in Manager.pm"],
- ["ll_db_id", "","LocusLink external_database_id"],
- ["llDeleteDbRef", "","option to delete dbref entries, used in InsertDbRefAndDbRefNASequence, yes or no"],
  ["loadDbEst", "", "yes or no"],
  ["load_db_rls_id",   "",  "a new id for the external_database_release table"],
  ["loadGEA" ,  "",  "yes or no"],
  ["loadGeneCards",   "",  "yes or no"],
  ["loadGeneTrapAssembly", "", "yes or no"],
- ["loadLocusLink", "", "yes or no"],
  ["loadMGI" ,  "",  "yes or no"],
- ["locuslink_db_rls_id" , "","the external_database_release_id for LL"],
  ["makeAllgenesTable", "","make table ProteinAssembl, yes or no"],
  ["makeNewGORules",   "",  "yes or no. Regenerate the GO rules from scratch"],
  ["mgc_db_id", "","database id for mgc"],
@@ -202,7 +201,7 @@ my $pipelineDir = "$dotsBuildDir/$buildName";
 
 my $cluster;
 if ($propertySet->getProp('clusterServer') ne "none") {
-  $cluster = GUS::Pipeline::SshCluster->new($propertySet->getProp('clusterServer')
+  $cluster = GUS::Pipeline::SshCluster->new($propertySet->getProp('clusterServer'),
 					  $propertySet->getProp('clusterUser') );
 } else {
   $cluster = GUS::Pipeline::NfsCluster->new();
@@ -440,15 +439,15 @@ $mgr->waitForCluster("protein similarities", "waitProteinSims");
 
 &prepareBlastSiteFiles($mgr);
 
-&downloadLocusLink($mgr);
+&downloadGeneID($mgr);
 
-&deleteLocusLink($mgr);
+&deleteGeneIdToNaSeq($mgr);
 
-&parseLocusLink($mgr);
+&parseGeneId($mgr);
 
-&loadLocusLinkToDoTS($mgr);
+&loadGeneIdToNaSeq($mgr);
 
-&loadLocusLinkInfo($mgr);
+&loadGeneIdInfo($mgr);
 
 &downloadHInvitationalFile($mgr);
 
