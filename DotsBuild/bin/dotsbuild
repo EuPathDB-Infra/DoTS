@@ -85,9 +85,8 @@ my @properties =
  ["gbAcceptFiles", "","files to accept on Genbank download"],
  ["gbFiles", "", "list of comma delinieated genbank files to be parsed into GUS"],
  ["gbRejectFiles", "","files to reject on Genbank download"],
- ["gea_db_id", "","gea external_database_id"],
  ["gea_db_rls_id", "","comma delimited list of gea external_database_release_ids"],
- ["geaFiles", "","comma delimited list of input files with <gea><LocusLink><accession>:external_database_release_id"],
+ ["geaFiles", "","comma delimited list of input files with filename:db_id:db_rel_id:regex"],
  ["genbankRel", "", "GenBank release number found in the README file"],
  ["gene_db_id", "","db id for GeneId"],
  ["gene_db_rls_id", "","db release id for GeneId"],
@@ -136,14 +135,15 @@ my @properties =
  ["clusterUser", "","user for copyToCluster sub in Manager.pm"],
  ["loadDbEst", "", "yes or no"],
  ["load_db_rls_id",   "",  "a new id for the external_database_release table"],
- ["loadGEA" ,  "",  "yes or no"],
  ["loadGeneCards",   "",  "yes or no"],
  ["loadGeneTrapAssembly", "", "yes or no"],
  ["loadMGI" ,  "",  "yes or no"],
  ["makeAllgenesTable", "","make table ProteinAssembl, yes or no"],
  ["makeNewGORules",   "",  "yes or no. Regenerate the GO rules from scratch"],
+ ["materializedViews", "", "comma delimited list of schema:materialized view e.g. EPCONDEV:ISEXPRESSED_MV"),
  ["mgc_db_id", "","database id for mgc"],
  ["mgc_db_rel_id", "", "database release id for mgc"],
+ ["mgi_db_id", "","database id for mgi"], 
  ["mgi_db_rls_id",   "",  "database release id for mgi"],
  ["mgiFiles","","mgi mapping files, a comma delimited list"],
  ["ncbiBlastBinPathCluster",         "",  "path of ncbi blast bin dir on Cluster"],
@@ -462,9 +462,15 @@ $mgr->waitForCluster("protein similarities", "waitProteinSims");
 
 &deleteMGIToDots($mgr);
 
+&parseMgiToNaSeq($mgr);
+
+&loadMgiToNaSeq($mgr);
+
 &loadMGIToDoTS($mgr);
 
 &loadMGIInfo($mgr);
+
+&downloadMGC($mgr);
 
 &deleteMGC($mgr);
 
