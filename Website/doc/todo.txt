@@ -8,6 +8,7 @@ Queries
   - batch BLAST
   - batch submit DTs
   - add U133 affy query
+  - add GeneNote query and external links
 
 Documentation
   - Improve statistics page (probably wait till new cluster alg)
@@ -29,6 +30,7 @@ Features
   - map RAD to DoTS?
   - the gene page should check for old DG in mergesplit and put out history page
   - BLAST should do something to prevent timing out on long tblastn jobs
+  - handle Joan's "full length CDS" flag
 
 Website Build
   - find hard coded urls get them into the config files
