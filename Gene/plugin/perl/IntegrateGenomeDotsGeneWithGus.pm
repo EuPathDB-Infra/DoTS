@@ -171,8 +171,8 @@ sub getExistGiGfGdg {
     my $sql = "select gi.gene_instance_id, gf.na_feature_id, gf.name"
 	. " from DoTS.GeneFeature gf, DoTS.GeneInstance gi"
 	. " where gf.na_feature_id = gi.na_feature_id and gi.gene_instance_category_id = 1"
-	. " and external_database_release_id = $genomeId";
-    $self->log("finding existing GeneInstance and GeneFeature for genome dots gene entries");
+	. " and gf.external_database_release_id = $genomeId";
+    $self->log("finding existing GeneInstance & GeneFeature for gDGs: $sql");
     my $sth = $dbh->prepareAndExecute($sql);
     my ($gis, $gfs, $gdgs) = ([], [], {});
     while (my ($gi, $gf, $nam) = $sth->fetchrow_array) { 
@@ -181,6 +181,7 @@ sub getExistGiGfGdg {
 	my $id = $1 if $nam =~ /gdg\.(\d+)/i;
 	$gdgs->{$id} = 1 if defined $id;
     }
+    $self->log("found " . scalar(@$gis) . " geneinstances and genefeatures");
     return ($gis, $gfs, $gdgs);
 }
 
@@ -193,11 +194,13 @@ sub getExistEfOrRf {
 	. " and gf.na_feature_id = gi.na_feature_id"
 	. " and gi.gene_instance_category_id = 1"
 	. " and gf.external_database_release_id = $genomeId";
+    $self->log("finding existing $tab for gDGs: $sql");
     my $sth = $dbh->prepareAndExecute($sql);
     my $res = [];
     while (my ($f) = $sth->fetchrow_array) { 
 	push @$res, $f;
     }
+    $self->log("found " . scalar(@$res) . " $tab");
     return $res;
 }
 
