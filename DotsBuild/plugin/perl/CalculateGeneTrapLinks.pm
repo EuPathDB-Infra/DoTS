@@ -94,7 +94,7 @@ sub getTagSequences {
 
     my $q = ("select na_sequence_id, source_id, length " .
 	     "from dots.ExternalNASequence " .
-	     "where external_db_release_id = $extDbRel");
+	     "where external_database_release_id = $extDbRel");
 
     my $sth = $dbh->prepare($q);
 
