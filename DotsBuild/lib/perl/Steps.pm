@@ -1972,6 +1972,269 @@ sub indexNRDBWords {
 		  "Indexing words in NRDB descriptions");
 }
 
+sub makePredictedProteinFile {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "makePredictedProteinFile";
+  
+  return if $mgr->startStep("Prepare predicted protein file", $signal);
+  
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+  my $predictedProteinsFile = "${prefix}_predictedProteins.fasta";
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
+  my $logFile = "$mgr->{pipelineDir}/logs/${predictedProteinsFile}Extract.log";
+
+  my $sql = "select /*+ RULE */ 'DT.'||a.na_sequence_id,'length of predicted protein sequence ='||aas.length,aas.sequence from dots.assembly a, dots.rnafeature rf, dots.rnainstance ri, dots.protein p, dots.translatedaafeature taf, dots.proteininstance pi, dots.aasequenceimp aas where a.taxon_id = $taxonId and a.na_sequence_id = rf.na_sequence_id and rf.na_feature_id = ri.na_feature_id and ri.rna_id = p.rna_id and p.protein_id = pi.protein_id and pi.is_reference = 1 and pi.aa_feature_id = taf.aa_feature_id and taf.aa_sequence_id = aas.aa_sequence_id";
+ 
+  my $cmd = "dumpSequencesFromTable.pl --outputFile $mgr->{pipelineDir}/seqfiles/$predictedProteinsFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"$sql\" 2>>  $logFile";
+  
+  $mgr->runCmd($cmd);
+  
+  $mgr->endStep($signal);
+
+}
+
+sub makeProteinChunks {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "makeProteinChunks";
+
+  return if $mgr->startStep("dividing up the protein sequences", $signal);
+
+  my $logFile = "$mgr->{pipelineDir}/logs/${signal}.log";
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+  my $predictedProteinsFile = "$mgr->{pipelineDir}/seqfiles/${prefix}_predictedProteins.fasta";
+
+  my $proteinChunkDir = "$mgr->{pipelineDir}/misc/proteinSequenceChunks";
+
+  my $cmd = "mkdir $proteinChunkDir";
+
+  $mgr->runCmd($cmd);
+
+  my $cmd ="fasplit --InputFile $predictedProteinsFile --ChunkSize 1000 --OutputFileFormat ${proteinChunkDir}/%04.04d.fa";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
+
+sub predictTmAndSignalP {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "predictTmAndSignalP";
+
+  return if $mgr->startStep("making TM and signalP predictions", $signal);
+
+  my $logFile = "$mgr->{pipelineDir}/logs/${signal}.log";
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+  my $predictedProteinsFile = "$mgr->{pipelineDir}/seqfiles/${prefix}_predictedProteins.fasta";
+
+  my $outputfile = "$mgr->{pipelineDir}/misc/${prefix}_predictedProteins";
+
+  my $proteinChunkDir = "$mgr->{pipelineDir}/misc/proteinSequenceChunks";
+
+  my $cmd = "all-predictions $predictedProteinsFile $outputfile $proteinChunkDir 2>>$logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+
+}
+
+
+sub parseTMFile {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet}; 
+
+  my $signal = "parseTMFile";
+
+  return if $mgr->startStep("parsing the TM prediction file", $signal);
+
+  my $logFile = "$mgr->{pipelineDir}/logs/${signal}.log";
+
+  my $predictionPath = "$mgr->{pipelineDir}/misc/*.tmhmm.*";
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+  my $outputFile = "$mgr->{pipelineDir}/misc/${prefix}_predictedProteins.tmhmm.parsed";
+
+  my $predictedProteinsFile = "$mgr->{pipelineDir}/seqfiles/${prefix}_predictedProteins.fasta";
+
+  my $type = 'tmhmm';
+  my $cmd = " parse-predictions --PredictionPath \"$predictionPath\" --AaSequenceFile $predictedProteinsFile --Type $type > $outputFile 2>>$logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
+
+sub parseSGPSignalP {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "parseSGPSignalPFile";
+
+  return if $mgr->startStep("parsing the signalP SGP prediction files", $signal);
+
+  my $logFile = "$mgr->{pipelineDir}/logs/${signal}.log";
+
+  my $predictionPath = "$mgr->{pipelineDir}/misc/proteinSequenceChunks/*.fa.sgp.Z";
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+  my $outputFile = "$mgr->{pipelineDir}/misc/proteinSequenceChunks/${prefix}_predictedProteins.sgp.parsed";
+
+  my $predictedProteinsFile = "$mgr->{pipelineDir}/seqfiles/${prefix}_predictedProteins.fasta";
+
+  my $type = 'sgp';
+
+  my $cmd = " parse-predictions --PredictionPath \"$predictionPath\" --AaSequenceFile $predictedProteinsFile --Type $type > $outputFile 2>>$logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
+ 
+sub parseSGPHMMSignalP {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "parseSGPHMMSignalPFile";
+
+  return if $mgr->startStep("parsing the signalP SGPHMM prediction files", $signal);
+
+  my $logFile = "$mgr->{pipelineDir}/logs/${signal}.log";
+
+  my $predictionPath = "$mgr->{pipelineDir}/misc/proteinSequenceChunks/*.fa.sgphmm.Z";
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+  my $outputFile = "$mgr->{pipelineDir}/misc/proteinSequenceChunks/${prefix}_predictedProteins.sgphmm.parsed";
+
+  my $predictedProteinsFile = "$mgr->{pipelineDir}/seqfiles/${prefix}_predictedProteins.fasta";
+
+  my $type = 'sgphmm';
+
+  my $cmd = " parse-predictions --PredictionPath \"$predictionPath\" --AaSequenceFile $predictedProteinsFile --Type $type > $outputFile 2>>$logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
+
+sub deletePredictedAAFeatures{
+  my ($predictionTable, $mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "delete${predictionTable}";
+
+  return if $mgr->startStep("Deleting predicted TM features from GUS", $signal);
+
+  my $logFile = "$mgr->{pipelineDir}/logs/$signal.log";
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $sql = "select p.aa_feature_id from dots.${predictionTable} p, dots.translatedaafeature f, dots.rnafeature r, dots.assembly a where a.taxon_id = $taxonId and a.na_sequence_id = r.na_sequence_id and r.na_feature_id = f.na_feature_id and f.aa_sequence_id = p.aa_sequence_id";
+
+  my $cmd = "deleteAAFeatures.pl --table DoTS::${predictionTable} --idSQL \"$sql\" 2>> $logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
+
+sub loadTMHMM {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+  my $inputFile = "$mgr->{pipelineDir}/misc/${prefix}_predictedProteins.tmhmm.parsed";
+
+  my $project_id = $propertySet->getProp('project_id');
+
+  my $args = "--filename $inputFile --project_id $project_id";
+
+  $mgr->runPlugin("loadTMHMM", "DoTS::DotsBuild::Plugin::LoadPredictedAAFeatures", $args, "loading parsed TMHMM predictions into GUS");
+
+}
+
+
+sub loadSGPSignalP {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+  my $inputFile = "$mgr->{pipelineDir}/misc/proteinSequenceChunks/${prefix}_predictedProteins.sgp.parsed";
+
+  my $project_id = $propertySet->getProp('project_id');
+
+  my $args = "--filename $inputFile --project_id $project_id";
+
+  $mgr->runPlugin("loadSGPSignalP", "DoTS::DotsBuild::Plugin::LoadPredictedAAFeatures", $args, "loading parsed SignalP predictions into GUS");
+}
+
+sub loadSGPHMMSignalP {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  
+  my $prefix = "${speciesNickname}DoTS_rel${dotsRelease}";
+
+  my $inputFile = "$mgr->{pipelineDir}/misc/proteinSequenceChunks/${prefix}_predictedProteins.sgphmm.parsed";
+
+  my $project_id = $propertySet->getProp('project_id');
+
+  my $args = "--filename $inputFile --project_id $project_id";
+  
+  $mgr->runPlugin("loadSGPHMMSignalP", "DoTS::DotsBuild::Plugin::LoadPredictedAAFeatures", $args, "loading parsed SignalPHMM predictions into GUS");
+}
+
 sub assemblyProteinIntegration {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
