@@ -61,7 +61,6 @@ my $debug = 0;
 my $countProcessed = 0;
 my $countBad = 0;
 
-my $phrap_dir = '/usr/local/src/bio/phrap/latest';
 my %finished;
 my $library;
 
@@ -224,6 +223,8 @@ sub processSet {
     
     my $M   = shift;
     my($miniLib) = @_;
+
+    my $phrap_dir = '/usr/local/src/bio/phrap/latest';
     open(S, ">tmpLib");
     print S $miniLib;
     close S;
