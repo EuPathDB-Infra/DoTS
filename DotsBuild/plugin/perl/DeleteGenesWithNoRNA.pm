@@ -4,7 +4,7 @@ package DoTS::DotsBuild::Plugin::DeleteAssembliesWithNoAssemblySequences;
 
 use strict;
 use GUS::ObjRelP::DbiDatabase;
-use GUS::Model::DoTS::Genes;
+use GUS::Model::DoTS::Gene;
 
 sub new {
   my ($class) = @_;
