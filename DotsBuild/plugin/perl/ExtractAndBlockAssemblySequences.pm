@@ -7,7 +7,7 @@ use GUS::Model::DoTS::AssemblySequence;
 use CBIL::Bio::SequenceUtils;
 
 sub new {
-  my $Class = shift;
+  my $class = shift;
 
   my $self = {};
   bless($self,$class);
