@@ -27,34 +27,34 @@ my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
 my $dbh = $db->getQueryHandle();
 
 
-$dbh->do"CREATE TABLE ALLGENES_60.PROTEINASSEMBLY (PROTEIN_ID   NUMBER(12),
+$dbh->do("CREATE TABLE ALLGENES_60.PROTEINASSEMBLY (PROTEIN_ID   NUMBER(12),
                                           RNA_ID   NUMBER(12),
                                           NA_FEATURE_ID   NUMBER(12),
                                           NA_SEQUENCE_ID   NUMBER(12) NOT NULL,
                                           TAXON_ID   NUMBER(12) NOT NULL
                                          ) TABLESPACE RAID1
-                                         STORAGE (MAXEXTENTS UNLIMITED)";
+                                         STORAGE (MAXEXTENTS UNLIMITED)");
 
 
-$dbh->do "insert into allgenes_60.proteinassembly select /*+ rule */ null, null, null, na_sequence_id, taxon_id from dots.assembly";
+$dbh->do ("insert into allgenes_60.proteinassembly select /*+ rule */ null, null, null, na_sequence_id, taxon_id from dots.assembly");
 
-$dbh->do "update allgenes_60.proteinassembly pa set pa.na_feature_id = (select rf.na_feature_id from dots.rnafeature rf where rf.na_sequence_id = pa.na_sequence_id)";
+$dbh->do ("update allgenes_60.proteinassembly pa set pa.na_feature_id = (select rf.na_feature_id from dots.rnafeature rf where rf.na_sequence_id = pa.na_sequence_id)");
 
-$dbh->do "update allgenes_60.proteinassembly pa set pa.rna_id = (select rs.rna_id from dots.rnainstance rs where rs.na_feature_id = 
-pa.na_feature_id)";
+$dbh->do ("update allgenes_60.proteinassembly pa set pa.rna_id = (select rs.rna_id from dots.rnainstance rs where rs.na_feature_id = 
+pa.na_feature_id)");
 
-$dbh->do "update allgenes_60.proteinassembly pa set pa.protein_id = (select p.protein_id from dots.protein p where  p.rna_id = pa.rna_id)";
+$dbh->do ("update allgenes_60.proteinassembly pa set pa.protein_id = (select p.protein_id from dots.protein p where  p.rna_id = pa.rna_id)");
 
 $dbh->commit();
 
-$dbh->do "alter table allgenes_60.proteinassembly modify (protein_id not null)";
-$dbh->do "alter table allgenes_60.proteinassembly modify (rna_id not null)";
-$dbh->do "alter table allgenes_60.proteinassembly modify (na_feature_id not null)";
+$dbh->do ("alter table allgenes_60.proteinassembly modify (protein_id not null)");
+$dbh->do ("alter table allgenes_60.proteinassembly modify (rna_id not null)");
+$dbh->do ("alter table allgenes_60.proteinassembly modify (na_feature_id not null)");
 
-$dbh->do "CREATE INDEX ALLGENES_60.PROTEINASSEMBLY_IND01 on allgenes_60.proteinassembly (PROTEIN_ID) TABLESPACE INDX";
-$dbh->do "CREATE INDEX ALLGENES_60.PROTEINASSEMBLY_IND02 on allgenes_60.proteinassembly (PROTEIN_ID,TAXON_ID,NA_SEQUENCE_ID) TABLESPACE INDX";
-$dbh->do "CREATE INDEX ALLGENES_60.PROTEINASSEMBLY_IND03 on allgenes_60.proteinassembly (RNA_ID,TAXON_ID,NA_SEQUENCE_ID) TABLESPACE INDX";
+$dbh->do ("CREATE INDEX ALLGENES_60.PROTEINASSEMBLY_IND01 on allgenes_60.proteinassembly (PROTEIN_ID) TABLESPACE INDX");
+$dbh->do ("CREATE INDEX ALLGENES_60.PROTEINASSEMBLY_IND02 on allgenes_60.proteinassembly (PROTEIN_ID,TAXON_ID,NA_SEQUENCE_ID) TABLESPACE INDX");
+$dbh->do ("CREATE INDEX ALLGENES_60.PROTEINASSEMBLY_IND03 on allgenes_60.proteinassembly (RNA_ID,TAXON_ID,NA_SEQUENCE_ID) TABLESPACE INDX");
 
-$dbh->do "ANALYZE TABLE ALLGENES_60.PROTEINASSEMBLY compute statistics";
+$dbh->do ("ANALYZE TABLE ALLGENES_60.PROTEINASSEMBLY compute statistics");
 
-$dbh->do "grant select on allgenes_60.proteinassembly to public";
+$dbh->do ("grant select on allgenes_60.proteinassembly to public");
