@@ -40,6 +40,10 @@ Information from the MGI info file needs to be loaded into the dbref table-proba
 QUESTION:  DO INCREMENTAL UPDATES NEED TO CORRECT THE EXTERNAL_DB_RLS_ID IN EXTERNALNASEQUENCE (GENBANK PARSER)
 
 
+other stuff
+- update crossmatch databases
+
+
 PLUGIN BUGS
 
 d 1  2.00 - why aren't identical RNAs in the same assembly 
