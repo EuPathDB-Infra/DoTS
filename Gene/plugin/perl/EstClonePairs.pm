@@ -95,9 +95,9 @@ sub run {
   my $joinCol = $self->getArgs->{'join_column'};
 
   # create the result table if it is not there yet, clean old result if there
-  my @cols = &cleanOrCreateTempTable($dbh, $tempLogin, $taxonId, $joinCol);
+  my $tab = &cleanOrCreateTempTable($dbh, $tempLogin, $taxonId, $joinCol);
 
-  my $sql = &getInsertSql($taxonId, $joinCol);
+  my $sql = &getInsertSql($taxonId, $tab, $joinCol);
 
   print STDERR "# running sql:\n# $sql\n";
   $dbh->sqlexec($sql);
@@ -154,17 +154,18 @@ BAS_SQL
     $dbh->sqlexec("create index ESTCLONEPAIR_IND02 on ${tmp}.EstClonePair($cols[8])");
   }
 
-  @cols;
+  "${tmp}.EstClonePair";
 }
 
 sub getInsertSql {
-    my ($tid, $join_col) = @_;
+    my ($tid, $tab, $join_col) = @_;
 
-    my $sql = "select aseq.assembly_na_sequence_id as dt_id_1, "
+    my $sql = "select $tid as taxon_id, '$join_col' as join_column, "
+	. "aseq1.assembly_na_sequence_id as dt_id_1, "
 	. "s1.na_sequence_id as ass_seq1, s1.p_end as p1, "
         . "c1.library_id || \':\' || c1.$join_col as lib_clone, "
         . "s2.p_end as p2, s2.na_sequence_id as ass_seq2, "
-	. "aseq.assembly_na_sequence_id as dt_id_2 "
+	. "aseq2.assembly_na_sequence_id as dt_id_2 "
         . "from DoTS.Library l1, DoTS.Clone c1, DoTS.EST s1, DoTS.AssemblySequence aseq1, "
         . "     DoTS.Library l2, DoTS.Clone c2, DoTS.EST s2, DoTS.AssemblySequence aseq2 "
         . "where l1.taxon_id = $tid and l2.taxon_id = $tid "
@@ -175,7 +176,7 @@ sub getInsertSql {
 	. "and s2.na_sequence_id = aseq2.na_sequence_id "
         . "and not s1.na_sequence_id = s2.na_sequence_id ";
 
-    return $sql;
+    return "insert into $tab ($sql)";
 }
 
 1;

@@ -7,9 +7,7 @@ use CBIL::Util::Disp;
 use CBIL::Util::PropertySet;
 
 use GUS::PluginMgr::Plugin;
-
-use DoTS::Gene::GenomeAlignmentSelector;
-use DoTS::Gene::GenomeAlignmentMerger;
+use DoTS::Gene::GenomeWalker;
 
 sub new {
     my ($class) = @_;
@@ -133,7 +131,6 @@ NOTES
 		descr => 'minimum length of maximum intron required for a DT to be used in gene construction',
 		constraintFunc=> undef,
 		reqd => 0,
-		default => 47,
 		isList => 0 
 		}),
 
@@ -198,6 +195,7 @@ sub run {
     $self->logCommit();
     $self->logArgs();
 
+    my $db = $self->getDb();
     my $dbh = $self->getQueryHandle();
     my $tempLogin = $self->getArg('temp_login');
 
@@ -208,40 +206,38 @@ sub run {
     my ($coords, $skip_chrs) = $self->getRegionSelections();
     my @done_chrs = @$skip_chrs;
 
-    my $qSel = $self->getBaseQuerySelector();
-    my $tSel = $self->getBaseTargetSelector();
-    my $optSel = $self->getOptionalQuerySelector();
+    my $baseQSel = $self->getBaseQuerySelector();
+    my $baseTSel = $self->getBaseTargetSelector();
+    my $optQSel = $self->getOptionalQuerySelector();
+    my $sel_criteria = { baseQ=>$baseQSel, baseT=>$baseTSel, optQ=>$optQSel };
     my $mrg_criteria = $self->getMergeCriteria();
+
     my $gdgId = $self->getArg('initial_gdg_id');
-
     foreach my $coord (@$coords) {
-	$tSel->{target_na_sequence_id} = $coord->{chr_id};
-	$tSel->{target_start} = $coord->{start} if $coord->{start};
-	$tSel->{target_end} = $coord->{end} if $coord->{end};
-	my $aln_sel = DoTS::Gene::GenomeAlignmentSelector->new($dbh, $qSel, $tSel, $optSel);
-	my $srt_alns = $aln_sel->getSortedAlignments();
-
-	my $gdg_mrg = DoTS::Gene::GenomeAlignmentMerger->new($srt_alns, $mrg_criteria, $dbh);
-	my $genes = $gdg_mrg->getCompositeGenomeFeatures();
+	$sel_criteria->{baseT}->{target_na_sequence_id} = $coord->{chr_id};
+	$sel_criteria->{optT} = { start => $coord->{start}, end => $coord->{end} };
+	my $gdg_wkr = DoTS::Gene::GenomeWalker->new($db, $sel_criteria, $mrg_criteria);
+	my $genes = $gdg_wkr->getCompositeGenomeFeatures();
 	$self->log("number of genes in this region: " . scalar(@$genes));
 	foreach (@$genes) {
-	    $self->saveGene($_, $gdgId++, \@tmpMeta);
+	    $self->saveGene($gdgId++, $_, \@tmpMeta);
 	}
 	$dbh->commit();
 	push @done_chrs, $coord->{chr};
 	$self->log("completed/skipped chromosomoes: " . join(', ', @done_chrs));
     }
+    return "finished gDG creation for chromosomes: " . join(', ', @done_chrs);
 }
 
 ##########################
 
-sub getBaseQuerySelect {
+sub getBaseQuerySelector {
     my $self = shift;
     my $taxonId = $self->getArg('taxon_id');
     return { query_taxon_id => $taxonId, query_table_id => 56 };
 }
 
-sub getBaseTargetSelect {
+sub getBaseTargetSelector {
     my $self = shift;
     my $taxonId = $self->getArg('taxon_id');
     my $genomeId = $self->getArg('genome_db_rls_id');
@@ -249,15 +245,15 @@ sub getBaseTargetSelect {
 	     target_external_db_release_id => $genomeId };
 }
 
-sub getOptionalQuerySelect {
+sub getOptionalQuerySelector {
     my $self = shift;
     my $containsMrna = $self->getArg('contains_mrna');
     my $spliceMin = $self->getArg('splice_minimum');
     my $excSgl = $self->getArg('exclude_singleton');
-    my $basc = $self->getArg('temp_login') . '.' . $self->getArg('blat_signals_cache');
+    my $sig_cache = $self->getArg('temp_login') . '.' . $self->getArg('blat_signals_cache');
 
     return { contains_mrna => $containsMrna, splice_minimum => $spliceMin,
-	     exclude_singleton => $excSgl, blat_signals_cache => $basc };
+	     exclude_singleton => $excSgl, blat_signals_cache =>$sig_cache };
 }
 
 sub getMergeCriteria {
@@ -278,8 +274,8 @@ sub getRegionSelections {
 
     if ($self->getArg('test')) {
 	my $chr = '1';
-	my $chr_id = &getChromId($dbh, $genomeId, $chr);
-	return [{chr=>$chr, chr_id=>$chr_id, start=>1e6, end=>11e6}];
+	my ($chr_id) = &getChromIdAndLen($dbh, $genomeId, $chr);
+	return [{chr=>$chr, chr_id=>$chr_id, start=>5e6, end=>10e6}];
     }
 
     my $chr = $self->getArg('chr'); $chr =~ s/^chr//i;
@@ -288,8 +284,10 @@ sub getRegionSelections {
 
     die "start or end set while chr is not defined" if (defined($start) || $end) && !$chr;
     if ($chr) {
-	my $chr_id = &getChromId($dbh, $genomeId, $chr);
-	return ([{ chr_id=> $chr_id, chr => $chr, start => $start, end => $end }], []);
+	my ($chr_id, $chr_len) = &getChromIdAndLen($dbh, $genomeId, $chr);
+	my $s = 0 unless $start; 
+	my $e = $chr_len unless $end < $chr_len;
+	return ([{ chr_id=> $chr_id, chr => $chr, start => $s, end => $e }], []);
     } else {
 	my $skipChrs = $self->getArg('skip_chrs'); $skipChrs =~ s/chr//gi;
 	my @skipChrs = split(/,/, $skipChrs);
@@ -310,7 +308,7 @@ sub createTempTables {
 		  'polya_signal_type', 'has_polya_track', 'number_of_est_libraries',
 		  'number_of_est_clones', 'number_of_est_p53pairs', 'confidence_score',
 		  'number_of_rnas', 'contains_mrna', 'max_orf_length', 'max_orf_score', 'min_orf_pval', 'gene_id');
-  my @gdg_types = ('NOT NULL NUMBER(10)', 'NOT NULL NUMER(10)', 'NUMER(10)',
+  my @gdg_types = ('NUMBER(10) NOT NULL', 'NUMBER(10) NOT NULL', 'NUMBER(10)',
 		   'VARCHAR2(32)', 'NUMBER(12)', 'NUMBER(12)', 'CHAR(1)', 'NUMBER(8)',
 		   'NUMBER(4)', 'NUMBER(8)', 'NUMBER(8)', 'NUMBER(8)', 'NUMBER(8)',
 		   'CLOB', 'CLOB', 'NUMBER(1)', 'NUMBER(4)',
@@ -323,21 +321,21 @@ sub createTempTables {
 
   my $gdt_tab = 'GenomeDotsTranscript';
   my @gdt_cols = ('taxon_id', 'genome_external_db_release_id', $gdg_cols[0], 'blat_alignment_id', 'na_sequence_id');
-  my @gdt_types = ('NOT NULL NUMER(10)', 'NUMER(10)',$gdg_types[0], 'NUMBER(10)', 'NUMBER(10)');
-  my @gdt_csts = ("alter table ${tmpLogin}.$gdt_tab add constraint " . uc($gdg_tab)
-		  . "_FK01 foreign key ($gdt_cols[3]) references ${tmpLogin}.$gdg_tab ($gdg_cols[0])",
+  my @gdt_types = ('NUMBER(10) NOT NULL', 'NUMBER(10)',$gdg_types[0], 'NUMBER(10)', 'NUMBER(10)');
+  my @gdt_csts = ("alter table ${tmpLogin}.$gdt_tab add constraint " . uc($gdt_tab)
+		  . "_FK01 foreign key ($gdt_cols[2]) references ${tmpLogin}.$gdg_tab ($gdg_cols[0])",
 		  "create index " . uc($gdt_tab) . "_IND01 on ${tmpLogin}.$gdt_tab($gdt_cols[1],$gdt_cols[2])"); 
 
 #  my $g2s_tab = 'GdgSdgMap';
 #  my @g2s_cols = ('taxon_id', 'genome_external_db_release_id', $gdg_cols[0], 'similarity_dots_gene_id', 'selected');
-#  my $g2s_types = ('NOT NULL NUMER(10)', 'NUMER(10)', $gdg_types[0], 'NUMBER(10)', 'NUMBER(1)');
+#  my $g2s_types = ('NUMBER(10) NOT NULL', 'NUMBER(10)', $gdg_types[0], 'NUMBER(10)', 'NUMBER(1)');
 #  my @g2s_csts = ("alter table ${tmpLogin}.$g2s_tab add constraint " . uc($g2s_tab)
 #		  . "_FK01 foreign key ($g2s_cols[2]) references ${tmpLogin}.$gdg_tab ($gdg_cols[0])",
 #		  "create index " . uc($g2s_tab) . "_IND01 on ${tmpLogin}.$g2s_tab($g2s_cols[0],$g2s_cols[1])"); 
 
 #  $dbh->do("drop table ${tmpLogin}.$g2s_tab");
-  $dbh->do("drop table ${tmpLogin}.$gdt_tab");
-  $dbh->do("drop table ${tmpLogin}.$gdg_tab");
+  $dbh->do("drop table ${tmpLogin}.$gdt_tab") or print "";
+  $dbh->do("drop table ${tmpLogin}.$gdg_tab") or print "";
   
   &createTable($dbh, $tmpLogin, $gdg_tab, \@gdg_cols, \@gdg_types, \@gdg_csts);
   &createTable($dbh, $tmpLogin, $gdt_tab, \@gdt_cols, \@gdt_types, \@gdt_csts);
@@ -352,39 +350,40 @@ sub createTable {
     my $num_cols = scalar(@$cols);
     die "number of columns and number of column types mismatch" if scalar(@$types) != $num_cols;
 
-    my $sql = "CREATE TABLE ${schema}.$tab(\n";
+    my $sql = "CREATE TABLE ${schema}.$tab\n(";
     for (my$i=0; $i<$num_cols; $i++) {
-	$sql .= $cols->[$1] . ' ' . $types->[$i] . ($i < $num_cols - 1 ? ',' : '') . "\n";
+	$sql .= $cols->[$i] . ' ' . $types->[$i] . ($i < $num_cols - 1 ? ',' : '') . "\n";
     }
+    $sql .= ")";
     print STDERR "# creating ${schema}.$tab table...\n";
     $dbh->sqlexec($sql);
     $dbh->sqlexec("GRANT SELECT ON ${schema}.$tab to PUBLIC");
     foreach (@$constraints) { $dbh->sqlexec($_); }
 }
 
-sub getChromId {
+sub getChromIdAndLen {
   my ($dbh, $ext_db_rel_id, $chr) = @_;
 
-  my $sql = "select na_sequence_id from DoTS.VirtualSequence "
+  my $sql = "select na_sequence_id, length(sequence) from DoTS.VirtualSequence "
     . "where external_database_release_id = $ext_db_rel_id and chromosome = '$chr'";
   my $sth = $dbh->prepareAndExecute($sql);
-  my ($chr_id) = $sth->fetchrow_array;
+  my ($chr_id, $len) = $sth->fetchrow_array;
 
   die "no chr_id found for $chr and external database release $ext_db_rel_id\n" unless $chr_id;
-  $chr_id;
+  ($chr_id,$len);
 }
 
 sub getChroms {
   my ($dbh, $ext_db_rel_id, $skipChrs) = @_;
 
-  my $sql = "select na_sequence_id, chromosome from DoTS.VirtualSequence "
+  my $sql = "select na_sequence_id, chromosome, length(sequence) from DoTS.VirtualSequence "
     . "where external_database_release_id = $ext_db_rel_id "
     . "and chromosome not in (" . join(', ', map { "'" . $_ . "'" } @$skipChrs). ")";
   my $sth = $dbh->prepareAndExecute($sql);
 
   my @chroms;
-  while (my ($chr_id, $chr) = $sth->fetchrow_array) {
-      push @chroms, { chr_id => $chr_id, chr => $chr };
+  while (my ($chr_id, $chr, $len) = $sth->fetchrow_array) {
+      push @chroms, { chr_id => $chr_id, chr => $chr, len => $len, start => 0, end => $len };
   }
 
   return @chroms;
@@ -409,7 +408,8 @@ sub saveGene {
 	. $gene->getTotalSpanSize . "," . $gene->getNumberOfSpans . ","
 	. $gene->getMinSpanSize . "," . $gene->getMaxSpanSize . ","
 	. $gene->getMinInterspanSize. "," . $gene->getMaxInterspanSize. ","
-	. "'" . $gene->getSpanStarts . "'," . $gene->getSpanEnds . "')";
+	. "'" . join(',', $gene->getSpanStarts) . "',"
+	. "'" . join(',', $gene->getSpanEnds) . "')";
     $dbh->sqlexec($sql);
 
     my @transcripts = $gene->getConstituents();
@@ -418,7 +418,7 @@ sub saveGene {
         my $dots = $t->getAnnotationProperties()->{na_sequence_id};
 
 	my $sql = "insert into ${tmpLogin}.$gdt_tab "
-	    . "($gdg_cols->[0], $gdg_cols->[1], $gdg_cols->[2], $gdg_cols->[3], $gdg_cols->[4]) "
+	    . "($gdt_cols->[0], $gdt_cols->[1], $gdt_cols->[2], $gdt_cols->[3], $gdt_cols->[4]) "
 	    . "values ($taxonId, $genomeId, $id, $bid, $dots)";
 	$dbh->sqlexec($sql);
     }
