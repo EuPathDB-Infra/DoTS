@@ -26,6 +26,9 @@ my ($verbose, $createTmpTableOnly,$dbLogin,$dbPassword,
 &usage() unless ($dbLogin && $dbPassword && $goRowTemplateFile 
 		&& $goRowTemplateFile && $totalBarWidth);
 
+$dbLogin = $gusconfig->getDatabaseLogin() unless $dbLogin;
+$dbPassword = $gusconfig->getDatabasePassword() unless $dbPassword;
+
 my $gusconfig = GUS::Common::GusConfig->new();
 
 my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
