@@ -131,7 +131,8 @@ my @properties =
  ["llDeleteDbRef", "","option to delete dbref entries, used in InsertDbRefAndDbRefNASequence, yes or no"],
  ["allgenesLogin", "","login for allgenes schema, for creation and filling of table ProteinAssembly"],
  ["allgenesPassword", "","password for allgenes schema, for creation and filling of table ProteinAssembly"],
- ["makeAllgenesTable", "","make table ProteinAssembl, yes or no"]
+ ["makeAllgenesTable", "","make table ProteinAssembl, yes or no"],
+ ["qualityStartDate/", "","date when the last SetAssSeqQualStartStop.pm was run for this taxon"]
  ); 
 
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
@@ -165,15 +166,17 @@ my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFil
 
 &parsedbEST();
 
+&extractDots("prev", "'DT.'||");
+
 &makeAssemSeqs();
 
 &extractAssemSeqs();
 
-&extractDots("prev", "'DT.'||");
-
 &copyPipelineDirToLiniac();
 
 &startBlastMatricesOnLiniac(); 
+
+   &qualityStart();
  
    &downloadCDD();
 
@@ -198,13 +201,15 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
 &copyBlastMatricesFromLiniac();
 
 &cluster("initial", 
-	 "prevDots-prevDots", "assemSeqs-assemSeqs", "prevDots-assemSeqs");
+  	 "prevDots-prevDots", "assemSeqs-assemSeqs", "prevDots-assemSeqs");
 
 &splitCluster("initial");
 
 &assemble("", $propertySet->getProp('reassemble'), "initial");
 
 &reassemble("initial");
+
+&deleteAssembliesWithNoAssemblySequences("initial");
 
 &extractDots("intermed", "'DT.'||");
 
@@ -217,6 +222,8 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
 &assemble("--assemble_old", "no", "intermed");
 
 &reassemble("intermed");
+
+&deleteAssembliesWithNoAssemblySequences("intermed");
 
 &extractDots("final", "");
 
@@ -354,7 +361,11 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &parseSGPHMMSignalP();
 
+&deletePredictedAAFeatures("PredictedAAFeature");
+
 &loadTMHMM();
+
+&deletePredictedAAFeatures("SignalPeptideFeature");
 
 &loadSGPSignalP();
 
@@ -611,6 +622,8 @@ sub insertTaxon {
 
 sub parseGenbank {
 
+  my $signal = "parseGenBank";
+
   my $genbankRel = $propertySet->getProp('genbankRel');
   
   my $gb_db_rel_id = $propertySet->getProp('gb_db_rel_id');
@@ -636,19 +649,25 @@ sub parseGenbank {
     my $dotsRelease = "release" . $propertySet->getProp('dotsRelease');
 
     my $buildName = &makeBuildName($propertySet->getProp('speciesNickname'));
+    
+    my $subDir = "gbParse_".$file;
 
-    my $failFiles = "$dotsBuildDir/$dotsRelease/$buildName/plugins/$file/gbparserFailures/*.gb";
+    my $failFiles = "$dotsBuildDir/$dotsRelease/$buildName/plugins/$subDir/gbparserFailures/*.gb";
 
-    my @fileArr = `glob($failFiles)`;
+    my @fileArr = <$failFiles>;
     
     if ((scalar @fileArr) >= 1) {
       die "There are GenBank entry failures - evaluate and run GBParser manually - then restart dotsbuild\n";
     }
-  } 
+  }
+
+  $mgr->endStep($signal);
   
 }
 
 sub parseRefSeq {
+
+  my $signal = "parseRefSeq";
 
   my $refseqRel = $propertySet->getProp('refseqRel');
   
@@ -674,11 +693,13 @@ sub parseRefSeq {
 
   my $failFiles = "$dotsBuildDir/$dotsRelease/$buildName/plugins/$refseqFile/gbparserFailures/*.gb";
   
-  my @fileArr = `glob($failFiles)`;
+  my @fileArr = <$failFiles>;
     
   if ((scalar @fileArr) >= 1) {
     die "There are RefSeq entry failures - evaluate and run GBParser manually - then restart dotsbuild\n";
   }
+
+  $mgr->endStep($signal);
 
 }
 
@@ -688,7 +709,7 @@ sub parsedbEST {
 
   my $taxonId = $propertySet->getProp('taxonId');
 
-  my $args = "--log $pipelineDir/logs/dbest.log --span 500 --project 'dbEST Parser' --taxon_id $taxonId --restart_number $restart";
+  my $args = "--log $pipelineDir/logs/dbest.log --fullupdate --span 500 --project 'dbEST Parser' --taxon_id $taxonId --restart_number $restart";
   
   $mgr->runPlugin("loadDbEst", "GUS::Common::Plugin::dbEST", $args, 
 		  "Loading dbEST files into GUS", 'loadDbEst');
@@ -772,7 +793,6 @@ sub startBlastMatricesOnLiniac {
 
     my $liniacServer = $propertySet->getProp('liniacServer');
     my $serverPath = $propertySet->getProp('serverPath');
-
     my $signal = "runmatrices";
     return if $mgr->startStep("Starting blast matrices", $signal);
     
@@ -783,6 +803,27 @@ sub startBlastMatricesOnLiniac {
 
     $mgr->exitToLiniac($liniacCmdMsg, $liniacLogMsg, 1);
 }
+
+sub qualityStart {
+
+  my $date = $propertySet->getProp('qualityStartDate');
+  my $taxonId = $propertySet->getProp('taxonId');
+  my $externalDbDir = $propertySet->getProp('externalDbDir');
+  my $file = $propertySet->getProp('fileOfRepeats');
+  my $repeatFile = "$externalDbDir/repeat/$file";
+  my $phrapDir = $propertySet->getProp('phrapDir');
+  
+  my $sql = "select a.assembly_sequence_id from dots.assemblysequence a, dotsver.externalnasequencever v where a.na_sequence_id = v.na_sequence_id and v.version_date > $date and v.taxon_id = $taxonId";
+
+  my $args = "--idSQL \"$sql\" --repeatFile $repeatFile --phrapDir $phrapDir";
+
+  $mgr->runPlugin("setQualityStart", 
+		   "DoTS::DotsBuild::Plugin::SetAssSeqQualStartStop",
+		   $args, "setting quality start in AssemblySequence");
+
+}
+
+
 
 sub copyBlastMatricesFromLiniac {
 
@@ -797,7 +838,8 @@ sub copyBlastMatricesFromLiniac {
                        "blocked.err",
                        "$pipelineDir/repeatmask/assemSeqs");
 
-    my @names = ("assemSeqs-assemSeqs", "prevDots-assemSeqs", "prevDots-prevDots");
+    #my @names = ("assemSeqs-assemSeqs", "prevDots-assemSeqs", "prevDots-prevDots");
+    my @names = ("prevDots-assemSeqs", "prevDots-prevDots");
     foreach my $name (@names) {
 	$mgr->copyFromLiniac($liniacServer,
 			     "$serverPath/$buildName/matrix/$name/master/mainresult",
@@ -931,12 +973,14 @@ sub reassemble {
 }
 
 sub deleteAssembliesWithNoAssemblySequences {
+
+  my ($name) = @_;
   
   my $taxonId = $propertySet->getProp('taxonId');
 
   my $args = "--taxon_id $taxonId";
   
-  $mgr->runPlugin("deleteAssembliesWithNoAssSeq", 
+  $mgr->runPlugin("${name}deleteAssembliesWithNoAssSeq", 
 		  "DoTS::DotsBuild::Plugin::DeleteAssembliesWithNoAssemblySequences",
 		  $args, "Deleting assemblies with no assemblysequences");
   
@@ -1046,13 +1090,13 @@ sub insertNRDB {
   
   my $temp_password = $propertySet->getProp('tempPassword'); 
   
-  my $restart = $propertySet->getProp('nrdbRestart') > 1 ? "--restart" . $propertySet->getProp('nrdbRestart') : "";
+  my $restart = $propertySet->getProp('nrdbRestart') > 1 ? "--restart " . $propertySet->getProp('nrdbRestart') : "";
   
   my $nrdbReleaseId = $propertySet->getProp('nrdb_db_rls_id');
   
   #my $args = "--temp_login \"$temp_login\" --sourceDB $sourceDB --temp_password \"$temp_password\" --dbi_str \"$dbi_str\" $restart --gitax $gitax --nrdb $nrdb --extDbRelId $nrdbReleaseId --maketemp --plugin --delete";
 
-  my $args = "--temp_login \"$temp_login\" --sourceDB $sourceDB --temp_password \"$temp_password\" --dbi_str \"$dbi_str\" $restart --gitax $gitax --nrdb $nrdb --extDbRelId $nrdbReleaseId --delete";
+  my $args = "--temp_login \"$temp_login\" --sourceDB $sourceDB --temp_password \"$temp_password\" --dbi_str \"$dbi_str\" $restart --gitax $gitax --nrdb $nrdb --extDbRelId $nrdbReleaseId --plugin --delete";
   
   $mgr->runPlugin("loadNRDB", "GUS::Common::Plugin::LoadNRDB", $args, "Loading NRDB", 'downloadNRDB');
 }	
@@ -2774,7 +2818,7 @@ sub makeProteinChunks {
 
   $mgr->runCmd($cmd);
 
-  my $cmd ="fasplit --InputFile $predictedProteinsFile --ChunkSize 500 --OutputFileFormat ${proteinChunkDir}/%04.04d.fa";
+  my $cmd ="fasplit --InputFile $predictedProteinsFile --ChunkSize 1000 --OutputFileFormat ${proteinChunkDir}/%04.04d.fa";
 
   $mgr->runCmd($cmd);
 
@@ -2892,6 +2936,27 @@ sub parseSGPHMMSignalP {
   my $type = 'sgphmm';
 
   my $cmd = " parse-predictions --PredictionPath \"$predictionPath\" --AaSequenceFile $predictedProteinsFile --Type $type > $outputFile 2>>$logFile";
+
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+}
+
+sub deletePredictedAAFeatures{
+
+  my $predictionTable = @_;
+
+  my $signal = "delete${predictionTable}";
+
+  return if $mgr->startStep("Deleting predicted TM features from GUS", $signal);
+
+  my $logFile = "$pipelineDir/logs/$signal.log";
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $sql = "select p.aa_feature_id from dots.${predictionTable} p, dots.translatedaafeature f, dots.rnafeature r, dots.assembly a where a.taxon_id = $taxonId and a.na_sequence_id = r.na_sequence_id and r.na_feature_id = f.na_feature_id and f.aa_sequence_id = p.aa_sequence_id";
+
+  my $cmd = "deleteAAFeatures.pl --table DoTS::${predictionTable} --idSQL \"$sql\" 2>> $logFile";
 
   $mgr->runCmd($cmd);
 
