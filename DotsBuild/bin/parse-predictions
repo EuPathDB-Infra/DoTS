@@ -4,8 +4,8 @@ use strict 'vars';
 use lib "$ENV{GUS_HOME}/lib/perl";
 use GUS::ObjRelP::DbiDatabase;
 use GUS::Common::GusConfig;
-use Disp;
-use EasyCsp;
+use CBIL::Util::Disp;
+use CBIL::Util::EasyCsp;
 use FileHandle;
 
 my $gusConfigFile;
@@ -45,7 +45,7 @@ sub get_cla {
 									 },
 								 );
 	 my $ecd = { map {($_->{o},$_)} @options };
-	 return EasyCsp::DoItAll($ecd,$usage) || exit 0;
+	 return CBIL::Util::EasyCsp::DoItAll($ecd,$usage) || exit 0;
 }
 
 # ----------------------------------------------------------------------
@@ -143,9 +143,9 @@ sub parseSgp {
 			chomp;
 
 			# save defline for sequences retrieval
-			if (/^>(DT\.\d+).+identifier=(\d+)/) {
+			if (/^>(DT\.\d+)/) {
 				 $dots_id = $1;
-				 $pep_id  = $2;
+				 $pep_id = $aasequence->{$dots_id};
 			}
 
 			elsif ($_=~/max\..C/) {
@@ -203,7 +203,7 @@ sub parseSgp {
  				 $quality = 0;
 			}
 	 }
-	 $fh->close;
+
 
 }
 
@@ -243,9 +243,9 @@ sub parseSgpHmm{
 			chomp;
 
 			# save defline for sequences retrieval
-			if (/^>(DT.\d+).+identifier=(\d+)/) {
+			if (/^>(DT.\d+)/) {
 				 $dots_id = $1;
-				 $pep_id  = $2;
+				 $pep_id = $aasequence->{$dots_id};
 			}
 
 			elsif ($_=~m/^Prediction:\s*(.*)/i) {
@@ -272,7 +272,7 @@ sub parseSgpHmm{
 																$prediction, $SPP, $SAP, $CSP, $start, $signal). "\n";
 			}
 	 }
-	 $fh->close;
+
 
 	 return
 }
@@ -322,12 +322,12 @@ my $c = get_cla();
 
 my $aa_sq = load_aa_file($c, $c->{AaSequenceFile});
 
-Disp::Display($aa_sq) if $c->{verbose} && $c->{debug};
+CBIL::Util::Disp::Display($aa_sq) if $c->{verbose} && $c->{debug};
 
 my $out_fh = FileHandle->new('>-');
 
 my @files = glob($c->{PredictionPath});
-Disp::Display(\@files) if $c->{verbose} && $c->{debug};
+CBIL::Util::Disp::Display(\@files) if $c->{verbose} && $c->{debug};
 
 if ($c->{Type} eq 'tmhmm') {
 	 foreach my $file (@files) {
