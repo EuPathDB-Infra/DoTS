@@ -152,8 +152,7 @@ sub run {
 	  $sql = " SELECT target_na_sequence_id, is_reversed, query_na_sequence_id,"
 	      . " target_start, target_end, tstarts, blocksizes"
 	      . " FROM DoTS.BlatAlignment WHERE blat_alignment_id = $bid";
-	  $sth = $dbh->prepare($sql) or die "bad sql $sql: $!\n";
-	  $sth->execute or die "could not run $sql: $!\n";
+	  $sth = $dbh->prepareAndExecute($sql);
 	  my $r = $sth->fetchrow_hashref('NAME_lc');
 	  die "unexpected: no blat alignment for id: $bid\n" unless $r;
 	  my $ba_info = getBlatAlignmentInfo($dbh, $r);
@@ -196,7 +195,7 @@ sub saveSignals {
   foreach (@$cols) { push @vals, $signals->{$_}; }
   my $sql = "INSERT INTO ${tmp}.BlatAlignmentSignals(" . join(',', @$cols). ")"
           . "VALUES (" . join(',', @vals) . ")";
-  $dbh->do($sql);
+  $dbh->sqlexec($sql);
 }
 
 sub getBlatIds {
@@ -214,8 +213,7 @@ AND blat_alignment_id not in
 (select blat_alignment_id from ${tmpLogin}.BlatAlignmentSignals
  where target_na_sequence_id = $cid)
 BA_SQL
-  my $sth = $dbh->prepare($sql) or die "bad sql $sql: $!\n";
-  $sth->execute or die "could not run $sql:$!\n";
+  my $sth = $dbh->prepareAndExecure($sql);
   my @bids;
   while (my ($bid) = $sth->fetchrow_array) { push @bids, $bid; }
   $sth->finish;
@@ -239,15 +237,15 @@ sub cleanOrCreateTempTable {
 
   my $sql = "select count(*) from all_tables "
           . "where table_name = 'BLATALIGNMENTSIGNALS' and owner = '${tmp}'";
-  my $sth = $dbh->prepare($sql);
-  $sth->execute;
+  my $sth = $dbh->prepareAndExecute($sql);
   my ($c) = $sth->fetchrow_array;
   if ($c) {
       if ($isRestart) {
           print "# looks like it is a restart, do not clean table\n";
       } else {
           print "# cleaning up ${tmp}.BlatAlignmentSignals table...\n";
-          $dbh->do("delete ${tmp}.BlatAlignmentSignals where target_external_db_release_id = $extDbId");
+          $dbh->sqlexec("delete ${tmp}.BlatAlignmentSignals where target_external_db_release_id = $extDbId");
+	  $dbh->commit();
       }
   } else {
     $sql = <<BAS_SQL;
@@ -267,8 +265,8 @@ CREATE TABLE ${tmp}.BlatAlignmentSignals(
 BAS_SQL
 
     print "# creating ${tmp}.BlatAlignmentSignals table...\n";
-    $dbh->do($sql);
-    $dbh->do("GRANT SELECT ON ${tmp}.BlatAlignmentSignals to PUBLIC");
+    $dbh->sqlexec($sql);
+    $dbh->sqlexec("GRANT SELECT ON ${tmp}.BlatAlignmentSignals to PUBLIC");
   }
 
   @cols;
@@ -500,8 +498,7 @@ sub getGenomicSeq {
     my $sql = "select substr(sequence, $s, $len) "
 	    . "from DoTS.VirtualSequence "
 	    . "where na_sequence_id = $chr_id";
-    my $sth = $dbh->prepare($sql) or die "bad sql $sql: $!\n";
-    $sth->execute or die "could not run $sql: $!\n";
+    my $sth = $dbh->prepareAndExecute($sql);
     my $seq;
     if ($seq = $sth->fetchrow_array) { ; }
     die "could not get $len bp genomic seq for chr $chr_id at $s" unless defined $seq;
@@ -517,8 +514,7 @@ sub getChromosomeIdNames {
   my %chrom_nams;
   my $sql = "select na_sequence_id, chromosome from DoTS.VirtualSequence "
     . "where external_database_release_id = $ext_db_rel_id order by chromosome_order_num asc";
-  my $sth = $dbh->prepare($sql) or die "bad sql $sql:$!\n";
-  $sth->execute or die "could not run $sql: $!\n";
+  my $sth = $dbh->prepareAndExecute($sql);
   while (my ($sid, $nam) = $sth->fetchrow_array) {
     if($skip_chroms->{$sid}) {
       print "# chromosome id $sid: skip\n";
