@@ -478,7 +478,7 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &createPredTranslDetailsFile($mgr);
 
-#&createManuallyReviewedDoTSFile();
+&createManuallyReviewedDoTSFile($mgr);
 
 #&makeStatisticsPage();
 
