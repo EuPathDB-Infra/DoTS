@@ -8,6 +8,7 @@ use CBIL::Util::PropertySet;
 use CBIL::Util::GenomeDir;
 use File::Basename;
 use DoTS::DotsBuild::Steps;
+use GUS::Pipeline::SshCluster;
 
 $| = 1;
 umask 002;
@@ -439,11 +440,11 @@ $mgr->waitForCluster("protein similarities", "waitProteinSims");
 
 &prepareBlastSiteFiles($mgr);
 
-&downloadGeneID($mgr);
-
-&deleteGeneIdToNaSeq($mgr);
+&downloadGeneId($mgr);
 
 &parseGeneId($mgr);
+
+&deleteGeneIdToNaSeq($mgr);
 
 &loadGeneIdToNaSeq($mgr);
 
