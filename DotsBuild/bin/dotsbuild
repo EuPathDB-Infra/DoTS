@@ -3,6 +3,7 @@ use strict;
 
 use lib "$ENV{GUS_HOME}/lib/perl";
 use GUS::Pipeline::Manager;
+use GUS::Pipeline::MakeTaskDirs;
 use CBIL::Util::PropertySet;
 use File::Basename;
 
@@ -116,7 +117,7 @@ my $pipelineDir = "$dotsBuildDir/$buildName";
 my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFile);
 
 &createDotsPipelineDir($propertySet);
-exit;
+
 &downloadGenbank();
 
 &downloadRefSeq();
@@ -360,21 +361,21 @@ sub createDotsPipelineDir {
     $mgr->runCmd("mkdir -p $dotsBuildDir/$buildName/seqfiles");
     $mgr->runCmd("mkdir -p $dotsBuildDir/$buildName/epcr");
     $mgr->runCmd("mkdir -p $dotsBuildDir/$buildName/misc");
-     $mgr->runCmd("mkdir -p $dotsBuildDir/$buildName/genetrap");
+    $mgr->runCmd("mkdir -p $dotsBuildDir/$buildName/genetrap");
     $mgr->runCmd("mkdir -p $dotsBuildDir/$buildName/blastSite");
     $mgr->runCmd("mkdir -p $dotsBuildDir/$buildName/downloadSite");
     $mgr->runCmd("mkdir -p $dotsBuildDir/$buildName/cluster/initial");
-   $mgr->runCmd("mkdir -p $dotsBuildDir/$buildName/cluster/intermed");
+    $mgr->runCmd("mkdir -p $dotsBuildDir/$buildName/cluster/intermed");
     $mgr->runCmd("mkdir -p $dotsBuildDir/$buildName/cluster/gene");
 
-    makeRMDir("assemSeqs", $buildName, $dotsBuildDir, 
-	      $serverPath, $nodePath, $rmTaskSize, $rmOptions, $rmPath);
-    makeRMDir("prevDots", $buildName, $dotsBuildDir,
-	      $serverPath,  $nodePath, $rmTaskSize, $rmOptions, $rmPath);
-    makeRMDir("intermedDots", $buildName, $dotsBuildDir,
-	      $serverPath,  $nodePath, $rmTaskSize, $rmOptions, $rmPath);
-    makeRMDir("finalDots", $buildName, $dotsBuildDir,
-	      $serverPath,  $nodePath, $rmTaskSize, $rmOptions, $rmPath);
+    &makeRMDir("assemSeqs", $buildName, $dotsBuildDir, 
+	       $serverPath, $nodePath, $rmTaskSize, $rmOptions, $rmPath);
+    &makeRMDir("prevDots", $buildName, $dotsBuildDir,
+	       $serverPath,  $nodePath, $rmTaskSize, $rmOptions, $rmPath);
+    &makeRMDir("intermedDots", $buildName, $dotsBuildDir,
+	       $serverPath,  $nodePath, $rmTaskSize, $rmOptions, $rmPath);
+    &makeRMDir("finalDots", $buildName, $dotsBuildDir,
+	       $serverPath,  $nodePath, $rmTaskSize, $rmOptions, $rmPath);
 
     &makeMatrixDir("assemSeqs", "assemSeqs", $buildName, $dotsBuildDir, 
 		   $serverPath, $nodePath, $bmTaskSize, $wuBlastBinPathLiniac);
@@ -414,8 +415,8 @@ sub createDotsPipelineDir {
 sub makeAssemblyDir {
     my ($name, $buildName, $localDir) = @_;
 
-    &runCmd("mkdir -p $localDir/$buildName/assembly/$name/big");
-    &runCmd("mkdir -p $localDir/$buildName/assembly/$name/small");
+    $mgr->runCmd("mkdir -p $localDir/$buildName/assembly/$name/big");
+    $mgr->runCmd("mkdir -p $localDir/$buildName/assembly/$name/small");
 }
 
 sub downloadGenbank {
@@ -542,7 +543,7 @@ sub downloadNRDB {
 
     $ENV{ftp_proxy} = 'http://proxy.pcbi.upenn.edu:3128/';
 
-    my $logfile = "$pipelineDir/logs/downloadNRDB.log";
+    my $logfile = "$pipelineDir/logs/${signal}.log";
 
     my $externalDbDir = $propertySet->getProp('externalDbDir');
 
