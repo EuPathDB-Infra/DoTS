@@ -119,7 +119,7 @@ sub run {
 #subroutine that gets all the mRNA na_sequence_ids and puts them in @ids
 sub getmRNA {
   my @ids;
-  my $st = $dbh->prepareAndExecute("select na_sequence_id from dots.externalnasequence where taxon_id in ($ctx->{'cla'}->{'taxon_id'}) and sequence_type_id in (2,7) and external_database_release_id in (select external_database_release_id from sres.externaldatabaserelease where external_database_id in (152,2,48))"); 
+  my $st = $dbh->prepareAndExecute("select /*+ RULE */ na_sequence_id from dots.externalnasequence where sequence_type_id in (2,7) and na_sequence_id in (select ass.na_sequence_id from dots.assemblysequence ass, dots.assembly a where ass.assembly_na_sequence_id = a.na_sequence_id and a.taxon_id = $ctx->{'cla'}->{'taxon_id'})"); 
   
   while (my ($na_sequence_id) = $st->fetchrow_array) {
     if ( $ctx->{'cla'}->{'testnumber'} && @ids >= $ctx->{'cla'}->{'testnumber'}) {
