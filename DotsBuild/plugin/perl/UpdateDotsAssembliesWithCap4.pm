@@ -119,12 +119,12 @@ my $algoInvo;                   ##global AlgorithmInvocation used for submits...
 sub run {
   my $M   = shift;
   $ctx = shift;
-
+  my $cap4 = "${cap4Dir}/cap4";
   print $ctx->{cla}->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
   print "Testing on $ctx->{cla}->{'testnumber'}\n" if $ctx->{cla}->{'testnumber'};
 
-  if (!(-e "$cap4Dir/cap4")) {
-    die "$cap4Dir/cap4 does not exist";
+  if (!(-e "$cap4")) {
+    die "$cap4 does not exist";
   }
 
   ##set no version on if not committing
@@ -942,19 +942,19 @@ sub processCap4 {
     open(C, "$ctx->{cla}->{debug_assem_file}") || die "debug_assem_file: $ctx->{cla}->{debug_assem_file} not found\n";
   }                             # else{
   ##for running on the server...having problem with nodes and want to finish
-  #    my $cmd = "$cap4Dir/cap4 $tmpLib ".($iterate ? $iterateParams : $ctx->{cla}->{cap4_params});
+  #    my $cmd = "$cap4 $tmpLib ".($iterate ? $iterateParams : $ctx->{cla}->{cap4_params});
   ##for rning on the nodes...
-  #    my $cmd = "rsh -n $ctx->{cla}->{cap4_machine} 'cd $ctx->{cla}->{directory}; $cap4Dir/cap4 $tmpLib ".($iterate ? $iterateParams : $ctx->{cla}->{cap4_params})."'";
+  #    my $cmd = "rsh -n $ctx->{cla}->{cap4_machine} 'cd $ctx->{cla}->{directory}; $cap4 $tmpLib ".($iterate ? $iterateParams : $ctx->{cla}->{cap4_params})."'";
 
   my $cmd;
   ##first should unlink the output file so that will not  be an error  if cap4 fails..
   if ($ctx->{cla}->{cap4_machine} =~ /^s/i) { ##running on server
-    $cmd = "$cap4Dir/cap4 $tmpLib ".($iterate ? $iterateParams : $ctx->{cla}->{cap4_params});
+    $cmd = "$cap4 $tmpLib ".($iterate ? $iterateParams : $ctx->{cla}->{cap4_params});
   } else {
     my $rmCmd = "rsh -n $ctx->{cla}->{cap4_machine} 'cd $ctx->{cla}->{remote_dir}; /bin/rm $tmpLib"."*;'";
     system($rmCmd);
     system("rcp $tmpLib $ctx->{cla}->{cap4_machine}:$ctx->{cla}->{remote_dir}");
-    $cmd = "rsh -n $ctx->{cla}->{cap4_machine} 'cd $ctx->{cla}->{remote_dir}; $cap4Dir/cap4 $tmpLib ".($iterate ? $iterateParams : $ctx->{cla}->{cap4_params}).($ctx->{cla}->{cap4_machine} =~ /^s/i ? "" : "'");
+    $cmd = "rsh -n $ctx->{cla}->{cap4_machine} 'cd $ctx->{cla}->{remote_dir}; $cap4 $tmpLib ".($iterate ? $iterateParams : $ctx->{cla}->{cap4_params}).($ctx->{cla}->{cap4_machine} =~ /^s/i ? "" : "'");
     $cmd .= "; rcp $ctx->{cla}->{cap4_machine}:$ctx->{cla}->{remote_dir}/$tmpLib.assem.caml .";
   }
   print STDERR "$cmd\n" if $debug;
