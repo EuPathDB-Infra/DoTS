@@ -1,0 +1,103 @@
+I. Make directory for the build (e.g. release7) and each species (e.g. hum and mus):
+	/ptolemy/cbil/data/cbil/DoTS/release7/hum
+
+II. Copy hum.prop and mus.prop to /ptolemy/cbil/data/cbil/DoTS/releaseN/
+
+III. Update each property file - the following are particularly prone to change:
+
+dotsBuildDir=/ptolemy/cbil/data/cbil/DoTS
+buildDate=2003-07-11
+completedSpeciesNickName=hum	
+dotsRelease=7
+genbankRel = 136
+gb_db_rel_id = 2
+gbFiles = gbpri1.seq.gz,gbpri2.seq.gz,gbpri3.seq.gz,gbpri4.seq.gz,gbpri5.seq.gz,gbpri6.seq.gz,gbpri7.seq.gz,gbpri8.seq.gz,gbpri9.seq.gz,gbpri10.seq.gz,gbpri11.seq.gz,gbpri12.seq.gz,gbpri13.seq.gz,gbpri14.seq.gz,gbpri15.seq.gz,gbpri16.seq.gz,gbpri17.seq.gz,gbpri18.seq.gz,gbpri19.seq.gz,gbpri20.seq.gz,gbpri21.seq.gz,gbpri22.seq.gz,gbpri23.seq.gz,gbpri24.seq.gz,gbpri25.seq.gz
+reassemble=yes
+NewGeneTags=no
+prodomRelease=prodom2002.1
+prodom_db_rls_id=6614
+smart_db_rls_id=7315
+pfam_db_rls_id=7314
+load_db_rls_id=7313
+cog_db_rls_id=7316
+cd_db_rls_id=7317
+ucgt_db_rls_id=6973
+ggtc_db_rls_id=6993
+makeNewGORules=no
+GOversion=don't know
+GOrootId=don't know
+wordfile=hum_GB123.wordprob
+frameFinderRestart=''
+userId=12
+iPSRestart=''
+assignDescriptionRestart=1
+loadGeneCards=yes
+loadDbEst = yes
+insertTaxonRestart=1
+nrdbRestart=140250
+tempLogin=pinney
+tempPassword=Xtn34o
+loadMGI = no
+loadGeneTrapAssembly = no
+mgiFiles = 'MGI_DT_via_GB_one_many,MGI_DT_via_GB_one_one'
+geneTrapDbRls = 'bg:6973,ggtc:6993'
+loadLocusLink=no
+projectLinkRestart = no
+downloadLocusLink = no
+ncbiTaxId = 9606
+allgenesVersion = 6
+gea_db_rls_id = 6094
+geaFile = gea_U95 
+gea_db_id = 232
+genecards_db_rls_id = 4892
+locuslink_db_rls_id = 6095
+ll_db_id = 233
+llDeleteDbRef = no
+imclone_db_rls_id = 3892
+nrdb_db_rls_id = 4194
+mgi_db_rls_id = 4893
+loadGEA = dontknow
+gusConfigFile = $ENV{HOME}/.gus.properties
+fileOfRepeats = release7/humRiboTagMitoVec
+refseqRel = 307
+refseq_rel_id = 992
+dbESTRestart = 7855505 
+prodomFile = prodom.cons.gz
+sourceDB = 'GENBANK (NRDB):gb,EMBL DATA LIBRARY (NRDB):emb,DDBJ (NRDB):dbj,NBRF PIR (NRDB):pir,PROTEIN RESEARCH FOUNDATION (NRDB):prf,SWISS-PROT (NRDB):sp,BROOKHAVEN PROTEIN DATA BANK (NRDB):pdb,PATENTS (NRDB):pat,GENINFO BACKBONE ID (NRDB):bbs,GENERAL DATABASE IDENTIFIER (NRDB):gnl,NCBI REFERENCE SEQUENCE (NRDB):ref,LOCAL SEQUENCE IDENTIFIER:lcl,GENPEPT:genpept,THIRD PARTY ANNOTATION (NRDB):tpe'
+proteinDir = hum
+project_id = 839
+makeStatPage = yes
+allgenesLogin = allgenes_60
+allgenesPassword = zrbt1992
+makeAllgenesTable = no
+downloadGenbank=yes
+downloadGOStuff=yes
+downloadNRDB=yes
+downloadTaxon=yes
+
+IV. Check the ftp sites for each set of data downloaded (can change): 
+Genbank
+RefSeq
+Taxon
+NRDB
+CDD
+Prodom
+GGTC
+Baygenomics 
+MGI
+LocusLink
+	
+GEA?????
+GeneCards
+
+V. Check regex for all downloaded files especially:
+
+CDD
+Prodom
+
+
+VI. Update RepeatMasker and repbase files if new version available 
+
+VII. Check liniac, make sure server path exists and you can get in.
+
+
