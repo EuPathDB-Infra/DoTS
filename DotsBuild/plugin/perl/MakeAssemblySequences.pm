@@ -111,10 +111,17 @@ sub run {
     
     print STDERR ("Generating new AssemblySequences for taxon(s)". $self->getCla->{taxon_id_list}."\n");
     
+    my $taxonIdList = $self->getCla->{taxon_id_list};
+    
     ##first get the ESTs and mRNAs..
-    my $sql = "select e.na_sequence_id from dots.ExternalNASequence e where e.taxon_id in(".$self->getCla->{taxon_id_list}.")".
-      " and e.sequence_type_id in (7,8) " .
-	"and e.na_sequence_id not in (select a.na_sequence_id from dots.AssemblySequence a) ";
+    my $sql =
+        "select e.na_sequence_id 
+         from dots.ExternalNASequence e, dots.sequencetype st 
+         where e.taxon_id in($taxonIdList)
+         and st.name in ('mRNA', 'EST')
+         and e.sequence_type_id = st.sequence_type_id    
+         and e.na_sequence_id not in 
+         (select a.na_sequence_id from dots.AssemblySequence a) ";
     
     if ($self->getCla->{'date'}) {
       $sql .= "and modification_date >= '".$self->getCla->{'date'}."'";
@@ -124,16 +131,23 @@ sub run {
     
     ##next get the things from embl that are RNAs longer than 500 bp...
     ##need to check this for things that are not human or mouse...may need to use less sophisticated query!
-    my $mRNASql = "select o.na_sequence_id from dots.externalnasequence o where o.na_sequence_id in (
-                       select s.na_sequence_id from dots.externalnasequence s, dots.transcript t, dots.nalocation l
-                       where s.taxon_id in (".$self->getCla->{taxon_id_list} . 
-			 ") and s.sequence_type_id = 2 
-                       and t.na_sequence_id = s.na_sequence_id
-                       and t.name = 'CDS'
-                       and l.na_feature_id = t.na_feature_id
-                       group by s.na_sequence_id having count(*) = 1 )
-                       and o.length > 400
-                       and o.na_sequence_id not in (select a.na_sequence_id from dots.AssemblySequence a)";
+    my $mRNASql = 
+        "select o.na_sequence_id 
+        from dots.externalnasequence o 
+        where o.na_sequence_id 
+        in ( select s.na_sequence_id 
+             from dots.externalnasequence s, dots.transcript t, 
+             dots.nalocation l, dots.sequencetype st
+             where s.taxon_id in ($taxonIdList) 
+             and s.name = 'RNA'
+             and s.sequence_type_id = st.sequence_type_id    
+             and t.na_sequence_id = s.na_sequence_id
+             and t.name = 'CDS'
+             and l.na_feature_id = t.na_feature_id
+             group by s.na_sequence_id having count(*) = 1 )
+             and o.length > 400
+             and o.na_sequence_id 
+             not in (select a.na_sequence_id from dots.AssemblySequence a)";
 
     
     if ($self->getCla->{'date'}) {
