@@ -56,6 +56,8 @@ my %RNA;
 
 my $sql = "select ri.rna_id,a.na_sequence_id from dots.assembly a,dots.rnafeature rf,dots.rnainstance ri where a.taxon_id = $taxon and a.na_sequence_id = rf.na_sequence_id and rf.na_feature_id = ri.na_feature_id";
 
+print STDERR "$sql\n";
+
 my $stmt = $dbh->prepareAndExecute($sql) || die "Cannot execute $sql\n";
 
 while(my ($rna,$dt) = $stmt->fetchrow_array()){
@@ -63,6 +65,10 @@ while(my ($rna,$dt) = $stmt->fetchrow_array()){
 }
 
 $stmt->finish();
+
+my $totRNA = scalar (keys %RNA);
+
+print STDERR "total number of RNA $totRNA\n";
 
 open(OUT,">>$outFile");
 my $count = 0;
@@ -76,7 +82,7 @@ foreach my $dt (keys %RNA) {
   @row = $idStmt->fetchrow_array();
 
   $count++;
-  print STDERR "Getting id for $count\n" if $verbose && $count % 10000 == 0;
+  print STDERR "Getting id for $count\n" if $count % 1000 == 0;
 }
 
 &printSequence();
