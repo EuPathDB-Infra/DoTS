@@ -92,7 +92,7 @@ if($useCloneIds){
 					  $gusconfig->getCoreSchemaName);
   my $dbh = $db->getQueryHandle();
   $stmt = $dbh->prepare("
-select /* +RULE */ distinct ls.clone_id 
+select /* +RULE */ distinct est.clone_id 
 from dots.assemblysequence a, dots.est est 
 where a.assembly_na_sequence_id = ? 
 and est.na_sequence_id = a.na_sequence_id");
