@@ -282,7 +282,7 @@ sub moveToGus {
 	my $cid = $chrIds->{$r1->{chromosome}};
 	die "no chrom id found for chr" . $r1->{chromosome} unless $cid;
 	$gf->setNaSequenceId($cid);
-	my $success = $gf->submit(0);
+	my $success = $gf->submit();
 	$self->error("could not submit new GeneFeature " . $gf->getName) if !$success;
 
 	my $gi = GUS::Model::DoTS::GeneInstance->new();
@@ -291,7 +291,7 @@ sub moveToGus {
 	$gi->setNaFeatureId($gf->getNaFeatureId);
 	$gi->setIsReference(0);
 	$gi->setReviewStatusId(0);
-	$success = $gi->submit(0);
+	$success = $gi->submit();
 	$self->error("could not submit new GeneInstance for " . $gf->getName) if !$success;
 
 	my $gfLoc = GUS::Model::DoTS::NALocation->new();
@@ -299,7 +299,7 @@ sub moveToGus {
 	$gfLoc->setStartMin($r1->{chromosome_start});
 	$gfLoc->setEndMax($r1->{chromosome_end});
 	$gfLoc->setIsReversed($r1->{strand} eq '-' ? 1 : 0);
-	$success = $gfLoc->submit(0);
+	$success = $gfLoc->submit();
 	$self->error("could not submit new NALocation for " . $gf->getName) if !$success;
 	$gfLoc->undefPointerCache();
 
@@ -313,8 +313,9 @@ sub moveToGus {
 	    $ef->setNaSequenceId($gf->getNaSequenceId);
 	    $ef->setOrderNumber($i);
 	    $ef->setExternalDatabaseReleaseId($genomeId);
-	    $success = $ef->submit(0);
+	    $success = $ef->submit();
 	    $self->error("could not submit new ExonFeature for " . $gf->getName . " exon $i") if !$success;
+print " debug **** exon $i with an id of " . $ef->getNaFeatureId() . "\n";
 
 	    my $efLoc = GUS::Model::DoTS::NALocation->new();
 	    $efLoc->setNaFeatureId($ef->getNaFeatureId);
@@ -323,10 +324,11 @@ sub moveToGus {
 	    $efLoc->setStartMin($s);
 	    $efLoc->setEndMax($e);
 	    $efLoc->setIsReversed($gfLoc->getIsReversed);
-	    $success = $efLoc->submit(0);
+	    $success = $efLoc->submit();
 	    $self->error("could not submit new NALocation for " . $gf->getName . " exon $i") if !$success;
 	    $efLoc->undefPointerCache();
 	    $ef->undefPointerCache();
+print " debug **** exon $i with an NA location id " . $efLoc->getNaLocationId() . "\n";
 	}
 
 	foreach (@rows) {
@@ -341,9 +343,10 @@ sub moveToGus {
 	    # TODO: make RNAInstance, associate with RNAInstanceCategory & RNA
 	    # TODO: make RNAFeatureExon that associate exons with RNAs
 	    # (not yet supported because the current gDG creation process looses this info.)
-	    $success = $rf->submit(0);
+	    $success = $rf->submit();
 	    $self->error("could not submit new RNAFeature for " . $gf->getName . " DT.$dt") if !$success;
 	    $rf->undefPointerCache();
+print " debug **** one RNAFeature row with an NaFeatureId" . $rf->getNaFeatureId() . "\n";
 	}
 
 	$gf->undefPointerCache();
