@@ -1991,6 +1991,91 @@ sub getmRNAPerAssembly {
 
 }
 
+sub makeEpconFastaFiles {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "makeEpconFastaFiles";
+
+  return if $mgr->startStep("Making EpConDB fasta files", $signal);
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+
+  my $logFile ="$pipelineDir/logs/${signal}.log";
+
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $outputFile  = "$pipelineDir/misc/EPConDB_rel${dotsRelease}_${speciesNickname}DoTS";
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $species = $propertySet->getProp('speciesFullname');
+
+  my $epconDB_anatomy_ids = $propertySet->getProp('epconDB_anatomy_ids');
+
+  my $epconDB_array = $propertySet->getProp('epconDB_array');
+  
+  my $epconDB_chip = $propertySet->getProp('epconDB_chip');
+
+  my $epconDB_makefile = $propertySet->getProp('epconDB_makefile');
+
+  my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
+  my $sql = "select 'DT.' ||a.na_sequence_id, '[ $species ]', a.description ,'('||number_of_contained_sequences || ' sequences)', 'length=' || a.length ,sequence from dots.assembly a, dots.assemblyanatomypercent p where p.anatomy_id in ($epconDB_anatomy_ids) and p.percent>0 and a.na_sequence_id=p.na_sequence_id and p.taxon_id=a.taxon_id and a.taxon_id=$taxonId";
+
+  my $cmd = "dumpSequencesFromTable.pl --verbose --gusConfigFile $gusConfigFile --outputFile $outputFile --idSQL \"$sql\" 2>>  $logFile";
+
+  $mgr->runCmd($cmd);
+
+  my $outputFile  = "$pipelineDir/misc/${epconDB_chip}_rel${dotsRelease}_${speciesNickname}DoTS";
+
+  my $sql = "select 'DT.' ||a.na_sequence_id, '[ $species ]', a.description ,'(' ||number_of_contained_sequences || ' sequences)' , 'length=' ||a.length, sequence from rad3.elementassembly_mv ea , rad3.spot s, dots.assembly a where s.array_id = $epconDB_array and s.element_id = ea.element_id and ea.assembly_na_sequence_id = a.na_sequence_id";
+
+  my $cmd = "dumpSequencesFromTable.pl --verbose --gusConfigFile $gusConfigFile --outputFile $outputFile --idSQL \"$sql\" 2>>  $logFile";
+
+  $mgr->runCmd($cmd) if $epconDB_makefile eq 'yes';
+
+  $mgr->endStep($signal);
+
+}
+
+sub prepareEPConBlastSiteFiles {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "prepareEpConcdBlastSiteFiles";
+  return if $mgr->startStep("Preparing EPConDB files for blast site", $signal);
+  my $epconDB_makefile = $propertySet->getProp('epconDB_makefile');
+
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+  my $blastBinDir = $propertySet->getProp('wuBlastBinPath');
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+  my $outputFile1  = "$pipelineDir/misc/EPConDB_rel${dotsRelease}_${speciesNickname}DoTS";
+  my $fastalink1 = "$pipelineDir/blastSite/EPConDB_${speciesNickname}DoTS";
+
+  $mgr->runCmd("ln -s $outputFile1 $fastalink1");
+  $mgr->runCmd("$blastBinDir/xdformat -n $fastalink1");
+  $mgr->runCmd("rm -rf $fastalink1");
+  $mgr->runCmd("gzip $outputFile1");
+  
+
+  $mgr->endStep($signal) if $epconDB_makefile eq 'no';
+
+  my $epconDB_chip = $propertySet->getProp('epconDB_chip');
+  my $outputFile2  = "$pipelineDir/misc/${epconDB_chip}_rel${dotsRelease}_${speciesNickname}DoTS";
+  my $fastalink2 = "$pipelineDir/blastSite/${epconDB_chip}_${speciesNickname}DoTS";
+
+  $mgr->runCmd("ln -s $outputFile2 $fastalink2");
+  $mgr->runCmd("$blastBinDir/xdformat -n $fastalink2");
+  $mgr->runCmd("rm -rf $fastalink2");
+  $mgr->runCmd("gzip $outputFile2");
+
+  $mgr->endStep($signal);
+
+}
+
+
 sub prepareBlastSiteFiles {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
