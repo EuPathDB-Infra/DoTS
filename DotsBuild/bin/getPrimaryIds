@@ -1,9 +1,5 @@
 #!@perl@
 
-##gets the na_sequence_id of assemblies that consist entirely of MClone sequences 
-
-##Deborah Pinney 2002-07-19
-
 use strict;
 use lib "$ENV{GUS_HOME}/lib/perl";
 use Getopt::Long;
