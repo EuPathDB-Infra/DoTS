@@ -61,6 +61,7 @@ my @properties =
  ["downloadCDD",   "",  "yes or no"],
  ["downloadGenbank",   "",  "yes or no"],
  ["downloadGenome",   "",  "yes or no"],
+ ["downloadHinvitational", "", "yes or no"],
  ["downloadLocusLink", "","download the loc2acc file for LocusLink, yes or no"],
  ["downloadNRDB",   "",  "yes or no"],
  ["downloadProdom",   "",  "yes or no"],
@@ -403,3 +404,6 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 &loadSGPSignalP($mgr);
 
 &loadSGPHMMSignalP($mgr);
+
+&downloadHInvitationalFile($mgr);
+
