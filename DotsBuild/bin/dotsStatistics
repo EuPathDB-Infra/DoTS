@@ -520,7 +520,7 @@ sub getGODistribution {
 
   my $sql = 
 "select pst.taxon_id, t.name, count(distinct pst.gene_id)
-      from sfischer.PrintStatsTmp pst, Dots.GOAssociation ga, SRes.GOTerm t
+      from PrintStatsTmp pst, Dots.GOAssociation ga, SRes.GOTerm t
       where pst.total_seqs > 1
       and ga.table_id = '180'
       and ga.row_id = pst.protein_id
@@ -529,6 +529,7 @@ sub getGODistribution {
 
 # FIX
 #      and ga.defining = 1
+#      and ga.deprecated != 1
 #      and ga.is_not != 1
 
   my $stmt = $dbh->prepare($sql);
