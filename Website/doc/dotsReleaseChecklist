@@ -1,0 +1,18 @@
+  - copy to allgenes site:
+     - statistics page
+     - blastable files
+     - downloadSite files
+  - servlet-config:
+      - point to new blastable files
+      - write news announcing the new release
+  - index.html:
+      - update manually curated stats
+      - update count of aligned transcripts
+      - mention new release
+  - credit.html:
+      - update
+  - InstallConfig:
+      - update external db rel ids
+  - remove all cached values on allgenes site
+  - redirect download site current/ to point to new release
+  - remind EpCon to deal with the new release
