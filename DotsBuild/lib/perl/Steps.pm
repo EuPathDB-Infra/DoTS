@@ -1384,7 +1384,7 @@ sub insertAnatomyPercent {
 
   my $idSQL = "select na_sequence_id from dots.Assembly where taxon_id = $taxonId";
 
-  my $args = "--idSQL \"$idSQL\" --taxon_id $taxonId";
+  my $args = "--idSQL \"$idSQL\" --taxon_id $taxonId --restart";
 
   $mgr->runPlugin("insertAnatomyPercent", 
 		  "DoTS::DotsBuild::Plugin::UpdateAssemblyAnatomyPercent", 
