@@ -93,7 +93,7 @@ FAILURE_CASES
 		     }),
 
 	 integerArg({name => 'is_restart',
-		     descr => 'whether this is a restart',
+		     descr => 'whether this is a restart (no effect if only_delete is set)',
 		     constraintFunc=> undef,
 		     reqd  => 0,
 		     isList => 0
@@ -101,6 +101,13 @@ FAILURE_CASES
 
 	 booleanArg({name => 'only_delete',
 		     descr => 'flag, only delete exist gDG result',
+		     constraintFunc=> undef,
+		     reqd  => 0,
+		     isList => 0
+		     }),
+
+	 booleanArg({name => 'only_insert',
+		     descr => 'flag, only insert new gDG result',
 		     constraintFunc=> undef,
 		     reqd  => 0,
 		     isList => 0
@@ -135,9 +142,10 @@ sub run {
     my $testNum = $self->getArg('test_number');
     my $isRestart = $self->getArg('is_restart');
     my $onlyDelete = $self->getArg('only_delete');
+    my $onlyInsert = $self->getArg('only_insert');
 
     my ($gis, $gfs, $gdgs) = $self->getExistGiGfGdg($dbh);
-    unless ($isRestart) {
+    unless ($isRestart || $onlyInsert) {
 	my $efs = $self->getExistEfOrRf($dbh, 'DoTS.ExonFeature');
 	my $rfs = $self->getExistEfOrRf($dbh, 'DoTS.RnaFeature');
 	$self->cleanOldResults($dbh, $gis, $gfs, $efs, $rfs);
@@ -145,10 +153,10 @@ sub run {
 
     if ($onlyDelete) {
 	return "finished deleting old gDG results"; 
-    } else {
-	$self->moveToGus($dbh, $taxonId, $genomeId, $gdgTab, $gdtTab, $gdgs, $testNum);
-	return "finished moving $gdgTab and $gdtTab into GUS central dogma tables";
     }
+    
+    $self->moveToGus($dbh, $taxonId, $genomeId, $gdgTab, $gdtTab, $gdgs, $testNum);
+    return "finished moving $gdgTab and $gdtTab into GUS central dogma tables";
 }
 
 #----------------
@@ -220,6 +228,7 @@ sub moveToGus {
 	. " where taxon_id = $taxonId and genome_external_db_release_id = $genomeId";
     $sql .= " and rownum <= $testNum" if $testNum;
 
+    $self->log("finding gDGs to move: $sql");
     my $sth = $dbh->prepareAndExecute($sql);
     my @gdg_ids;
     while (my ($id) = $sth->fetchrow_array()) { push @gdg_ids, $id; }
@@ -229,7 +238,10 @@ sub moveToGus {
     my $fake_gene = $self->getFakeGene; # place holder for gDGs w/o sDG ids
     my $chrIds = DoTS::Gene::Util::getChromToId($dbh, $genomeId);
 
+    my $tally = 0;
+    my $total = scalar(@gdg_ids);
     foreach my $gdg_id (@gdg_ids) {
+	$tally++;
 	next if $skip && $skip->{$gdg_id};
 	$sql = "select gdg.gene_id, gdg.genome_dots_gene_id, gdg.number_of_exons, "
 	    . " gdg.chromosome, gdg.chromosome_start, gdg.chromosome_end, gdg.strand, "
@@ -256,7 +268,7 @@ sub moveToGus {
 	die "no chrom id found for chr" . $r1->{chromosome} unless $cid;
 	$gf->setNaSequenceId($cid);
 	my $success = $gf->submit(0);
-	die "could not submit new GeneFeature " . $gf->getName if !$success;
+	$self->error("could not submit new GeneFeature " . $gf->getName) if !$success;
 
 	my $gi = GUS::Model::DoTS::GeneInstance->new();
 	$gi->setGeneId($gene->getGeneId);
@@ -265,7 +277,7 @@ sub moveToGus {
 	$gi->setIsReference(0);
 	$gi->setReviewStatusId(0);
 	$success = $gi->submit(0);
-	die "could not submit new GeneInstance for " . $gf->getName if !$success;
+	$self->error("could not submit new GeneInstance for " . $gf->getName) if !$success;
 
 	my $gfLoc = GUS::Model::DoTS::NALocation->new();
 	$gfLoc->setNaFeatureId($gf->getNaFeatureId);
@@ -273,7 +285,8 @@ sub moveToGus {
 	$gfLoc->setEndMax($r1->{chromosome_end});
 	$gfLoc->setIsReversed($r1->{strand} eq '-' ? 1 : 0);
 	$success = $gfLoc->submit(0);
-	die "could not submit new NALocation for " . $gf->getName if !$success;
+	$self->error("could not submit new NALocation for " . $gf->getName) if !$success;
+	$gfLoc->undefPointerCache();
 
 	my $exoncount = $gf->getNumberOfExons;
 	my @exonstarts = split(/,/, $r1->{exonstarts});
@@ -285,18 +298,20 @@ sub moveToGus {
 	    $ef->setNaSequenceId($gf->getNaSequenceId);
 	    $ef->setOrderNumber($i);
 	    $success = $ef->submit(0);
-	    die "could not submit new ExonFeature for " . $gf->getName . " exon $i" if !$success;
+	    $self->error("could not submit new ExonFeature for " . $gf->getName . " exon $i") if !$success;
 	    
 
 	    my $efLoc = GUS::Model::DoTS::NALocation->new();
 	    $efLoc->setNaFeatureId($ef->getNaFeatureId);
 	    my ($s, $e) = ($exonstarts[$i-1], $exonends[$i-1]);
-	    die "unexpected exon start and end ($s, $e)" unless defined $s && $e >= $s;
+	    $self->error("unexpected exon start and end ($s, $e)") unless defined $s && $e >= $s;
 	    $efLoc->setStartMin($s);
 	    $efLoc->setEndMax($e);
 	    $efLoc->setIsReversed($gfLoc->getIsReversed);
 	    $success = $efLoc->submit(0);
-	    die "could not submit new NALocation for " . $gf->getName . " exon $i" if !$success;
+	    $self->error("could not submit new NALocation for " . $gf->getName . " exon $i") if !$success;
+	    $efLoc->undefPointerCache();
+	    $ef->undefPointerCache();
 	}
 
 	foreach (@rows) {
@@ -311,9 +326,14 @@ sub moveToGus {
 	    # TODO: make RNAFeatureExon that associate exons with RNAs
 	    # (not yet supported because the current gDG creation process looses this info.)
 	    $success = $rf->submit(0);
-	    die "could not submit new RNAFeature for " . $gf->getName . " DT.$dt" if !$success;
+	    $self->error("could not submit new RNAFeature for " . $gf->getName . " DT.$dt") if !$success;
+	    $rf->undefPointerCache();
 	}
 
+	$gf->undefPointerCache();
+	$gi->undefPointerCache();
+
+	$self->log("integrated $tally of $total gDGs") unless $tally % 200;
     }
 }
 

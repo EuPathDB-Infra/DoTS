@@ -172,7 +172,7 @@ sub deleteOldResults {
     $dbh->sqlexec($sql);
 
     $sql = "delete Allgenes.AlignedGene where aligned_gene_analysis_id = $aid";
-    $self->log("deleting old transcripts: sql=$sql");
+    $self->log("deleting old genes: sql=$sql");
     $dbh->sqlexec($sql);
 }
 
