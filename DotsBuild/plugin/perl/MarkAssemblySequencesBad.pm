@@ -1,65 +1,54 @@
-############################################################
-## Change Package name....
-############################################################
-package MarkAssemblySequencesBad;
+package DoTS::DotsBuild::Plugin::MarkAssemblySequencesBad;
 
+@ISA = qw(GUS::PluginMgr::Plugin);
 use strict;
 
-############################################################
-# Add any specific objects (GUSdev::) here
-############################################################
-use Objects::GUSdev::AssemblySequence;
+use GUS::Model::DoTS::AssemblySequence;
 
 sub new {
-  my $Class = shift;
-  return bless {}, $Class
+  my ($class) = @_;
+
+  my $self = {};
+  bless($self,$class);
+
+  my $usage = 'Marks AssemblySequences bad from Chimera files generated from Clustering';
+
+  my $easycsp =
+    [
+     {o => 'testnumber',
+      t => 'int',
+      h => 'number of iterations for testing',
+     },
+     {o => 'filename',
+      t => 'string',
+      h => 'name of chimera file',
+     },
+     {o => 'processed_category',
+      t => 'string',
+      h => 'processed_category',
+      e => [ qw ( chimera repeat vector low_quality ) ],
+     },
+     {o => 'regex_id',
+      t => 'string',
+      h => 'regular expression for pulling out assembly_sequence_id',
+     },
+   }
+   ];
+
+  $self->initialize({requiredDbVersion => {},
+		     cvsRevision => '$Revision$', # cvs fills this in!
+		     cvsTag => '$Name$', # cvs fills this in!
+		     name => ref($self),
+		     revisionNotes => 'make consistent with GUS 3.0',
+		     easyCspOptions => $easycsp,
+		     usage => $usage
+		    });
+
+  return $self;
 }
 
-sub Usage {
-  my $M   = shift;
-  return 'Marks AssemblySequences bad from Chimera files generated from Clustering';
-}
-
-############################################################
-# put the options in this method....
-############################################################
-sub EasyCspOptions {
-  my $M   = shift;
-  {
-
-    #		test_opt1 => {
-    #									o => 'opt1=s',
-    #									h => 'option 1 for test application',
-    #									d => 4,
-    #									l => 1,	ld => ':',
-    #									e => [ qw( 1 2 3 4 ) ],
-    #								 },
-
- testnumber        => {
-                       o => 'testnumber=i',
-                       h => 'number of iterations for testing',
-                      },
-                        
- filename          => {
-                       o => 'filename=s',
-                       h => 'name of chimera file',
-                      },
-                        
- processed_category  => {
-                         o => 'processed_category=s',
-                         h => 'processed_category',
-                         e => [ qw ( chimera repeat vector low_quality ) ],
-                        },
- regex_id            => {
-                         o => 'regex_id',
-                         t => 'string',
-                         h => 'regular expression for pulling out assembly_sequence_id',
-                        },
-                      }
-}
-
-sub Run {
-  my $M   = shift;
+sub run {
+  my $self   = shift;
   my $ctx = shift;
 
   my $accession;
@@ -103,7 +92,8 @@ sub Run {
 
     last if ($ctx->{'testnumber'} && $count >= $ctx->{'testnumber'});
 
-    my $ass = AssemblySequence->new({'assembly_sequence_id' => $ass_seq_id});
+    my $ass = GUS::Model::DoTS::AssemblySequence->
+      new({'assembly_sequence_id' => $ass_seq_id});
     if ($ass->retrieveFromDB()) {
       $ass->setHaveProcessed(1) unless $ass->getHaveProcessed() == 1;
       $ass->setProcessedCategory($ctx->{'processed_category'}) unless $ass->getProcessedCategory() eq $ctx->{cla}->{processed_category};
