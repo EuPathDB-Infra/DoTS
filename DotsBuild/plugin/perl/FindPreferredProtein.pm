@@ -121,7 +121,7 @@ sub updateProteinInstance {
   }
 
   $self->log("Committing updates for RefSeq containing assemblies\n") if $self->getArgs()->{'commit'} ;
-  $dbh->commit if $self->getArgs()->{'commit'} ;
+  $dbh->commit() if $self->getArgs()->{'commit'} ;
 
   my $swissprotquery = "select p.protein_instance_id from dots.assemblysequence ass, dots.rnafeature rf, dots.nrdbentry n, dots.translatedaafeature tf, dots.externalaasequence xa, dots.proteinInstance p  where ass.assembly_na_sequence_id = ? and ass.na_sequence_id = rf.na_sequence_id and rf.na_feature_id = tf.na_feature_id and tf.aa_sequence_id = xa.aa_sequence_id and xa.aa_sequence_id = n.aa_sequence_id and n.external_database_release_id = $swissprot_db_rel and tf.aa_feature_id = p.aa_feature_id order by xa.length desc";
 
@@ -136,7 +136,7 @@ sub updateProteinInstance {
   }
 
   $self->log("Committing updates for assemblies having mRNA with translations in SwissProt\n") if $self->getArgs()->{'commit'} ;
-  $dbh->commit if $self->getArgs()->{'commit'} ;
+  $dbh->commit() if $self->getArgs()->{'commit'} ;
 
   my $lengthquery = "select p.protein_instance_id from dots.assemblysequence ass, dots.rnafeature rf, dots.translatedaafeature tf, dots.externalaasequence xa, dots.proteinInstance p  where ass.assembly_na_sequence_id = ? and ass.na_sequence_id = rf.na_sequence_id and rf.na_feature_id = tf.na_feature_id and tf.aa_sequence_id = xa.aa_sequence_id and tf.aa_feature_id = p.aa_feature_id order by xa.length desc";
 
@@ -150,8 +150,8 @@ sub updateProteinInstance {
     delete($assemblies->{$id});
   }
 
-  $self->log("Committing updates for assemblies having mRNA with the longest translations\n") $self->getArgs()->{'commit'} ;
-  $dbh->commit $self->getArgs()->{'commit'} ;
+  $self->log("Committing updates for assemblies having mRNA with the longest translations\n") if $self->getArgs()->{'commit'} ;
+  $dbh->commit() if $self->getArgs()->{'commit'} ;
 
   my $query = "select p.protein_instance_id from dots.assembly a, dots.rnafeature rf, dots.translatedaafeature tf, dots.proteinInstance p  where a.na_sequence_id = ? and a.na_sequence_id = rf.na_sequence_id and rf.na_feature_id = tf.na_feature_id and tf.aa_feature_id = p.aa_feature_id";
 
@@ -166,7 +166,7 @@ sub updateProteinInstance {
   }
 
   $self->log("Committing updates for assemblies having mRNA without translations\n") if $self->getArgs()->{'commit'} ;
-  $dbh->commit if $self->getArgs()->{'commit'} ;
+  $dbh->commit() if $self->getArgs()->{'commit'} ;
 
 }
 
