@@ -250,7 +250,6 @@ sub makeAndInsertAssSeq {
     my $qseq = $self->returnQuality($seq);
 
     my $ass = GUS::Model::DoTS::AssemblySequence->new( { 'na_sequence_id' => $na_seq_id,
-							 'sequence_version' => 1,
 							 'assembly_offset' => 0,
 							 'assembly_strand' => 1 } );
     $ass->setSequence($qseq);
