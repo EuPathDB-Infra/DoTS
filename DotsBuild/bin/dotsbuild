@@ -590,7 +590,7 @@ sub insertTaxon {
     my $args = "--names $names --nodes $nodes --gencode $gencode --restart $restart";
     
     $mgr->runPlugin("loadTaxon", "GUS::Common::Plugin::LoadTaxon", $args,
-		    "Loading Taxon tables");
+		    "Loading Taxon tables",'downloadTaxon');
 }
 
 sub parseGenbank {
@@ -614,7 +614,7 @@ sub parseGenbank {
     
     my $signal = "gbParse_${file}";
     
-    $mgr->runPlugin($signal, "GUS::Common::Plugin::GBParser", $args, "Loading GenBank files into GUS");
+    $mgr->runPlugin($signal, "GUS::Common::Plugin::GBParser", $args, "Loading GenBank files into GUS",'downloadGenbank');
     
   }
 }
@@ -637,7 +637,7 @@ sub parseRefSeq {
     
   my $signal = "refseq_${refseqFile}";
     
-  $mgr->runPlugin($signal, "GUS::Common::Plugin::GBParser", $args, "Loading RefSeq files into GUS");
+  $mgr->runPlugin($signal, "GUS::Common::Plugin::GBParser", $args, "Loading RefSeq files into GUS",'downloadGenbank');
 }
 
 sub parsedbEST {
