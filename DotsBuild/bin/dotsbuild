@@ -154,7 +154,8 @@ my @properties =
  ["nrdb_delete", "","use --delete option for LoadNrdb plugin, yes or no"],
  ["nrdb_plugin", "","use --plugin option for LoadNrdb plugin, yes or no"],
  ["indexSimilarityWordsRestart", "","yes or no"],
- ["indexNRDBWordsRestart", "","yes or no"]
+ ["indexNRDBWordsRestart", "","yes or no"],
+ ["swissprot_rel_id", "","swissprot external_database_release_id"]
  ); 
 
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
@@ -294,6 +295,8 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
    &assemblyProteinIntegration();
 
    &RNAProteinIntegration();
+
+   &setPreferredProtein();
 
    &makeGeneForRNA();
 
@@ -1284,7 +1287,7 @@ sub unpackCDD {
     $mgr->runCmd("catFiles --fileGlob '$downloadSubDir/cd*.csq' --outFile $downloadSubDir/CD");
     
     $mgr->runCmd("rm -r $downloadSubDir/cdd.tar");
-	
+
     $mgr->endStep($signal);
 }
 
@@ -3469,6 +3472,18 @@ sub loadSGPHMMSignalP {
   
   $mgr->runPlugin("loadSGPHMMSignalP", "DoTS::DotsBuild::Plugin::LoadPredictedAAFeatures", $args, "loading parsed SignalPHMM predictions into GUS");
 }
+
+sub setPreferredProtein {
+
+  my $taxonId = $propertySet->getProp('taxonId');
+  my $refseq_rel_id = $propertySet->getProp('refseq_rel_id');
+  my $swissprot_rel_id = $propertySet->getProp('swissprot_rel_id');
+
+  my $args = "--taxon_id $taxonId --refseq_db_rel_id $refseq_rel_id --swissprot_db_rel_id $swissprot_rel_id";
+
+  $mgr->runPlugin("setPreferrredProtein", "DoTS::DotsBuild::Plugin::FindPreferredProtein", $args, "determining preferred protein translation for assemblies and updating dots.proteininstance.is_referenced");
+}
+
 
 
 sub cleanUpFiles {
