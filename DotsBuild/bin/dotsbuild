@@ -1879,7 +1879,7 @@ sub makeEpconFastaFiles {
 
   $mgr->runCmd($cmd);
 
-  my $outputFile  = "$pipelineDir/misc/${epconDB_chip}_rel${dotsRelease}${speciesNickname}DoTS";
+  my $outputFile  = "$pipelineDir/misc/${epconDB_chip}_rel${dotsRelease}_${speciesNickname}DoTS";
 
   my $sql = "select 'DT.' ||a.na_sequence_id, '[ $species ]', a.description ,'(' ||number_of_contained_sequences || ' sequences)' , 'length=' ||a.length, sequence from rad3.elementassembly_mv ea , rad3.spot s, dots.assembly a where s.array_id = $epconDB_array and s.element_id = ea.element_id and ea.assembly_na_sequence_id = a.na_sequence_id";
 
@@ -2153,10 +2153,10 @@ sub prepareEPConBlastSiteFiles {
   my $outputFile1  = "$pipelineDir/misc/EPConDB_rel${dotsRelease}_${speciesNickname}DoTS";
   my $fastalink1 = "$pipelineDir/blastSite/EPConDB_${speciesNickname}DoTS";
 
-  mgr->runCmd("ln -s $outputFile1 $fastalink1");
-  mgr->runCmd("$blastBinDir/xdformat -n $fastalink1");
-  mgr->runCmd("rm -rf $fastalink1");
-  mgr->runCmd("gzip $outputFile1");
+  $mgr->runCmd("ln -s $outputFile1 $fastalink1");
+  $mgr->runCmd("$blastBinDir/xdformat -n $fastalink1");
+  $mgr->runCmd("rm -rf $fastalink1");
+  $mgr->runCmd("gzip $outputFile1");
   
 
   $mgr->endStep($signal) if $epconDB_makefile eq 'no';
