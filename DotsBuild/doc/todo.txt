@@ -1,5 +1,42 @@
            ================ DOTS BUILD TODO ===============
 
+CURRENT LIST - to be done immediately or at least before human release 9 is started
+10) get version2 for U95? - don't know if this is necessary
+13) reminder to do manual library assignment as soon as ESTs are loaded
+14) deal with descriptions with ^M
+15) look into brian's observation about the promoter regions
+18) get a legit version of the TMHMM package
+20)  continue to zip as we go
+21) sanity check and run the cleanup step
+22) integrate blat alignment of assemblies to genome
+23) add blat alignment of gene trap tags to genome
+24) integrate the GO stuff (parallel)
+25) some subs in Steps.pm are now redundant and can be merged if a few changes are made 
+27) copy repeatmask/assemSeqs/master/mainresult/blocked.err from liniac - the genomic/align cluster doesn't do this
+29) change UpdateDotsAssembliesWithCap4 so that it reassembles when a DT contains a sequence that has been dropped or modified (w/30)
+30) change dbEST and GBParser to update sequences and to mark sequences to be deleted (w/29)
+31) write plugin to delete sequences that have been withdrawn from dbEST or Genbank
+32) figure out how to redo quality starts only when a sequence has been modified (w/29 &30)
+33) add subs to parse and load H-invitational 
+34) prepare file and config file for greping tool - file should have the format:DT.xxx  
+35) comment out deleteGenesWithNoRNA sub and see figure out why this happens instead
+
+CURRENT LIST DONE
+1) change protein subs to get preferred protein
+2) change taxon_id = 8 to $taxonID in prepareDownloadSiteFiles in dotsbuild after merge with Thomas's version
+3) add to prepareDownloadSiteFiles in dotsbuild to add the anatomy file after checking it
+4) change gene trap subs or add to them to accommodate genbank records
+5) fix the pancreas file(table?) sub so that it updates the required materialized view - Angel made a chron job to do this
+6) change print out of Thomas's cluster plugin to eliminate the > in fromt of Cluster [cvs updated - +update run]
+7) change assembly plugin to die if CAP4 is missing
+8) remove hardcoded CAP4 path
+9) get version2 for U74
+11) look into ExtractAndBlockAssemblySeqs problem of adding "sequences length" - needed for genomic align/cluster
+19) include makePromoterRegionTable
+28) fix ClusterByGenome so that the query is done without the risk of having the snapshot be too old
+33) add subs to parse and load H-invitational
+
+
 NOW
   - revise plugin that fills the anatomy percent table
   - cope with FF's * 
