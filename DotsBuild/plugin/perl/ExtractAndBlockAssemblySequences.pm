@@ -114,7 +114,7 @@ sub run {
   and e.taxon_id = $taxon and a.quality_end - a.quality_start >= 50";
     }
     
-    $self->logVerbose ("$getSeqs\n") if $debug;
+    $self->logVerbose ("$getSeqs\n");
     
     my $stmt = $dbh->prepare($getSeqs);
     $stmt->execute();

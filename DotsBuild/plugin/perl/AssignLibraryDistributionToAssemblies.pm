@@ -66,8 +66,8 @@ sub run {
 
   my $stmt;
 
-  print $ctx->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
-  print "Testing on $ctx->{'testnumber'}\n" if $ctx->{'testnumber'};
+  print $ctx->{cla}->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
+  print "Testing on $ctx->{cla}->{'testnumber'}\n" if $ctx->{cla}->{'testnumber'};
 
   die "--idSQL is required\n" unless $ctx->{cla}->{idSQL};
 
@@ -78,7 +78,7 @@ sub run {
   $dbh = $ctx->{self_inv}->getQueryHandle();
 
   my %ignore;
-  if ($ctx->{'restart'}) {
+  if ($ctx->{cla}->{'restart'}) {
     $stmt = $dbh->prepare("select distinct na_sequence_id from DoTS.AssemblyAnatomyPercent where modification_date >= '$ctx->{cla}->{restart}'");
     $stmt->execute();
     while ( my($id) = $stmt->fetchrow_array()) {
@@ -133,7 +133,7 @@ sub run {
     $cte++;
     print STDERR "Retrieving entry $cte\n" if($cte % 10000 == 0);
     push(@todo,$nas);
-    last if ($ctx->{'testnumber'} && $cte >= $ctx->{'testnumber'}); ##for testing...
+    last if ($ctx->{cla}->{'testnumber'} && $cte >= $ctx->{cla}->{'testnumber'}); ##for testing...
   }
   my $totalToDo = scalar(@todo);
   print "$totalToDo entries selected to process for distribution\n";

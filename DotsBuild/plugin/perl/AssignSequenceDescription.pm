@@ -126,8 +126,8 @@ sub run {
   if ($ctx->{cla}->{update_rna_descriptions} || $ctx->{cla}->{copy_manual_descriptions}) {
       die "taxon_id required for updating RNA descriptions and copying manual descriptions\n" unless $ctx->{cla}->{taxon_id};
   }
-  print $ctx->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
-  print "Testing on $ctx->{'testnumber'}\n" if $ctx->{'testnumber'};
+  print $ctx->{cla}->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
+  print "Testing on $ctx->{cla}->{'testnumber'}\n" if $ctx->{cla}->{'testnumber'};
   #  print "Setting globalNoVersion(1)\n";
   #  $ctx->{self_inv}->setGlobalNoVersion(1);
 
@@ -138,13 +138,13 @@ sub run {
   my $stmt;
 
   my %ignore;
-  if ($ctx->{'restart'}) {
+  if ($ctx->{cla}->{'restart'}) {
     $stmt = $dbh->prepare($ctx->{cla}->{restart});
     $stmt->execute();
     while (my($id) = $stmt->fetchrow_array()) {
       $ignore{$id} = 1;
     }
-    print "Restarting:  ignoring ".scalar(keys%ignore). " rnas modified since $ctx->{'restart'}\n";
+    print "Restarting:  ignoring ".scalar(keys%ignore). " rnas modified since $ctx->{cla}->{'restart'}\n";
   }
 
   if($ctx->{cla}->{dots_mgi_file}){
@@ -387,7 +387,7 @@ sub updateRNA {
       and rs1.na_feature_id = rf1.na_feature_id )
       and ( (rna_category_id != 17 or rna_category_id is null )
       or (rna_category_id = 17 and (description like '%identity%' or description like 'No NR%')))"); 
-    if ($ctx->{'commit'}) { $dbh->commit;}
+    if ($ctx->{cla}->{'commit'}) { $dbh->commit;}
     return $rows;
 }
 
@@ -401,7 +401,7 @@ sub manualDescriptions {
      and na_sequence_id in ( select rf1.na_sequence_id from rnafeature rf1, rnasequence rs1, rna r1
      where r1.manually_reviewed = 1 and rs1.rna_id = r1.rna_id
      and rf1.na_feature_id = rs1.na_feature_id)");
-    if ($ctx->{'commit'}) { $dbh->commit;}
+    if ($ctx->{cla}->{'commit'}) { $dbh->commit;}
     return $rows;
 }
 

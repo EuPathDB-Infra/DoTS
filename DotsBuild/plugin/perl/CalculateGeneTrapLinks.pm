@@ -56,10 +56,10 @@ sub run {
     my $ctx = shift;
     my $dbh = $ctx->{'self_inv'}->getQueryHandle();
     
-    my $blastDir = $ctx->{blast_dir};
-    my $extDbRel = $ctx->{external_db_release};
-    my $minPctId = $ctx->{min_pct_id};
-    my $minPctLen = $ctx->{min_pct_len};
+    my $blastDir = $ctx->{cla}->{blast_dir};
+    my $extDbRel = $ctx->{cla}->{external_db_release};
+    my $minPctId = $ctx->{cla}->{min_pct_id};
+    my $minPctLen = $ctx->{cla}->{min_pct_len};
     
     # Query for and cache the na_sequence_id, name, and length of each tag
     #

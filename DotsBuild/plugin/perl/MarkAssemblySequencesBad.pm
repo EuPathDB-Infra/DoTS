@@ -55,11 +55,11 @@ sub run {
   my $deepChimera = 0;
   my @bad;
 
-  print $ctx->{'commit'} ? "COMMIT ON\n" : "COMMIT TURNED OFF\n";
-  print "Testing on $ctx->{'testnumber'}\n" if $ctx->{'testnumber'};
+  print $ctx->{cla}->{'commit'} ? "COMMIT ON\n" : "COMMIT TURNED OFF\n";
+  print "Testing on $ctx->{cla}->{'testnumber'}\n" if $ctx->{cla}->{'testnumber'};
 
-  open(F,"$ctx->{'filename'}") || die "file $ctx->{'filename'} not found\n";
-  if ($ctx->{'processed_category'} eq 'chimera') {
+  open(F,"$ctx->{cla}->{'filename'}") || die "file $ctx->{cla}->{'filename'} not found\n";
+  if ($ctx->{cla}->{'processed_category'} eq 'chimera') {
     while (<F>) {
       if (/^\>(\S+)/) {
 				##record here...
@@ -85,18 +85,18 @@ sub run {
   }
 
   close F;
-  print STDERR "marking ".scalar(@bad)." AssemblySequences as $ctx->{'processed_category'}\n";
+  print STDERR "marking ".scalar(@bad)." AssemblySequences as $ctx->{cla}->{'processed_category'}\n";
 
   my $count = 0;
   foreach my $ass_seq_id (@bad) {
 
-    last if ($ctx->{'testnumber'} && $count >= $ctx->{'testnumber'});
+    last if ($ctx->{cla}->{'testnumber'} && $count >= $ctx->{cla}->{'testnumber'});
 
     my $ass = GUS::Model::DoTS::AssemblySequence->
       new({'assembly_sequence_id' => $ass_seq_id});
     if ($ass->retrieveFromDB()) {
       $ass->setHaveProcessed(1) unless $ass->getHaveProcessed() == 1;
-      $ass->setProcessedCategory($ctx->{'processed_category'}) unless $ass->getProcessedCategory() eq $ctx->{cla}->{processed_category};
+      $ass->setProcessedCategory($ctx->{cla}->{'processed_category'}) unless $ass->getProcessedCategory() eq $ctx->{cla}->{processed_category};
 
       ##if low_quality want to set quality_start and quality_end so is < 50 bp...so  doesn't  turn up in an assembly..
       if($ctx->{cla}->{processed_category} eq 'low_quality'){  
@@ -115,7 +115,7 @@ sub run {
     $ctx->{'self_inv'}->undefPointerCache();
   }
 
-  my $ret = "Marked $count AssemblySequences as $ctx->{'processed_category'}";
+  my $ret = "Marked $count AssemblySequences as $ctx->{cla}->{'processed_category'}";
   print "\n$ret\n";
   return $ret; 
 }

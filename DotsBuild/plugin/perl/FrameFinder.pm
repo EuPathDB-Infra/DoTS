@@ -74,7 +74,7 @@ sub run {
   my $i = 0;
   my $M = shift;
   my $ctx = shift;
-  print STDERR "framefinder: COMMIT ", $ctx->{'commit'} ? "****ON****" : "OFF", "\n";
+  print STDERR "framefinder: COMMIT ", $ctx->{cla}->{'commit'} ? "****ON****" : "OFF", "\n";
   print STDERR "Establishing dbi login\n";
 
   my $dbh = $ctx->{'self_inv'}->getDatabase()->getQueryHandle();                
@@ -92,12 +92,12 @@ sub run {
   my %ignore;                   # skipping entries already processed
   ## want to be able to ignore entries already done!!
   # current key is non-zero tranlation score: if non-zero, then processed.
-  if ($ctx->{'restart'}) {
+  if ($ctx->{cla}->{'restart'}) {
     my $query = 
 "select rf.na_sequence_id 
 from dots.rnafeature rf, dots.translatedaafeature tf  
 where rf.na_feature_id = tf.na_feature_id 
-and tf.row_alg_invocation_id in ($ctx->{'restart'})";
+and tf.row_alg_invocation_id in ($ctx->{cla}->{'restart'})";
 #    my $query = "select distinct r.na_sequence_id from rnasequence r, translatedaafeatute tf, assembly a where r.na_feature_id = tf.na_feature_id and r.na_sequence_id = a.na_sequence_id and a.description != 'DELETED' and tf.translation_score is not null";
     print STDERR "Restarting: Querying for the ids to ignore\n$query\n";
     my $stmt = $dbh->prepare($query);

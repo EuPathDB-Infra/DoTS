@@ -50,7 +50,7 @@ sub run {
     my $M  = shift;
     my $ctx = shift;
     my $testnum;
-    print STDERR $ctx->{'commit'}?"***COMMIT ON***\n":"**COMMIT TURNED OFF**\n";
+    print STDERR $ctx->{cla}->{'commit'}?"***COMMIT ON***\n":"**COMMIT TURNED OFF**\n";
     if ($ctx->{'cla'}->{'testnumber'}) {
 	print STDERR "Testing on $ctx->{'cla'}->{'testnumber'} insertions 
                 into temp table\n" 

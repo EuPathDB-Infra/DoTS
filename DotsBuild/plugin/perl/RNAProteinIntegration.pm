@@ -59,7 +59,7 @@ sub Run {
     
     $algoInvo = $ctx->{self_inv};
     
-    print STDERR $ctx->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
+    print STDERR $ctx->{cla}->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
     print STDERR "Testing on $ctx->{'cla'}->{'testnumber'}\n" if $ctx->{'cla'}->{'testnumber'};
     
     unless ($ctx->{'cla'}->{'taxon_id'}) {
