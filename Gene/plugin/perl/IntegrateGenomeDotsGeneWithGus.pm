@@ -194,7 +194,7 @@ sub getAnalysisId {
     my ($self, $dbh, $taxonId, $genomeId) = @_;
 
     my $sql = "select aligned_gene_analysis_id from Allgenes.AlignedGene "
-	. "where parameter like '%--t $taxonId --dbr $genomeId%'";
+	. "where parameters like '%--t $taxonId --dbr $genomeId%'";
     my $sth = $dbh->prepareAndExecute($sql);
     my @aids = ();
     while (my $aid = $sth->fetchrow_array) { push @aids, $aid; }
