@@ -11,11 +11,10 @@ use GUS::ObjRelP::DbiDatabase;
 use GUS::Common::GusConfig;
 
 
-my ($gusConfigFile,$verbose,$allgenes_num,$restart,$commit,$imcloneDbRlsId,$taxon);
+my ($gusConfigFile,$verbose,$allgenes_num,$restart,$commit,$taxon);
 &GetOptions("verbose!"=> \$verbose,
 	    "gusConfigFile=s" => \$gusConfigFile,
             "allgenes_num=s" => \$allgenes_num,
-            "imclone_db_rls_id=s" => \$imcloneDbRlsId,
 	    "restart!" => \$restart,
 	    "commit!" => \$commit,
 	    "taxon=i" => \$taxon);
@@ -39,7 +38,7 @@ my $dbh = $db->getQueryHandle();
 
 my $project_id = &getProject($dbh);
 
-my $idHash = &getHash($dbh,$taxon,$externalDbRlsId);
+my $idHash = &getHash($dbh,$taxon);
 
 &idsDone($dbh,$idHash,$project_id) if ($restart);
 
@@ -79,25 +78,10 @@ sub getProject {
 
 sub getHash {
     
-    my ($db, $taxon_id, $externalDbRlsId) = @_; 
+    my ($db, $taxon_id) = @_; 
 
     # subtract away assemblies that are exclusively imclone ESTs.
-    my $sql = "
-select na_sequence_id
-from dots.assembly
-where taxon_id in ($taxon_id)
-minus (select s.assembly_na_sequence_id
-       from dots.assemblysequence s, dots.externalnasequence e
-       where s.na_sequence_id = e.na_sequence_id
-       and e.taxon_id in ($taxon_id)
-       and e.external_database_release_id = $imcloneDbRlsId
-       minus (select s.assembly_na_sequence_id
-              from dots.assemblysequence s, dots.externalnasequence e
-              where s.na_sequence_id = e.na_sequence_id
-              and e.taxon_id in ($taxon_id)
-              and e.external_database_release_id != $imcloneDbRlsId
-       )
-)";
+    my $sql = "select na_sequence_id from dots.assembly where taxon_id in ($taxon_id)";
 
     my $stmt = $db->prepareAndExecute($sql);
 
@@ -115,11 +99,7 @@ sub idsDone {
     
     my ($db,$hash,$project) = @_;
 
-    my $sql = 
-"select id 
- from core.projectlink 
- where project_id = $project 
- and table_id = 56";
+    my $sql = "select id from core.projectlink where project_id = $project and table_id = 56";
 
     my $stmt = $db->prepareAndExecute($sql);
 
@@ -143,8 +123,7 @@ sub insertProjectLink {
 
     print STDERR ("$num assembly ids to be entered into ProjectLink\n");
 
-    my $sql = "insert into core.ProjectLink (ProjectLink_sq.nextval,$project,56,?,null,SYSDATE,1
-,1,1,1,1,0,12,0,$project,0)";
+    my $sql = "insert into core.ProjectLink (ProjectLink_sq.nextval,$project,56,?,null,SYSDATE,1,1,1,1,1,0,12,0,$project,0)";
 
     my $stmt = $db->prepare($sql);
 
