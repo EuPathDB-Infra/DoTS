@@ -230,6 +230,8 @@ sub run {
 	push @done_chrs, $coord->{chr};
 	$self->log("completed/skipped chromosomoes: " . join(', ', @done_chrs));
     }
+    $dbh->do("analyze table ${tempLogin}." . $tmpMeta[0] . " compute statistics");
+    $dbh->do("analyze table ${tempLogin}." . $tmpMeta[3] . " compute statistics");
 
     my $sum = "finished gDG creation for chromosomes: " . join(', ', @done_chrs);
     $sum = substr($sum, 0, 254) if length($sum) > 255;

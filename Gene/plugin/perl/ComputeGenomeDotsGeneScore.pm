@@ -178,31 +178,31 @@ sub processRegion {
     my $c = 0;
     for (my $i=0; $i<$tot; $i++) {
 	my $gid = $gdgids->[$i];
-	$self->log("processing GDG.$gid ...");
+	# $self->log("processing GDG.$gid ...");
 	
 	# confidence score info
 	my $cs_info = {};
 	# 1. splice signal, polya signal, polya track
-	$self->log("\tsignals ...");
+	# $self->log("\tsignals ...");
 	DoTS::Gene::ConfidenceScore::Signals::setSignals($dbh, $gdt_tab, $bs_tab,
 							 $gid, $cs_info);
 	# 2. input seq composition (mRNA, total RNA, EST clones, EST libs, EST 5-3 pairs)
-	$self->log("\tcomposition ...");
+	# $self->log("\tcomposition ...");
 	DoTS::Gene::ConfidenceScore::Composition::setComposition($dbh, $gdg_tab, $gdt_tab,
 								 $gid, $cs_info);
 	# 3. protein coding potential
-	$self->log("\tcoding potential ...");
+	# $self->log("\tcoding potential ...");
 	DoTS::Gene::ConfidenceScore::Coding::setCoding($dbh, $gdg_tab, $gdt_tab,
 						       $gid, $cs_info);
 	# 4. EST 5'-3' plot score
-	$self->log("\tEST plot score ...");
+	# $self->log("\tEST plot score ...");
 	DoTS::Gene::ConfidenceScore::ESTPlotScore::setESTPlotScore($dbh, $gdg_tab, $gdt_tab,
 						       $gid, $chr_id, $cs_info);
 	# overall score
-	$self->log("\toverall score ...");
+	# $self->log("\toverall score ...");
 	DoTS::Gene::ConfidenceScore::Overall::setScore($dbh, $gdg_tab,
 						       $gid, $cs_info, $stats);
-	$self->log("\tdb update ...");
+	# $self->log("\tdb update ...");
 	&dbUpdate($dbh, $gdg_tab, $gid, $cs_info);
 
 	unless (++$c % 100) {
@@ -214,7 +214,7 @@ sub processRegion {
 }
 
 sub selectGenomeDotsGenes {
-    my ($dbh, $coord, $args) = @_;
+    my ($self, $dbh, $coord, $args) = @_;
 
     my $genomeId = $args->{'genome_db_rls_id'};
     my $tempLogin = $args->{'temp_login'};
