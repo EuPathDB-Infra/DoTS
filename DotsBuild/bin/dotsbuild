@@ -62,7 +62,7 @@ my @properties =
  ["geneCluster.cliqueSzArray",  "",  ""],
  ["geneCluster.logbaseArray",   "",  ""],
  ["downloadGenbank",   "",  "yes or no"],
- ["downloadTaxon,   "",  "yes or no"],
+ ["downloadTaxon",   "",  "yes or no"],
  ["downloadNRDB",   "",  "yes or no"],
  ["loadGeneCards",   "",  "yes or no"],
  ["downloadGOStuff",   "",  "yes or no"],
