@@ -188,11 +188,11 @@ sub formatGOTable {
 
   my $tableString;
   foreach my $funcKey (@sortedGoFuncs) {
-      my($goTermId, $func) = ($funcKey =~ /^(\d+)\|(.*)$/);
+      my($goId, $func) = ($funcKey =~ /^(\d+)\|(.*)$/);
       my $funcBrief = $func;
       $funcBrief = substr($func,0,30) . "..." if (length($func) > 30);
       my %values = &findGOValues($funcBrief,
-				 $goTermId,
+				 $goId,
 				 $humDoTSGOHash->{$funcKey}, $humDoTSGOTot,
 				 $musDoTSGOHash->{$funcKey}, $musDoTSGOTot,
 				 $totalBarWidth
@@ -208,12 +208,12 @@ sub formatGOTable {
 # humCount, humBarWidth, humBarRemainder, humPercent,
 # musCount, musBarWidth, musBarRemainder, musPercent,
 sub findGOValues {
-  my ($func, $goTermId, $humCount, $humTotal, $musCount, $musTotal, $totalBarWidth) = @_;
+  my ($func, $goId, $humCount, $humTotal, $musCount, $musTotal, $totalBarWidth) = @_;
 
   my %values;
 
   $values{funcname} = $func;
-  $values{goTermId} = $goTermId;
+  $values{goId} = $goId;
   $values{humCount} = $humCount? $humCount : 0;
   $values{musCount} = $musCount? $musCount : 0;
   $values{humPercent} = &findPercent($values{humCount}, $humTotal);
@@ -441,12 +441,15 @@ sub countGOGenes {
 
   my $sql =
 "select pst.taxon_id, count(distinct pst.gene_id) 
-from PrintStatsTemp pst, Dots.GOAssociation ga
+from PrintStatsTemp pst, Dots.GOAssociation ga, SRes.GOTerm gt, SRes.ExternalDatabaseRelease edr
 where pst.total_seqs > 1 
 and ga.row_id = pst.protein_id 
 and ga.table_id = '180'
 and ga.is_deprecated = 0 
 and ga.is_not = 0
+and gt.go_term_id = ga.go_term_id
+and gt.external_database_release_id = edr.external_database_release_id
+and edr.external_database_id = 227
 group by pst.taxon_id";
 
   my $stmt = $dbh->prepare($sql);
@@ -473,12 +476,15 @@ sub countGODoTs {
   my $sql =
 "select pst.taxon_id, pst.number_of_contained_sequences, 
         count(distinct pst.na_sequence_id) 
-from PrintStatsTemp pst, Dots.GOAssociation ga
+from PrintStatsTemp pst, Dots.GOAssociation ga, SRes.GOTerm gt, SRes.ExternalDatabaseRelease edr
 where pst.total_seqs > 1 
 and ga.row_id = pst.protein_id 
 and ga.table_id = '180'
 and ga.is_deprecated = 0 
 and ga.is_not = 0
+and gt.go_term_id = ga.go_term_id
+and gt.external_database_release_id = edr.external_database_release_id
+and edr.external_database_id = 227
 group by pst.taxon_id, pst.number_of_contained_sequences";
 
   my $stmt = $dbh->prepare($sql);
@@ -509,37 +515,41 @@ sub getGODistribution {
   print STDERR "Determining breakdown of GOFunctions for DoTS Genes:\n";
 
   my $sql = 
-"select pst.taxon_id, t.name, t.go_term_id, count(distinct pst.gene_id)
-   from PrintStatsTemp pst, Dots.GOAssociation ga, SRes.GOTerm t
+"select pst.taxon_id, t.name, t.go_id, count(distinct pst.gene_id)
+   from PrintStatsTemp pst, Dots.GOAssociation ga, SRes.GOTerm t, SRes.ExternalDatabaseRelease edr
    where pst.total_seqs > 1
    and ga.table_id = 180
    and ga.row_id = pst.protein_id
    and ga.go_term_id = t.go_term_id
    and ga.is_deprecated = 0 
    and ga.is_not = 0
-   and t.external_database_release_id = 6918
-   and t.name in
-('enzyme activity',
-'antioxidant activity',
-'anticoagulant activity',
-'storage protein',
-'cell adhesion molecule activity',
-'structural molecule activity',
-'apoptosis regulator activity',
-'transporter activity',
-'cytoskeletal regulator activity',
-'toxin activity',
-'protein tagging activity',
-'chaperone regulator activity',
-'enzyme regulator activity',
-'binding activity',
-'signal transducer activity',
-'nucleic acid binding activity',
-'cell cycle regulator',
-'chaperone activity',
-'motor activity',
-'defense/immunity protein activity')
-group by pst.taxon_id, t.name, t.go_term_id ";
+   and t.external_database_release_id = edr.external_database_release_id
+   and edr.external_database_id = 227
+   and t.minimum_level = 2
+   and t.go_id not in ('GO:0008369', 'GO:0005554')
+   group by pst.taxon_id, t.name, t.go_term_id ";
+#   and t.name in
+#('enzyme activity',
+#'antioxidant activity',
+#'anticoagulant activity',
+#'storage protein',
+#'cell adhesion molecule activity',
+#'structural molecule activity',
+#'apoptosis regulator activity',
+#'transporter activity',
+#'cytoskeletal regulator activity',
+#'toxin activity',
+#'protein tagging activity',
+#'chaperone regulator activity',
+#'enzyme regulator activity',
+#'binding activity',
+#'signal transducer activity',
+#'nucleic acid binding activity',
+#'cell cycle regulator',
+#'chaperone activity',
+#'motor activity',
+#'defense/immunity protein activity')
+
 
   my $stmt = $dbh->prepare($sql);
   $stmt->execute();
@@ -547,13 +557,13 @@ group by pst.taxon_id, t.name, t.go_term_id ";
   my %humDoTSGOFun;
   my %musDoTSGOFun;
   my ($totalDoTShumGOFun, $totalDoTSmusGOFun);
-  while (my($taxon_id,$name,$go_term_id,$count) = $stmt->fetchrow_array()) {
+  while (my($taxon_id,$name,$go_id,$count) = $stmt->fetchrow_array()) {
     next if $name eq 'obsolete' || $name =~ /unknown/;
     if ($taxon_id == 8) {
-      $humDoTSGOFun{$go_term_id . "|" . $name} = $count;
+      $humDoTSGOFun{$go_id . "|" . $name} = $count;
       $totalDoTShumGOFun += $count;
     } elsif ($taxon_id == 14) {
-      $musDoTSGOFun{$go_term_id . "|" . $name} = $count;
+      $musDoTSGOFun{$go_id . "|" . $name} = $count;
       $totalDoTSmusGOFun += $count;
     }
   }
