@@ -722,16 +722,17 @@ sub loadGenomeAlignments {
   my $pipelineDir = $mgr->{'pipelineDir'};
   my $pslDir = "$pipelineDir/genome/$queryName-$targetName/per-seq";
 
-  #my $qFile = "$pipelineDir/repeatmask/$queryName/master/mainresult/blocked.seq";
-  my $qFile = "/tmp/dotsbuild/blocked.seq";
+  my $qFile = "$pipelineDir/repeatmask/$queryName/master/mainresult/blocked.seq";
+  #my $qFile = "/tmp/dotsbuild/blocked.seq";
   $qFile = "$pipelineDir/seqfiles/finalDots.fsa" if $queryName =~ /dots/i;
   my $qTabId = ($queryName =~ /dots/i ? 56 : 57);
   #--gap_table_space $gapTabSpace
+  my $regEx = $propertySet->getProp('genomeSrcIdRegEx');
   my $args = "--blat_dir $pslDir --query_file $qFile --keep_best 2 "
     . "--query_table_id $qTabId --query_taxon_id $taxonId "
       . "--target_table_id 245 --target_db_rel_id $genomeId --target_taxon_id $taxonId "
 	. "--max_query_gap 5 --min_pct_id 95 max_end_mismatch 10 "
-	  . "--end_gap_factor 10 --min_gap_pct 90 "
+	  . "--end_gap_factor 10 --min_gap_pct 90 --reg_ex '$regEx' "
 	    . "--ok_internal_gap 15 --ok_end_gap 50 --min_query_pct 10";
   if ($qTabId == 57) {
     my $gb_db_rel_id = $propertySet->getProp('gb_db_rel_id');
