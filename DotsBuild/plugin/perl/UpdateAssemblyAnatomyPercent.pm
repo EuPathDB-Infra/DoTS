@@ -51,31 +51,36 @@ $| = 1;
 
 sub run {
   my ($self) = @_;
+
   $self->logAlgInvocationId;
   $self->logCommit;
 
+  # get args
   my $testnumber = $self->getArg('testnumber');
-  print "Testing on $testnumber\n" if $testnumber;
+  my $sql =  $self->getArg('idSQL');
+  my $taxonId = $self->getArg('taxon_id');
 
-  my $taxon_id = $self->getArg('taxon_id');
-  $dbh = $self->getQueryHandle();
+  my $dbh = $self->getQueryHandle();
 
-  # make anatomy tree with total ESTS at each node (not percolated)
+  # make anatomy tree
   my ($root, $nodeHash) = &makeTree($dbh);
 
   # place raw EST counts in each node of the tree
-  &setESTCounts($nodeHash, $dbh, $taxon_id);
+  &setESTCounts($nodeHash, $dbh, $taxonId);
 
   # handle each DT
-  my $sql =  $self;
+  print "Testing on $testnumber\n" if $testnumber;
   my $stmt = $dbh->prepareAndExecute($self->getArg('idSQL'));
-
   my $count;
-  while (my ($dt) = $stmt->fetchRowArray()) {
+  while (my $row = $stmt->fetchRowArray()) {
+    die "Error: The idSQL query did not return a single column (na_sequence_id)\n" if (scalar($row) != 1);
+    my $dt = $row[0];
+    die "Error: na_sequence_id '$dt' returned in the result set is not an integer" unless $dt =~ /\d+/;
     count++;
     print STDERR "Updated $count rows\n" if ($count % 10000) == 0;
-    &processDT($dt, $taxonID, $root, $dbh);
+    &processDT($dt, $taxonId, $root, $dbh);
     $self->undefPointerCache();
+    last if ($testnumber && $count > $testnumber);
   }
 
   $self->setResult("Updated $count rows");
@@ -132,13 +137,13 @@ sub processDT {
   my ($dt, $taxonId, $root, $dbh) = @_;
 
   # zero out previous DT's junk
-  $root->zeroOut();
+  $root->clearDTValues();
 
   # load this DT's values into the existing anatomy tree
   # return the sum of the effective counts and the sum of the raw counts
   my ($sum_effective, $sum_raw) = &loadDT($dbh,$dt);
 
-  # percolate from bottom up and write out the row
+  # percolate from bottom up and write out the rows
   $root->percolateAndWrite($dbh, $dt, $sum_effective, $sum_raw, $taxonId);
 }
 
@@ -159,11 +164,11 @@ sub loadDT {
   my $Sum_raw;
   while (my ($anatomy_id, $count) = $stmt-> fetchrow_array()) {
     $nodeHash->{$anatomy_id}->setDTRaw($count);
-    $Sum_raw += $count;
-    $Sum_effective += $nodeHash->{$anatomy_id}->getDTEffective();
+    $sum_raw += $count;
+    $sum_effective += $nodeHash->{$anatomy_id}->getDTEffective();
   }
 
-  return (Sum_effective, Sum_raw);
+  return ($sum_effective, $sum_raw);
 }
 
 

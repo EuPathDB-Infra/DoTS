@@ -20,7 +20,7 @@ sub addKid {
 }
 
 # zero out counts pertinent to a dt
-sub zeroOut {
+sub clearDTValues {
   my ($self) = @_;
 
   return if $self->{dtRawPercolated} == 0;
@@ -30,7 +30,7 @@ sub zeroOut {
   $self->{dtEffectivePercolated} = 0;
 
   foreach my $kid (@{$self->{kids}}) {
-    $kid->zeroOut();
+    $kid->clearDTValues();
   }
 }
 
@@ -43,7 +43,7 @@ sub percolateAndWrite {
 
   foreach my $kid (@{$self->{kids}}) {
     ($kid_raw_percolated, $kid_effective_percolated)
-      = $kid->setPercolateAndWrite();
+      = $kid->percolateAndWrite();
 
     $raw_percolated += $kid_raw_percolated;
     $effective_percolated += $kid_effective_percolated;
@@ -53,7 +53,7 @@ sub percolateAndWrite {
   my $percent = $effective_percolated / $sumEffective;
   my $anatomyESTs = $raw_percolated;
 
-  my $args = {percent => $effective_percolated / $sumEffective,
+  my $args = {percent => $effective_percolated / $sumEffective * 100,
 	      anatomy_ests => $raw_percolated,
 	      anatomy_id => $self->{anatomyId},
 	      EST_count => $sumRaw,
