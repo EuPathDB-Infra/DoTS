@@ -81,7 +81,9 @@ sub setDTRaw {
 }
 
 sub getDTEffective {
-  return $self->{dtRaw}/$self->{ESTCount};
+  my $noEST = 0;
+  return $self->{dtRaw}/$self->{ESTCount} if $self->{ESTCount} > 0;
+  return $noEST;
 
 }
 
