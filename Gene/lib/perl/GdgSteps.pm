@@ -654,14 +654,6 @@ sub addUcscHeaders {
     $mgr->endStep($signal);
 }
 
-sub dumpCodingGeneSeqs {
-    &dumpGeneSeqs($_[0], 'Coding');
-}
-
-sub dumpNoncodingGeneSeqs {
-    &dumpGeneSeqs($_[0], 'Noncoding');
-}
-
 sub dumpGeneSeqs {
   my ($mgr, $type) = @_;
   my $propertySet = $mgr->{propertySet};
@@ -687,6 +679,36 @@ sub dumpGeneSeqs {
   $mgr->runCmd("gzip $outFile");
 
   $mgr->endStep($signal);
+}
+
+sub mapUQueenslandAcc {
+    my ($mgr, $type) = @_;
+
+    my $propertySet = $mgr->{propertySet};
+
+    my $signal = "mapUQeenslandAcc${type}";
+
+    return if $mgr->startStep("mapping UQueensland $type accs to gDGs for genome coords", $signal);
+
+    my $pipelineDir = $mgr->{'pipelineDir'};
+    my $externalDbDir = $propertySet->getProp('externalDbDir');
+    my $file = "$externalDbDir/UQueensland/" . lc($type) . "_acc_list.txt";
+
+    my $taxonId = $propertySet->getProp('taxonId');
+    my $genomeId = $propertySet->getProp('genome_db_rls_id');
+    my $sp = $propertySet->getProp('speciesNickname');
+    my $genomeVer = $propertySet->getProp('genomeVersion');
+    my $dotsVer = $propertySet->getProp('dotsRelease');
+    my $verInfo = "$sp DoTS $dotsVer vs UCSC $genomeVer";
+    
+    my $logFile = "$pipelineDir/logs/${signal}.log";
+    my$outFile = "$pipelineDir/releasefiles/$sp/" . lc($type) . '_acc_2_genome_coord.txt' ;
+
+    my$cmd = "genbankAcc2Gdg --accListFile $file --taxonId $taxonId --genomeDbRlsId $genomeId --versionInfo \'$verInfo\' --verbose > $outFile 2> $logFile";
+
+    $mgr->runCmd($cmd);
+
+    $mgr->endStep($signal);
 }
 
 sub makeBuildName {
