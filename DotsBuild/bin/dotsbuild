@@ -1818,6 +1818,7 @@ sub extractGeneTrapTags {
     my $gusConfigFile = $propertySet->getProp('gusConfigFile');
 
     my $taxonId = $propertySet->getProp('taxonId');
+    
     my %external_databases = $propertySet->getProp('geneTagDB');
 
     foreach my $db_id (keys %external_databases) {
