@@ -149,7 +149,10 @@ my @properties =
  ["epconDB_anatomy_ids", "","anatomyids used in query to create EPConDB input seqs file"],
  ["epconDB_array", "","array id used in query to create EPConDB input seqs for array file"],
  ["epconDB_chip", "","chip name used in query to create EPConDB input seqs for array file"],
- ["epcon_makefile", "","make file of input seqs for EPConDB array, yes or no"]
+ ["epconDB_makefile", "","make file of input seqs for EPConDB array, yes or no"],
+ ["nrdb_maketemp", "","use --maketemp option for LoadNrdb plugin, yes or no"],
+ ["nrdb_delete", "","use --delete option for LoadNrdb plugin, yes or no"],
+ ["nrdb_plugin", "","use --plugin option for LoadNrdb plugin, yes or no"]
  ); 
 
 my $propertySet  = CBIL::Util::PropertySet->new($propertiesFile, \@properties);
@@ -294,9 +297,9 @@ $mgr->waitForLiniac("prevDots and assemSeqs matrices", "waitMatrices");
 
    &getAssembliesPerGene();
 
-#   &makeEpconFastaFiles();
+   &makeEpconFastaFiles();
 
-#   &prepareEPConBlastSiteFiles();
+   &prepareEPConBlastSiteFiles();
 
 $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
@@ -404,7 +407,7 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &updatePromoterRegionTable();
 
-#&updatePancreasAssembliesTable();
+&updatePancreasAssembliesTable();
 
 &createManuallyReviewedDoTSFile();
 
@@ -1115,7 +1118,9 @@ sub loadRNAClusters {
 
 sub deleteGenesWithNoRNA {
 
-  my $args = "";
+  my $user = $propertySet->getProp('userId');
+
+  my $args = "--user_id $user";
 
   $mgr->runPlugin("deleteGenesWithNoRNA", "DoTS::DotsBuild::Plugin::DeleteGenesWithNoRNA",$args,"Deleting genes with no rna");
 
@@ -1131,6 +1136,18 @@ sub insertNRDB {
 
   my $sourceDB = $propertySet->getProp('sourceDB');
 
+  my $nrdb_maketemp = $propertySet->getProp('nrdb_maketemp');
+
+  my $nrdb_plugin = $propertySet->getProp('nrdb_plugin');
+
+  my $nrdb_delete = $propertySet->getProp('nrdb_delete');
+
+  my $maketemp = $nrdb_maketemp eq "yes" ? "--maketemp" : "";
+  
+  my $plugin = $nrdb_plugin eq "yes" ? "--plugin" : "";
+
+  my $delete = $nrdb_delete eq "yes" ? "--delete" : "";
+
   my $gitax = "$externalDbDir/taxonomy/$date/gi_taxid_prot.dmp";
   
   my $nrdb = "$externalDbDir/nrdb/$date/nr";
@@ -1143,11 +1160,8 @@ sub insertNRDB {
   
   my $nrdbReleaseId = $propertySet->getProp('nrdb_db_rls_id');
   
-  my $args = "--temp_login \"$temp_login\" --sourceDB $sourceDB --temp_password \"$temp_password\" --dbi_str \"$dbi_str\" $restart --gitax $gitax --nrdb $nrdb --extDbRelId $nrdbReleaseId --maketemp --plugin --delete";
+  my $args = "--temp_login \"$temp_login\" --sourceDB $sourceDB --temp_password \"$temp_password\" --dbi_str \"$dbi_str\" $restart --gitax $gitax --nrdb $nrdb --extDbRelId $nrdbReleaseId $maketemp $plugin $delete";
 
-  #my $args = "--temp_login \"$temp_login\" --sourceDB $sourceDB --temp_password \"$temp_password\" --dbi_str \"$dbi_str\" $restart --gitax $gitax --nrdb $nrdb --extDbRelId $nrdbReleaseId --plugin --delete";
-
-  
   $mgr->runPlugin("loadNRDB", "GUS::Common::Plugin::LoadNRDB", $args, "Loading NRDB", 'downloadNRDB');
 }	
 
@@ -1795,14 +1809,13 @@ sub makeEpconFastaFiles {
 
   return if $mgr->startStep("Making EpConDB fasta files", $signal);
 
+  my $speciesNickname = $propertySet->getProp('speciesNickname');
+
+  my $logFile ="$pipelineDir/logs/${signal}.log";
+
   my $dotsRelease = $propertySet->getProp('dotsRelease');
 
-  my $speciesNickname = $propertySet->getProp('speciesNickname');
-  my $prefix = "EPConDB_rel${dotsRelease}_${speciesNickname}";
-
-  my $logFile ="$pipelineDir/logs/${signal}.log"; 
-
-  my $outputFile  = "$pipelineDir/misc/${prefix}_input_seqs.txt";
+  my $outputFile  = "$pipelineDir/misc/EPConDB_rel${dotsRelease}_${speciesNickname}DoTS";
 
   my $taxonId = $propertySet->getProp('taxonId');
 
@@ -1812,9 +1825,9 @@ sub makeEpconFastaFiles {
 
   my $epconDB_array = $propertySet->getProp('epconDB_array');
   
-  my $epconDB_chip = $propertySet->getProp('epcon_chip');
+  my $epconDB_chip = $propertySet->getProp('epconDB_chip');
 
-  my $epconDB_makefile = $propertySet->getProp('epcon_makefile');
+  my $epconDB_makefile = $propertySet->getProp('epconDB_makefile');
 
   my $gusConfigFile = $propertySet->getProp('gusConfigFile');
 
@@ -1824,13 +1837,13 @@ sub makeEpconFastaFiles {
 
   $mgr->runCmd($cmd);
 
-  my $outputFile  = "$pipelineDir/misc/${prefix}_${epconDB_chip}_input_seqs.txt";
+  my $outputFile  = "$pipelineDir/misc/${epconDB_chip}_rel${dotsRelease}${speciesNickname}DoTS";
 
   my $sql = "select 'DT.' ||a.na_sequence_id, '[ $species ]', a.description ,'(' ||number_of_contained_sequences || ' sequences)' , 'length=' ||a.length, sequence from rad3.elementassembly_mv ea , rad3.spot s, dots.assembly a where s.array_id = $epconDB_array and s.element_id = ea.element_id and ea.assembly_na_sequence_id = a.na_sequence_id";
 
   my $cmd = "dumpSequencesFromTable.pl --verbose --gusConfigFile $gusConfigFile --outputFile $outputFile --idSQL \"$sql\" 2>>  $logFile";
 
-  $mgr->runCmd($cmd);
+  $mgr->runCmd($cmd) if $epconDB_makefile eq 'yes';
 
   $mgr->endStep($signal);
 
@@ -2044,7 +2057,7 @@ sub createManuallyReviewedDoTSFile {
 
   $mgr->runCmd($cmd);
 
-  my $descrip = "A tab delimited report for all manually reviewed DoTS Transcript";
+  my $descrip = "A tab delimited report for all manually reviewed DoTS Transcripts";
   &updateHtaccessFile("AddDescription \"$descrip\" *manuallyReviewed*\n");
   &addFileToReadme("${prefix}_manuallyReviewedTranscriptsReport.txt.gz", $descrip);
 
@@ -2087,25 +2100,28 @@ sub updateHtaccessFile {
 }
 sub prepareEPConBlastSiteFiles {
 
-  my $signal = "prepareBlastSiteFiles";
+  my $signal = "prepareEpConcdBlastSiteFiles";
   return if $mgr->startStep("Preparing EPConDB files for blast site", $signal);
+  my $epconDB_makefile = $propertySet->getProp('epconDB_makefile');
 
-  my $dotsRelease = $propertySet->getProp('dotsRelease');
   my $speciesNickname = $propertySet->getProp('speciesNickname');
-  my $prefix = "EPConDB_rel${dotsRelease}_${speciesNickname}";
   my $blastBinDir = $propertySet->getProp('wuBlastBinPath');
+  my $dotsRelease = $propertySet->getProp('dotsRelease');
 
-  my $outputFile1  = "$pipelineDir/misc/${prefix}_input_seqs.txt";
-  my $fastalink1 = "$pipelineDir/blastSite/$outputFile1";
+  my $outputFile1  = "$pipelineDir/misc/EPConDB_rel${dotsRelease}_${speciesNickname}DoTS";
+  my $fastalink1 = "$pipelineDir/blastSite/EPConDB_${speciesNickname}DoTS";
 
-  $mgr->runCmd("ln -s $outputFile1 $fastalink1");
-  $mgr->runCmd("$blastBinDir/xdformat -n $fastalink1");
-  $mgr->runCmd("rm -rf $fastalink1");
-  $mgr->runCmd("gzip $outputFile1");
+  mgr->runCmd("ln -s $outputFile1 $fastalink1");
+  mgr->runCmd("$blastBinDir/xdformat -n $fastalink1");
+  mgr->runCmd("rm -rf $fastalink1");
+  mgr->runCmd("gzip $outputFile1");
+  
 
-  my $epconDB_chip = $propertySet->getProp('epcon_chip');
-  my $outputFile2  = "$pipelineDir/misc/${prefix}_${epconDB_chip}_input_seqs.txt";
-  my $fastalink2 = "$pipelineDir/blastSite/$outputFile2";
+  $mgr->endStep($signal) if $epconDB_makefile eq 'no';
+
+  my $epconDB_chip = $propertySet->getProp('epconDB_chip');
+  my $outputFile2  = "$pipelineDir/misc/${epconDB_chip}_rel${dotsRelease}_${speciesNickname}DoTS";
+  my $fastalink2 = "$pipelineDir/blastSite/${epconDB_chip}_${speciesNickname}DoTS";
 
   $mgr->runCmd("ln -s $outputFile2 $fastalink2");
   $mgr->runCmd("$blastBinDir/xdformat -n $fastalink2");
