@@ -821,9 +821,10 @@ sub runAssemblePlugin {
   my $propertySet = $mgr->{propertySet};
 
   my $taxonId = $propertySet->getProp('taxonId');
+  my $cap4Dir = $propertySet->getProp('cap4Dir');
 
   my $reass = $reassemble eq "yes"? "--reassemble" : "";
-  my $args = "--clusterfile $file.$suffix $assembleOld $reass --taxon_id $taxonId";
+  my $args = "--clusterfile $file.$suffix $assembleOld $reass --taxon_id $taxonId --cap4Dir $cap4Dir";
   my $pluginCmd = "ga DoTS::DotsBuild::Plugin::UpdateDotsAssembliesWithCap4 --commit $args --comment '$args'";
 
   my $logfile = "$mgr->{pipelineDir}/logs/${name}Assemble.$suffix.log";
