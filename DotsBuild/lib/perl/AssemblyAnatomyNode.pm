@@ -25,8 +25,6 @@ sub addKid {
 sub clearDTValues {
   my ($self) = @_;
 
-  return if $self->{dtRawPercolated} == 0;
-
   $self->{dtRaw} = 0;
   $self->{dtRawPercolated} = 0;
   $self->{dtEffectivePercolated} = 0;
@@ -39,22 +37,22 @@ sub clearDTValues {
 # bottom up through the tree, percolate raw and effective. write each node
 sub percolateAndWrite {
   my ($self, $dtId, $sumEffective, $sumRaw, $taxonId) = @_;
-
-  my $raw_percolated = $self->{dtRaw};
-  my $effective_percolated = $self->getDTEffective();
+  $self->{dtRawPercolated} = $self->{dtRaw};
+  $self->{dtEffectivePercolated} = $self->getDTEffective();
 
   foreach my $kid (@{$self->{kids}}) {
     ($kid_raw_percolated, $kid_effective_percolated)
       = $kid->percolateAndWrite($dtId, $sumEffective, $sumRaw, $taxonId);
 
-    $raw_percolated += $kid_raw_percolated;
-    $effective_percolated += $kid_effective_percolated;
+    $self->{dtRawPercolated} += $kid_raw_percolated;
+    $self->{dtEffectivePercolated} += $kid_effective_percolated;
   }
-  return ($raw_percolated,$effective_percolated) if $raw_percolated == 0;
+  return ($self->{dtRawPercolated},$self->{dtEffectivePercolated}) if $self->{dtRawPercolated} == 0;
+  return if $self->{anatomyId} == 0;
   # write
-  my $percent = $effective_percolated / $sumEffective * 100;
-  my $anatomyESTs = $raw_percolated;
-
+  my $percent = $self->{dtEffectivePercolated} / $sumEffective * 100;
+  my $anatomyESTs = $self->{dtRawPercolated};
+  
   my $args = {percent => $percent,
 	      anatomy_ests => $anatomyESTs,
 	      anatomy_id => $self->{anatomyId},
@@ -64,7 +62,7 @@ sub percolateAndWrite {
 	     };
   my $assemblyAnatPercent = new GUS::Model::DoTS::AssemblyAnatomyPercent($args);
   $assemblyAnatPercent->submit();
-  return ($raw_percolated,$effective_percolated);
+  return ($self->{dtRawPercolated},$self->{dtEffectivePercolated});
 }
 
 
@@ -83,18 +81,22 @@ sub setDTRaw {
 
 sub getDTEffective {
   my ($self) = @_;
-  my $noEST = 0;
-  return $self->{dtRaw}/$self->{ESTCount} if $self->{ESTCount} > 0;
-  return $noEST;
-
+  my $numEST;
+  if ($self->{ESTCount} == 0) {
+    $numEST = 0;
+  }
+  else {
+    $numEST = $self->{dtRaw}/$self->{ESTCount};
+  }
+  return $numEST;
 }
 
 sub printNode {
   my ($self,$indentation) = @_;
-  print STDOUT "${indentation}$node->{anatomy_id}\t$node->{dtRaw}\t$node->{dtRawPercolated}\t$node->{dtEffectivePercolated}\n";
+  print  "$indentation $self->{anatomyId}\t$self->{ESTCount}\t$self->{dtRaw}\t$self->{dtRawPercolated}\t$self->{dtEffectivePercolated}\n" if $self->{dtRawPercolated} > 0;
   $indentation = "$indentation  " ;
   foreach my $kid (@{$self->{kids}}) {
-    printNode($kid,$indentation);
+    $kid->printNode($indentation);
   }
 }
 
