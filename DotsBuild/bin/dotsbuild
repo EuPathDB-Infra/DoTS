@@ -250,6 +250,8 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &copySimilaritiesFromLiniac();
 
+&makeProjectLink();
+
 &insertProteinSimilarities("finalDots-prodom", "DoTS::MotifAASequence");
 
 &insertProteinSimilarities("finalDots-nrdb", "DoTS::ExternalAASequence");
@@ -356,7 +358,7 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 
 &loadGeneCardsToDoTS();
 
-&makeProjectLink();
+#&makeProjectLink();  put back here
 
 $mgr->goodbye("Pipeline complete!\n");
 
@@ -2380,17 +2382,21 @@ sub makeProjectLink {
     my $taxonId = $propertySet->getProp('taxonId');
 
     my $allgenesVer = $propertySet->getProp('allgenesVersion');
+    
+    my $logFile = "$pipelineDir/logs/${signal}.log";
 
     my $args;
 
-    $args = "--commit --verbose --allgenes_num $allgenesVer --taxon $taxonIdes";
+    $args = "--commit --verbose --allgenes_num $allgenesVer --taxon $taxonId";
 
     $args .= " --restart"
       if ($propertySet->getProp('projectLinkRestart') eq "yes");
 
-    my $cmd = "makeProjectLink.pl $args";
+    my $cmd = "makeProjectLink.pl $args 2>> $logFile";
 
     $mgr->runCmd($cmd);
+
+    $mgr->endStep($signal);
 }
 
 sub makeBuildName {
