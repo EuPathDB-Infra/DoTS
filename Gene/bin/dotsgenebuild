@@ -119,6 +119,8 @@ $mgr->waitForAction("FrameFinder annotation", "waitFrameFinder");
 
 &mapToSimilarityDotsGene($mgr);
 
+&moveToAllgenes($mgr);
+
 &integrateWithGus($mgr);
 
 &makeReleaseFiles($mgr);
