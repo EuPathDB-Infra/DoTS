@@ -262,6 +262,8 @@ $mgr->waitForLiniac("genomic alignments of assemSeqs", "waitGenomeAlignAss");
 
 &copyGenomeAssemSeqsFromLiniac($mgr);
 
+&deleteGenomeAlignments($mgr, "assemSeqs");
+
 &loadGenomeAlignments($mgr, "assemSeqs", "genome");
 
 &clusterByGenome($mgr, "initial");
