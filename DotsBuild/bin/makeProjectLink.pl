@@ -81,7 +81,7 @@ sub getHash {
     my ($db, $taxon_id) = @_; 
 
     # subtract away assemblies that are exclusively imclone ESTs.
-    my $sql = "select na_sequence_id from dots.assembly where taxon_id in = $taxon_id";
+    my $sql = "select na_sequence_id from dots.assembly where taxon_id = $taxon_id";
 
     my $stmt = $db->prepareAndExecute($sql);
 
