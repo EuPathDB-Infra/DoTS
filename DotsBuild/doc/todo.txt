@@ -28,7 +28,13 @@ Investigate speed up for LoadBlastSimilaritiesPK (Tried splitting the similarity
 
 Look into includingcontrolling index dropping, creating, checking in the pipeline. 
 
+prepareDownloadSiteFiles sub fails and needs to be fixed-files have been gzip'd in earlier subs and this sub altered but I'm not sure it works.
 
+modify teh Similarity plugins to commit on a better schedule
+
+Modify dots.SignalPeptideFeature to include signal_probability and anchor_probability or otherwise remedy that situation and then rerun the plugin to add that data. The plugin may have to be modified.
+
+Do we want to add an attribute to the externaldatabase table indicating whether the corresponding release_id(s) should be changed with each new version or if we just want to update the row in ExternalDatabaseRelease. Related to this, I gave both GenBank and RefSeq new release_ids for release6 and I think I need to change them to the original and update the rows in ExternalDatabaseRelease. 
 
 BUILD ISSUES
 
