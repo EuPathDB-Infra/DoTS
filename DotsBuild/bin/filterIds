@@ -1,4 +1,4 @@
-#!@perlLocation@
+#!@perl@
 
 my $inputFile = $ARGV[0];
 my $filterFile = $ARGV[1];

@@ -1,4 +1,4 @@
-#!@perlLocation@ 
+#!@perl@ 
 
 # take in files from blastMatrixNew.pl (latest on e2k2)
 

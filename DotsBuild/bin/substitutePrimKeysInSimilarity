@@ -1,4 +1,4 @@
-#!@perlLocation@
+#!@perl@
 
 ## takes in sql strings so can determine mapping from ids in similarity file to primary keys
 ## SQL must return (idFromWhichtoChange, PrimaryKeyId)

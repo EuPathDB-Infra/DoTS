@@ -1,4 +1,4 @@
-#!@perlLocation@
+#!@perl@
 
 ##gets the na_sequence_id of assemblies that consist entirely of MClone sequences 
 

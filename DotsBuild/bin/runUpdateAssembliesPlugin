@@ -1,4 +1,4 @@
-#!@perlLocation@
+#!@perl@
 
 ## monitors assembly and restarts it if detects error...only sybase for now
 
