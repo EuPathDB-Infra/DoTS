@@ -51,7 +51,7 @@ sub run {
   my $self = shift;
   
   print $self->getArgs()->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
-  $self->log "Testing on ".$self->getArgs()->{'testnumber'}."\n" if $self->getArgs()->{'testnumber'};
+  print "Testing on ".$self->getArgs()->{'testnumber'}."\n" if ($self->getArgs()->{'testnumber'});
   
   unless ($self->getArgs()->{'taxon_id'}) {
     die "you must provide a taxon_id\n";
