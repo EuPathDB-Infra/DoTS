@@ -18,7 +18,7 @@ $total =~ s/(\d+)\s+\d+\s+\d+\s+.*/$1/;
 
 my $nonsingletons = $total - $singletons;
 
-my $small = $singletons + int (3 * $nonsingletons / 4);
+my $small = $singletons + int (7 * $nonsingletons / 8);
 
 my $big = ($total-$small);
 
