@@ -19,7 +19,7 @@ my ($gusConfigFile,$verbose,$allgenes_num,$restart,$commit,$taxon);
 	    "commit!" => \$commit,
 	    "taxon=i" => \$taxon);
 
-if($allgenes_num){
+if(! $allgenes_num || ! $taxon){
 	die "usage: makeProjectLink.pl --verbose --commit <commit inserts> --restart <optional, if restart required> --allgenes_num <version num of allgenes> --gusConfigFile [\$GUS_CONFIG_FILE] --\n";
 }
 
@@ -154,3 +154,4 @@ sub insertProjectLink {
 	
 
  
+loadSims_
