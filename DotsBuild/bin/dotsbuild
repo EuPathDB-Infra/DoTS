@@ -567,6 +567,8 @@ sub downloadNRDB {
 
 sub insertTaxon {
 
+  print "starting insertTaxon********************\n";
+
     my $externalDbDir = $propertySet->getProp('externalDbDir');
 
     my $date = $propertySet->getProp('buildDate');
