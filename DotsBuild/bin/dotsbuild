@@ -2379,15 +2379,11 @@ sub makeProjectLink {
 
     my $taxonId = $propertySet->getProp('taxonId');
 
-    my $imcloneDbRlsId = $propertySet->getProp('imclone_db_rls_id');
-
     my $allgenesVer = $propertySet->getProp('allgenesVersion');
-
-    my $gusConfigFile = $propertySet->getProp('gusConfigFile');
 
     my $args;
 
-    $args = "--commit --verbose --allgenes_num $allgenesVer --gusConfigFile $gusConfigFile  --taxon $taxonId --imclone_db_rls_id $imcloneDbRlsId";
+    $args = "--commit --verbose --allgenes_num $allgenesVer --taxon $taxonIdes";
 
     $args .= " --restart"
       if ($propertySet->getProp('projectLinkRestart') eq "yes");
