@@ -280,8 +280,7 @@ sub createNewGene {
   
   my $self   = shift;
   
-  my $gene = GUS::Model::DoTS::Gene->new({'is_reference' => 0,
-					  'review_status_id' => 0 });
+  my $gene = GUS::Model::DoTS::Gene->new({'review_status_id' => 0 });
   ##add a transcriptUnit
   #$gene->addChild(GUS::Model::DoTS::RNA->new({'review_status_id' => 0}));
   return $gene;
