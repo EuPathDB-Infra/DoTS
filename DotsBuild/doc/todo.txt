@@ -52,6 +52,10 @@ FOR RELEASE 7
 
 GENERAL:
 
+Consider deleting BlatAlignment rows for each taxon_id before running the Cap4 plugin.
+
+dbest.pm-makes a taxon cache with hard coded taxon_ids and even though a comment says that all others are on demand, there is no way to retrieve the "others"-this should be changed to accomodate the others and specific taxon_ids.(see line 843).
+
 We have, as of 8/27/03, over 26,000 dots.gene rows that don't have any rnas- why??? - I think this is happening when assemblies are being made and RNA rows are deleted but there is no deletion of the gene parent. Can't just delete the parent as it could be the parent of another rna (would cause failure). Could write a new plugin to delete the genes and childrn without rnas and run it after running the assembly program or could change the UpdateDotsWithDotsAssembliesWithCap4 plugin.
 
 Look into deadlocking with UpdateDotsAssembliesWithCap4
