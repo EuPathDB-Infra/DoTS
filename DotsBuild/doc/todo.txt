@@ -1,6 +1,20 @@
           ================ DOTS BUILD TODO ===============
 
 
+Some more things:
+  1. use 'allgenes' schema instead of 'allgenes_xx'
+  2. clean up and rename makeAllgenesTables
+  3. somehow review scripts and plugins to make sure they are dying properly
+  4. revise plugin that fills the anatomy percent table
+  5. include makePromoterRegionTable
+  6. re-run MGI and GeneCards
+  7. validate framefinder predictions?
+  8. integrate blat alignment stuff (parallel)
+  9. integrate the GO stuff (parallel)
+  10. didn't run the cleanup step
+  11. zip as we go
+  
+
 For Release 8 and beyond
   - move to DIANA from framefinder for build 8?
   - develop new clustering algorithm (new graph approach + genome)
