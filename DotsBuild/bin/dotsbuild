@@ -2034,6 +2034,7 @@ sub prepareBlastSiteFiles {
 
     return if $mgr->startStep("Preparing files for blast site", $signal);
 
+    # make blast files for this species
     my $dotsRelease = $propertySet->getProp('dotsRelease');
     my $speciesNickname = $propertySet->getProp('speciesNickname');
     my $blastBinDir = $propertySet->getProp('wuBlastBinPath');
@@ -2047,27 +2048,25 @@ sub prepareBlastSiteFiles {
     $mgr->runCmd("ln -s $fastafile $fastalink");
     $mgr->runCmd("$blastBinDir/xdformat -n $fastalink");
 
-    my $completedSpeciesNickName =
-	$propertySet->getProp('completedSpeciesNickName');
-    my $completedSpeciesBuildName = &makeBuildName($completedSpeciesNickName);
+    # make blast files for all species.  combine this build w/ latest of other species
+    my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
+    my $otherSpeciesNickname = $speciesNickname eq 'mus'? 'hum' : 'mus';
+    my $otherSpeciesRelease = $propertySet->getProp('otherSpeciesRelease');
+    my $otherSpeciesBuildName = &makeBuildNameRls($otherSpeciesNickname, $otherSpeciesRelease);
+    my $otherPipelineDir = "$dotsBuildDir/$otherSpeciesBuildName";
+    my $prefix = "${otherSpeciesNickname}DoTS_rel${otherSpeciesRelease}";
 
-    if ($completedSpeciesNickName != $speciesNickname) {
-	my $dotsBuildDir = $propertySet->getProp('dotsBuildDir');
-	my $otherPipelineDir = "$dotsBuildDir/$completedSpeciesBuildName";
-	my $otherSpeciesNickname = $speciesNickname eq 'mus'? 'hum' : 'mus';
-	my $prefix = "${otherSpeciesNickname}DoTS_rel${dotsRelease}";
-	$cmd = "gzunzip $otherPipelineDir/downloadSite/${prefix}.fasta.gz";
-	$mgr->runCmd($cmd);
-	my $fastafile2 = "$otherPipelineDir/downloadSite/${prefix}.fasta";
-	my $fastalink2 = "$pipelineDir/blastSite/${otherSpeciesNickname}DoTS";
-	$mgr->runCmd("ln -s $fastafile2 $fastalink2");
-	$mgr->runCmd("cat $fastalink $fastalink2 > $pipelineDir/blastSite/allDoTS");
-	$mgr->runCmd("$blastBinDir/xdformat -n $pipelineDir/blastSite/allDoTS");
-	$mgr->runCmd("gzip $fastafile2");
-	$mgr->runCmd("rm -rf $fastalink2");
-	$mgr->runCmd("rm -rf $pipelineDir/blastSite/allDoTS");
-	
-    }
+    $cmd = "gzunzip $otherPipelineDir/downloadSite/${prefix}.fasta.gz";
+    $mgr->runCmd($cmd);
+    my $fastafile2 = "$otherPipelineDir/downloadSite/${prefix}.fasta";
+    my $fastalink2 = "$pipelineDir/blastSite/${otherSpeciesNickname}DoTS";
+    $mgr->runCmd("ln -s $fastafile2 $fastalink2");
+    $mgr->runCmd("cat $fastalink $fastalink2 > $pipelineDir/blastSite/allDoTS");
+    $mgr->runCmd("$blastBinDir/xdformat -n $pipelineDir/blastSite/allDoTS");
+    $mgr->runCmd("gzip $fastafile2");
+    $mgr->runCmd("rm -rf $fastalink2");
+    $mgr->runCmd("rm -rf $pipelineDir/blastSite/allDoTS");
+
 
     $mgr->runCmd("rm -rf $fastalink");
 
@@ -3193,7 +3192,13 @@ sub cleanUpFiles {
 sub makeBuildName {
   my ($nickName) = @_;
 
-  return "release" . $propertySet->getProp('dotsRelease') . "/" . $nickName;
+  return makeBuildNameRls($nickName, $propertySet->getProp('dotsRelease'));
+}
+
+sub makeBuildNameRls {
+  my ($nickName, $release) = @_;
+
+  return "release${release}/" . $nickName;
 }
 
 sub usage {
