@@ -1009,6 +1009,121 @@ sub deleteGenesWithNoRNA {
 
 }
 
+
+sub deleteGeneTrapAssembly {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "deleteGeneTrapAssembly";
+
+  return if $mgr->startStep("Deleting entries from GeneTrapAssembly",
+			    $signal, 'loadGeneTrapAssembly');
+
+  my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my $logFile = "$pipelineDir/logs/${signal}.log";
+
+  my $sql = "select gene_trap_assembly_id from dots.genetrapassembly g, dots.assembly a where a.na_sequence_id=g.assembly_na_sequence_id and a.taxon_id=$taxonId";
+
+  my $cmd = "deleteEntries.pl --table DoTS::GeneTrapAssembly --idSQL \"$sql\" --verbose 2>> $logFile";
+    
+  $mgr->runCmd($cmd);
+
+  $mgr->endStep($signal);
+} 
+
+sub extractGeneTrapTags {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "extractGeneTags";
+
+  return if $mgr->startStep("Extracting gene trap tags from GUS", $signal, 'loadGeneTrapAssembly');
+
+  my $gusConfigFile = $propertySet->getProp('gusConfigFile');
+
+  my $taxonId = $propertySet->getProp('taxonId');
+
+  my @DBs = split(/,/, $propertySet->getProp('geneTrapDbRls'));
+
+  foreach my $db (@DBs) {
+    my ($name, $id) = split(/:/, $db);
+    my $seqFile = "$pipelineDir/genetrap/${name}.fsa";
+    my $logFile = "$pipelineDir/logs/geneTrapTag${name}.log";
+
+    my $sql = "select na_sequence_id,sequence from dots.ExternalNASequence where taxon_id = $taxonId and external_database_release_id = $id";
+
+    my $cmd = "dumpSequencesFromTable.pl --outputFile $seqFile --verbose --gusConfigFile $gusConfigFile  --idSQL \"$sql\" 2>>  $logFile";
+    
+    $mgr->runCmd($cmd);
+  }
+  
+  $mgr->endStep($signal);
+}
+
+sub blastGeneTrapTags {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "blastGeneTrapTags";
+
+  return if $mgr->startStep("Blasting gene trap tags vs final mouse DoTS", $signal, 'blastGeneTrapAssembly');
+
+  my $dotsFile = "$pipelineDir/blastSite/musDoTS";
+
+  my $blastBinDir = $propertySet->getProp('wuBlastBinPath');
+
+  my $blastn = "${blastBinDir}/blastn";
+
+  my @DB = split (/,/, $propertySet->getProp('geneTrapDbRls'));
+
+  foreach my $db (@DB) {
+
+    my ($name, $id) = split(/:/, $db);
+
+    my $tagFile = "$pipelineDir/genetrap/${name}.fsa";
+
+    my $dotsRelease = $propertySet->getProp('dotsRelease');
+
+    my $outputDir = "$pipelineDir/genetrap/$name";
+
+    my $logFile = "$pipelineDir/logs/${name}Blast.log";
+
+    my $mkdir = "mkdir $outputDir";
+
+    $mgr->runCmd($mkdir);
+
+    my $cmd = "blastAll.pl --blastn $blastn --seqfile $tagFile --musdots $dotsFile --targetdirlogin $outputDir 2>> $logFile";
+
+    $mgr->runCmd($cmd);
+  }
+
+  $mgr->endStep($signal);
+}
+
+sub loadGeneTrapAssembly {
+  my ($mgr) = @_;
+  my $propertySet = $mgr->{propertySet};
+
+  my $signal = "loadGeneTrapAssembly";
+
+  return if $mgr->startStep("Loading gene trap tags vs final mouse DoTS", $signal, 'loadGeneTrapAssembly');
+
+  my @DB = split (/,/, $propertySet->getProp('geneTrapDbRls'));
+  
+  foreach my $db (@DB) {
+    my ($name, $id) = split(/:/, $db);
+    my $blastDir = "$pipelineDir/genetrap/$name";
+    my $args = "--external_db_release $id --blast_dir $blastDir";
+    $mgr->runPlugin("load${name}GeneTrapBlast", "DoTS::DotsBuild::Plugin::CalculateGeneTrapLinks", $args, "loading blast results for $name gene trap tags",'loadGeneTrapAssembly');
+  } 
+
+  $mgr->endStep($signal);
+}
+
+
 sub makeFrameFinder {
   my ($mgr) = @_;
   my $propertySet = $mgr->{propertySet};
