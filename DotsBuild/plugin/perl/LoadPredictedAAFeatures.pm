@@ -683,7 +683,6 @@ sub existenceSPFeature{
   #	        and pl.project_id = $project_id";
 
   my $sql = <<Sql;
-14668199
  select spf.*
    from dots.SignalPeptideFeature spf
       , dots.AALocation           aal
