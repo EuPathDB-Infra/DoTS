@@ -28,6 +28,7 @@ FOR RELEASE 7
 
  **** While Build is Running ****
 
+   - investigate and why and what to do about Framefinder's putting an * in the translated sequence
 
    - need procedure for updating externaldatabaserelease where version is continuous (add this to GBParser, NRDB, etc. plugins)
 
@@ -51,11 +52,19 @@ FOR RELEASE 7
 
 GENERAL:
 
-Add to checklist-check changes in nrdb file
+We have, as of 8/27/03, over 26,000 dots.gene rows that don't have any rnas- why???
+
+Look into deadlocking with UpdateDotsAssembliesWithCap4
+
+Look into validation of files on liniac:
+    -novalidctxok was added to the command line to run blast in the blastMatrix script (/home/pinney/projects/DJob/DistribJobTasks/bin) so that blast wouldn't fail when there was a "no valid context" found for a query sequence
+    -the result file after blast and parse blast has no line for the query at all rather than a line with >XXX and no blast result
+    -validation as it now is done should compare input and output files and detect the count difference, therefore we need to change something at some level.
+    -the failed seq-in /mnt/io1/genomics/binf/dotsBuilds/release7/hum/matrix/assemSeqs-assemSeqs/master.save/failures-save/subtask_459/result/seqTemp
+	 >27291543
+GCCTNCCTNCACGGNATTGCTNTGTGNACCTNCAGGTGNACCCACNTGNAGCTTTTNAGCCTNCAG  
 
 Add options for prodom download and insert  - other similar cases
-
-Add to checklist-update RepeatMasker and repbase files if new version available
 
 Request schema change for GUS::Model::DoTS::SignalPeptideFeature to add anchor_probability and signal_probability attributes 
 
