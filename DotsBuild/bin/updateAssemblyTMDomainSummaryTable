@@ -35,7 +35,7 @@ my $deleteSql =
 print STDERR "Deleting \n";
 print STDERR "deleteSql: $deleteSql\n" if $verbose;
 
-$dbh->do($deleteSql) || die "Delete failed.\nSQL: $insertSql";
+$dbh->do($deleteSql) || die "Delete failed.\nSQL: $deletexSql";
 
 print STDERR "Committing delete\n";
 $dbh->commit();
@@ -43,7 +43,7 @@ $dbh->commit();
 my $insertSql = 
 "Insert into $tableName 
  SELECT pa.na_sequence_id, pa.taxon_id,paf.prediction_algorithm_id, COUNT(*),SYSDATE
- FROM ALLGENES_60.ProteinAssembly pa, dots.TranslatedAAFeature taf, dots.PredictedAAFeature paf
+ FROM ${allgenesSchema}.ProteinAssembly pa, dots.TranslatedAAFeature taf, dots.PredictedAAFeature paf
  WHERE pa.na_feature_id = taf.na_feature_id
  AND taf.aa_sequence_id = paf.aa_sequence_id
  AND paf.name = 'TMhelix' and pa.taxon_id = $taxon
