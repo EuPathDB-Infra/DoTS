@@ -6,7 +6,7 @@ use GUS::ObjRelP::DbiDatabase;
 use GUS::Common::GusConfig;
 use CBIL::Bio::SequenceUtils;
 
-my ($verbose,$taxonId, $gusConfigFile,$allgenesSchema);
+my ($verbose,$taxonId, $genomeExtRelDbId,$gusConfigFile,$allgenesSchema);
 &GetOptions("verbose!"=> \$verbose,
             "allgenesSchema=s"=> \$allgenesSchema,
 	    "taxonId=s" => \$taxonId,
@@ -15,7 +15,7 @@ my ($verbose,$taxonId, $gusConfigFile,$allgenesSchema);
 
 
 die "usage: makePromoterRegionTable --taxonId --genomeExtRelDbId --allgenesSchema --verbose --gusConfigFile [\$GUS_CONFIG_FILE]\n"
-unless ($taxon && $allgenesSchema && $genomeExtRelDbId);
+unless ($taxonId && $allgenesSchema && $genomeExtRelDbId);
 
 print STDERR "Establishing dbi login\n" if $verbose;
 
