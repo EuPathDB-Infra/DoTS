@@ -349,3 +349,13 @@ $mgr->waitForLiniac("genomic alignments of assemSeqs", "waitGenomeAlignAss");
    &prepareEPConBlastSiteFiles($mgr);
 
 $mgr->waitForLiniac("protein similarities", "waitProteinSims");
+
+&copySimilaritiesFromLiniac($mgr);
+
+&insertProteinSimilarities("finalDots-nrdb", "DoTS::ExternalAASequence", $mgr);
+
+&insertProteinSimilarities("finalDots-prodom", "DoTS::MotifAASequence", $mgr);
+
+&substituteCDDPKs($mgr);
+
+&insertProteinSimilarities("finalDots-cdd", "DoTS::MotifAASequence", $mgr);
