@@ -129,8 +129,6 @@ my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFil
 
 &downloadNRDB();
 
-exit();
-
 &insertTaxon();
 
 &parseGenbank();
@@ -568,10 +566,14 @@ sub downloadNRDB {
 sub insertTaxon {
 
     my $externalDbDir = $propertySet->getProp('externalDbDir');
+
+    my $date = $propertySet->getProp('buildDate');
+
+    my $downloadSubDir = "$externalDbDir/taxonomy/$date";
     
-    my $names = "$externalDbDir/taxonomy/names.dmp";
-    my $nodes = "$externalDbDir/taxonomy/nodes.dmp";
-    my $gencode = "$externalDbDir/taxonomy/gencode.dmp";
+    my $names = "$downloadSubDir/names.dmp";
+    my $nodes = "$downloadSubDir/nodes.dmp";
+    my $gencode = "$downloadSubDir/gencode.dmp";
     my $restart = $propertySet->getProp('insertTaxonRestart');
     
     my $args = "--names $names --nodes $nodes --gencode $gencode --restart $restart";
