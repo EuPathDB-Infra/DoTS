@@ -1602,11 +1602,13 @@ sub insertProdom {
 
   my $externalDbDir = $propertySet->getProp('externalDbDir');
 
-  my $date = $propertySet->getProp('buildDate');
+  my $subdir = $propertySet->getProp('prodomRelease');
 
-  my $downloadSubDir = "$externalDbDir/prodom/$date";
+  my $downloadSubDir = "$externalDbDir/prodom/$subdir";
 
   my $prodomFile = "$downloadSubDir/prodom.cons";
+
+  $mgr->runCmd ("gunzip ${prodomFile}.gz"); 
 
   my $logFile = "$mgr->{pipelineDir}/logs/insertProdom.log";
 
