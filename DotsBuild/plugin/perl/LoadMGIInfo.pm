@@ -125,7 +125,7 @@ sub updateDbRef($dataHash) {
     foreach my $id (keys %$dataHash) {
 	my $chromosome = $dataHash->{$id}->[0];
 	my $centimorgans = $dataHash->{$id}->[1];
-	my $ysmbol = $dataHash->{$id}->[2];
+	my $symbol = $dataHash->{$id}->[2];
 	my $remark = $dataHash->{$id}->[3];
 	my $newDbRef = GUS::Model::SRes::DbRef->new({'primary_identifier'=>$id,'external_database_release_id'=>$external_db_release_id});
 	$newDbRef->retrieveFromDB;
@@ -148,9 +148,6 @@ sub updateDbRef($dataHash) {
     print STDERR ("$num DbRef rows processed\n");
 }
 
-
-	
-	
 
 
 1;
