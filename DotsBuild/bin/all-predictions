@@ -18,10 +18,10 @@ my $SignalP     = "$ENV{HOME}/Pkg/signalp-2.0/signalp";
 # point to TMHMM resources.
 my $matpath     = "$ENV{HOME}/Pkg/TMHMM2.0a/lib";
 
-# do the do.
-#do_cmd("Going to make TMHMM2 output for $ifile...\n",
-#       "cat $ifile  | $TmhmmDecode -f $matpath/TMHMM2.0.options -modelfile $matpath/TMHMM2.0.model | $TmhmmFormat | compress >  $ofile.tmhmm.Z"
-#      );	
+#do the do.
+do_cmd("Going to make TMHMM2 output for $ifile...\n",
+       "cat $ifile  | $TmhmmDecode -f $matpath/TMHMM2.0.options -modelfile $matpath/TMHMM2.0.model | $TmhmmFormat | compress >  $ofile.tmhmm.Z"
+      );	
 
 if ( my $dh = DirHandle->new($idirectory)) {
   while (my $stub = $dh->read) {
