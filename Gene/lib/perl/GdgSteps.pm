@@ -67,7 +67,7 @@ sub downloadGenome {
   my $gUrl = $propertySet->getProp('genome_download_url');
   my $cmd = "wget -t5 -o $logfile -m -np -nd -nH --cut-dirs=1 -P $downloadSubDir $gUrl/chromFa.zip";
   $mgr->runCmd($cmd);
-  $mgr->runCmd("unzip $downloadSubDir/chromAgp.zip -d $downloadSubDir");
+  $mgr->runCmd("unzip $downloadSubDir/chromFa.zip -d $downloadSubDir");
   $mgr->runCmd("rm $downloadSubDir/chromFa.zip");
 
   $mgr->endStep($signal);
@@ -313,6 +313,7 @@ sub downloadGenomeGaps {
 
   my $externalDbDir = $propertySet->getProp('externalDbDir');
   my $genomeVer = $propertySet->getProp('genomeVersion');
+  my $gapsUrl = $propertySet->getProp('genome_gaps_download_url');
 
   my $downloadSubDir = "$externalDbDir/goldenpath/$genomeVer";
   my $downloadGapDir = "$externalDbDir/goldenpath/$genomeVer" . 'gaps';
@@ -324,10 +325,10 @@ sub downloadGenomeGaps {
   my @chrs = $gd->getChromosomes;
   foreach my $chr (@chrs) {
       my $cmd = "wget -t5 -o $logfile -m -np -nd -nH --cut-dirs=1 -P $downloadGapDir "
-	  . "http://genome.ucsc.edu/goldenPath/$genomeVer/database/chr${chr}_gap.txt.gz";
+	  . "$gapsUrl/chr${chr}_gap.txt.gz";
       $mgr->runCmd($cmd);
   }
-  $mgr->runCmd("gunzip $downloadGapDir/*.gz -d $downloadGapDir");
+  $mgr->runCmd("gunzip $downloadGapDir/*.gz");
   
   $mgr->endStep($signal);
 }
@@ -372,7 +373,7 @@ sub loadGenomeGaps {
   my $temp_login = $propertySet->getProp('tempLogin');  
   my $temp_password = $propertySet->getProp('tempPassword'); 
 
-  my $args = "--tempLogin \"$temp_login\" --tempPassword \"$temp_password\" "
+  my $args = "--genomeVersion $genomeVer --tempLogin \"$temp_login\" --tempPassword \"$temp_password\" "
       . "--dbiStr \"$dbi_str\" --gapDir $gapDir";
   $mgr->runPlugin($signal, "GUS::Common::Plugin::LoadGenomeGaps", $args, "Loading genome gaps", $doDo);
 }
