@@ -1857,7 +1857,7 @@ sub copyProteinDBsToCluster {
   } else {
     $proteinRelease = "release" . $propertySet->getProp('proteinRelease');
     $proteinDir = $propertySet->getProp('proteinDir');
-    my $linkCmd = "ln $dotsBuildDir/$proteinRelease/$proteinDir/seqfiles/$f $dotsBuildDir/$release/$speciesNickname/seqfiles/$f";
+    my $linkCmd = "ln $serverPath/$proteinRelease/$proteinDir/seqfiles/$f $serverPath/$release/$speciesNickname/seqfiles/$f";
     $mgr->{cluster}->runCmdOnCluster($linkCmd);
   }
 
@@ -1873,7 +1873,7 @@ sub copyProteinDBsToCluster {
     $mgr->{cluster}->copyTo($downloadSubDir, "cdd",
 		       "$serverPath/$mgr->{buildName}/seqfiles");
   }else {
-    my $linkCmd = "ln -s $dotsBuildDir/$proteinRelease/$proteinDir/seqfiles/$f $dotsBuildDir/$release/$speciesNickname/seqfiles/$f";
+    my $linkCmd = "ln -s $serverPath/$proteinRelease/$proteinDir/seqfiles/$f $serverPath/$release/$speciesNickname/seqfiles/$f";
     $mgr->{cluster}->runCmdOnCluster($linkCmd);
   }
   $mgr->runCmd("mv $tmpCddDir $downloadSubDir/$date") if ($copyNRDBToCluster eq 'yes');
@@ -1884,7 +1884,7 @@ sub copyProteinDBsToCluster {
     $mgr->{cluster}->copyTo($seqfilesDir, $f,
 		       "$serverPath/$mgr->{buildName}/seqfiles");
   } else {
-    my $linkCmd = "ln $dotsBuildDir/$proteinRelease/$proteinDir/seqfiles/$f $dotsBuildDir/$release/$speciesNickname/seqfiles/$f";
+    my $linkCmd = "ln $serverPath/$proteinRelease/$proteinDir/seqfiles/$f $serverPath/$release/$speciesNickname/seqfiles/$f";
     $mgr->{cluster}->runCmdOnCluster($linkCmd);
   }
 
