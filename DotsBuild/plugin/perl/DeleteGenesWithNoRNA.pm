@@ -51,18 +51,18 @@ sub run {
 
   my $userId = $self->getArgs()->{'user_id'} if $self->getArgs()->{'user_id'};
 
-  my $rnaHash = $self->getRNA();
+  my $rnaHash = $self->getValidGenes();
 
   my $geneHash;
 
   if ($self->getArgs()->{'user_id'})  {
 
-    $geneHash = $self->getGene($rnaHash,$userId);
+    $geneHash = $self->getAllGenes($rnaHash,$userId);
   }
 
   else {
 
-    $geneHash = $self->getGene($rnaHash);
+    $geneHash = $self->getAllGenes($rnaHash);
   }
 
   my $ret = $self->deleteGene($geneHash);
@@ -71,7 +71,7 @@ sub run {
 
 }
 
-sub getRNA {
+sub getValidGenes {
   my ($self) = @_;
 
   my %rnaHash;
@@ -86,11 +86,23 @@ sub getRNA {
     $rnaHash{$id} = 1;
   }
 
+  $stmt->finish();
+
+  my $query = "select gene_id from dots.geneinstance";
+
+  my $stmt = $dbh->prepareAndExecute($query);
+
+  while(my ($id) = $stmt->fetchrow_array()){
+    $rnaHash{$id} = 1;
+  }
+  
+  $stmt->finish();
+
   return \%rnaHash;
 
 }
 
-sub getGene {
+sub getAllGenes {
   my ($self,$rnaHash,$userId) = @_;
 
   my %geneHash;
