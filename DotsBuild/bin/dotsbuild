@@ -128,6 +128,8 @@ my $mgr = GUS::Pipeline::Manager->new($pipelineDir, $propertySet, $propertiesFil
 
 &downloadNRDB();
 
+exit();
+
 &insertTaxon();
 
 &parseGenbank();
@@ -459,7 +461,7 @@ sub downloadRefSeq {
     
     $mgr->runCmd("mkdir -p $downloadSubDir");
 
-    my $ftpsite = "ftp://ftp.ncbi.nih.gov/ref_seq/H_sapiens/mRNA_Prot/";
+    my $ftpsite = "ftp://ftp.ncbi.nih.gov/refseq/H_sapiens/mRNA_Prot/";
     my $ftpfile = "hs.gbff.gz";
 
     my $cmd = "wget -t5 -o $logfile -b -m -np -nd -nH --cut-dirs=3 -A \"$ftpfile\" -P $downloadSubDir $ftpsite";
