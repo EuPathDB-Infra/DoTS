@@ -67,21 +67,21 @@ NOTES
      stringArg({name => 'temp_login',
 		descr => 'login for temp table usage',
 		constraintFunc=> undef,
-		reqd  => 0,
+		reqd  => 1,
 		isList => 0, 
 	    }),
 
     integerArg({name => 'taxon_id',
 		descr => 'taxon id',
 		constraintFunc=> undef,
-		reqd  => 0,
+		reqd  => 1,
 		isList => 0 
 		}),
 
     integerArg({name => 'genome_db_rls_id',
 		descr => 'genome external database release id',
 		constraintFunc=> undef,
-		reqd  => 0,
+		reqd  => 1,
 		isList => 0 
 		})
     ];
