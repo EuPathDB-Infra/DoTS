@@ -359,3 +359,13 @@ $mgr->waitForLiniac("protein similarities", "waitProteinSims");
 &substituteCDDPKs($mgr);
 
 &insertProteinSimilarities("finalDots-cdd", "DoTS::MotifAASequence", $mgr);
+
+&assignSequenceDescription($mgr);
+
+&makeIndexWords($mgr);
+
+&indexSimilarityWords($mgr);
+
+&indexNRDBWords($mgr);
+
+&getmRNAPerAssembly($mgr);
