@@ -615,7 +615,7 @@ sub clusterByGenome {
     my $signal = "${name}ClusterByGenome";
 
     return if $mgr->startStep("Clustering $name by genome", $signal);
-
+    my $pipelineDir = $mgr->{'pipelineDir'};
     my $taxonId = $propertySet->getProp("taxonId");
     my $extDbRelId = $propertySet->getProp("genome_db_rls_id");
     my $gb_db_rel_id = $propertySet->getProp('gb_db_rel_id');
