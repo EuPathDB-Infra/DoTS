@@ -54,7 +54,7 @@ my $c;
 while(my($assembly,$acc) = $stmt->fetchrow_array()) {
     if ($gb2affy{$acc}) {
 	foreach my $affy_id (@{$gb2affy{$acc}}) {
-	    print "$affy_id\tDT.$assembly\n" if $rna_id;
+	    print "$affy_id\tDT.$assembly\n" if $assembly;
 	}
     } 
     $c++;
