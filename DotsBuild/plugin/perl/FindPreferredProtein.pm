@@ -52,7 +52,7 @@ sub run {
 	die "you must provide a taxon_id\n";
     }
     
-    $dbh = $self->getQueryHandle();
+    my $dbh = $self->getQueryHandle();
 
     my $swissprot_db_rel_id = $self->getArgs()->{'swissprot_db_rel-id'} 
         || die "you must provide an ext_db_rel_id for SwissProt in dots.nrdbentry";
@@ -74,7 +74,7 @@ sub setIs_Reference {
 
   $self->log ("Updating is_reference for assemblies with no mRNA\n");
 
-  $dbh->do($updateSQL) || die "Insert failed.\nSQL: $insertSQL\n";
+  $dbh->do($updateSQL) || die "Insert failed.\nSQL: $updateSQL\n";
 
   $self->log ("Committing insert\n") if $self->getArgs()->{'commit'} ;
 
@@ -117,7 +117,7 @@ sub updateProteinInstance {
     $stmt->finish();
     my ($proteininstance) = $stmt->fetchrow_array();
     $dbh->do("update dots.proteininstance set is_reference = 1 where protein_instance_id = $proteininstance") || die "Can't update dots.proteininstance row : protein_instance_id = $proteininstance\n";
-    delete($assemblies{$id});
+    delete($assemblies->{$id});
   }
 
   $self->log("Committing updates for RefSeq containing assemblies\n") if $self->getArgs()->{'commit'} ;
@@ -131,8 +131,8 @@ sub updateProteinInstance {
     $stmt->execute($id);
     $stmt->finish();
     my ($proteininstance) = $stmt->fetchrow_array();
-    $dbh->do("update dots.proteininstance set is_reference = 1 where protein_instance_id = $proteininstance) || die "Can't update dots.proteininstance row : protein_instance_id = $proteininstance\n";
-    delete($assemblies{$id});
+    $dbh->do("update dots.proteininstance set is_reference = 1 where protein_instance_id = $proteininstance") || die "Can't update dots.proteininstance row : protein_instance_id = $proteininstance\n";
+    delete($assemblies->{$id});
   }
 
   $self->log("Committing updates for assemblies having mRNA with translations in SwissProt\n") if $self->getArgs()->{'commit'} ;
@@ -146,8 +146,8 @@ sub updateProteinInstance {
     $stmt->execute($id);
     $stmt->finish();
     my ($proteininstance) = $stmt->fetchrow_array();
-    $dbh->do("update dots.proteininstance set is_reference = 1 where protein_instance_id = $proteininstance) || die "Can't update dots.proteininstance row : protein_instance_id = $proteininstance\n";
-    delete($assemblies{$id});
+    $dbh->do("update dots.proteininstance set is_reference = 1 where protein_instance_id = $proteininstance") || die "Can't update dots.proteininstance row : protein_instance_id = $proteininstance\n";
+    delete($assemblies->{$id});
   }
 
   $self->log("Committing updates for assemblies having mRNA with the longest translations\n") $self->getArgs()->{'commit'} ;
@@ -161,8 +161,8 @@ sub updateProteinInstance {
     $stmt->execute($id);
     $stmt->finish();
     my ($proteininstance) = $stmt->fetchrow_array();
-    $dbh->do("update dots.proteininstance set is_reference = 1 where protein_instance_id = $proteininstance) || die "Can't update dots.proteininstance row : protein_instance_id = $proteininstance\n";
-    delete($assemblies{$id});
+    $dbh->do("update dots.proteininstance set is_reference = 1 where protein_instance_id = $proteininstance") || die "Can't update dots.proteininstance row : protein_instance_id = $proteininstance\n";
+    delete($assemblies->{$id});
   }
 
   $self->log("Committing updates for assemblies having mRNA without translations\n") if $self->getArgs()->{'commit'} ;
