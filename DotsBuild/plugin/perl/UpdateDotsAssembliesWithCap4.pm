@@ -1,127 +1,96 @@
-############################################################
-## Change Package name....
-############################################################
-package UpdateDotsAssembliesWithCap4;
+package DoTS::DotsBuild::Plugin::UpdateDotsAssembliesWithCap4;
+
+@ISA = qw(GUS::PluginMgr::Plugin);
 
 use strict;
 
-############################################################
-# Add any specific objects (GUSdev::) here
-############################################################
-use Objects::GUSdev::Assembly;
-use Objects::GUSdev::AssemblySequence;
-use Objects::GUSdev::MergeSplit;
+use GUS::Model::DoTS::Assembly;
+use GUS::Model::DoTS::AssemblySequence;
+use GUS::Model::DoTS::MergeSplit;
 
 my $debug = 0;
 
+
 sub new {
-  my $Class = shift;
-  return bless {}, $Class;
+    my ($class) = @_;
+    
+    my $self = {};
+    bless($self,$class);
+    
+    my $usage = 'Incremental update of DOTS Assemblies: reassembles entirely from AssemblySequences if --reassemble';
+    my $easycsp =
+	[{o => 'clusterfile',
+	  t => 'string',
+	  h => 'name of cluster file for input',
+         },
+	 {o => 'directory',
+          t => 'string',                                       
+	  h => 'location of working directory accessible from both current machine and cap4_machine',
+	  d => `pwd`,
+         },
+	 {o => 'remote_dir',
+	  t => 'string',
+	  h => 'working directory on cap4_machine',
+	  d => "/scratch1/$ENV{USER}/cap4",
+         },
+	 {o => 'debug_assem_file',
+	  t => 'string',
+	  h => 'cap4 output file to  be parse in and iterated on for debugging Assembly',
+         },
+	 {o => 'assemble_old',
+	  t => 'boolean',
+	  h => 'does not assemble clusters with only old ids unless true',
+         },
+	 {o => 'no_delete',
+	  t => 'boolean',
+	  h => 'if true, tags Assembly.description with \'DELETED\' rather than deleting',
+         },
+	 {o => 'debugPlugin',
+	  t => 'boolean',
+	  h => 'if true, turns debugging on specifically in plugin...not relationalrow',
+         },
+	 {o => 'max_iterations',
+	  t => 'int',
+	  h => 'maximum number of times to iterate',
+	  d => 1,
+         },
+	 {o => 'cap4_machine',
+	  t => 'string',
+	  h => 'node to rsh to to run cap4',
+	  d => 'server',
+         },
+	 {o => 'cap4_params',
+	  t => 'string',
+	  h => 'parameters to pass to cap4',
+	  d => 'Verbosity=0 -NoRecover -NoPolyBaseMask MinCovRep=500 InOverhang=30 
+                EndOverhang=30 RemOverhang=30 QualSumLim=300 MaxInternalGaps=15 
+                -ESTAssembly MaxOverlaps=50 -KeepDups',
+         },
+	 {o => 'testnumber',
+	  t => 'int',
+	  h => 'number of iterations for testing',
+         },
+	 {o => 'reassemble',
+          t => 'boolean',
+	  h => 'Reassembles entirely from AssemblySequences rather than incremental',
+         },
+	 {o => 'taxon_id',
+          t => 'int',                                                                                                                                h => 'taxon_id for these assemblies (8=human,14=mouse)',
+         }
+	 ];
+    
+    $self->initialize({requiredDbVersion => {},
+		       cvsRevision => '$Revision$',  # cvs fills this in!
+		     cvsTag => '$Name$', # cvs fills this in!
+		       name => ref($self),
+		       revisionNotes => 'make consistent with GUS 3.0',
+		       easyCspOptions => $easycsp,
+		       usage => $usage
+		       });
+    
+    return $self;
 }
 
-sub Usage {
-  my $M   = shift;
-  return 'Incremental update of DOTS Assemblies: reassembles entirely from AssemblySequences if --reassemble';
-}
-
-############################################################
-# put the options in this method....
-############################################################
-sub EasyCspOptions {
-  my $M   = shift;
-  {
-
-    #		test_opt1 => {
-    #									o => 'opt1=s',
-    #									h => 'option 1 for test application',
-    #									d => 4,
-    #									l => 1,	ld => ':',
-    #									e => [ qw( 1 2 3 4 ) ],
-    #								 },
-
-    clusterfile       => {
-                          o => 'clusterfile=s',
-                          h => 'name of cluster file for input',
-                         },
-
-                           directory         => {
-                                                 o => 'directory=s',
-                                                 h => 'location of working directory accessible from both current machine and cap4_machine',
-                                                 d => `pwd`,
-                                                },
-                                                  remote_dir       => {
-                                                                       o => 'remote_dir',
-                                                                       t => 'string',
-                                                                       h => 'working directory on cap4_machine',
-                                                                       d => "/scratch1/$ENV{USER}/cap4",
-                                                                      },
-                                                                        debug_assem_file  => {
-                                                                                              o => 'debug_assem_file',
-                                                                                              t => 'string',
-                                                                                              h => 'cap4 output file to  be parse in and iterated on for debugging Assembly',
-                                                                                             },
-
-                                                                                               assemble_old      => {
-                                                                                                                     o => 'assemble_old',
-                                                                                                                     t => 'boolean',
-                                                                                                                     h => 'does not assemble clusters with only old ids unless true',
-                                                                                                                    },
-
-                                                                                                                      no_delete          => {
-                                                                                                                                             o => 'no_delete',
-                                                                                                                                             t => 'boolean',
-                                                                                                                                             h => 'if true, tags Assembly.description with \'DELETED\' rather than deleting',
-                                                                                                                                            },
-
-                                                                                                                                              debugPlugin        => {
-                                                                                                                                                                     o => 'debugPlugin',
-                                                                                                                                                                     t => 'boolean',
-                                                                                                                                                                     h => 'if true, turns debugging on specifically in plugin...not relationalrow',
-                                                                                                                                                                    },
-
-                                                                                                                                                                      max_iterations   => {
-                                                                                                                                                                                           o => 'max_iterations',
-                                                                                                                                                                                           t => 'int',
-                                                                                                                                                                                           h => 'maximum number of times to iterate',
-                                                                                                                                                                                           d => 1,
-                                                                                                                                                                                          },
-
-                                                                                                                                                                                            cap4_machine      => {
-                                                                                                                                                                                                                  o => 'cap4_machine=s',
-                                                                                                                                                                                                                  h => 'node to rsh to to run cap4',
-                                                                                                                                                                                                                  d => 'server',
-                                                                                                                                                                                                                 },
-
-                                                                                                                                                                                                                   cap4_params       => {
-                                                                                                                                                                                                                                         o => 'cap4_params',
-                                                                                                                                                                                                                                         t => 'string',
-                                                                                                                                                                                                                                         h => 'parameters to pass to cap4',
-                                                                                                                                                                                                                                         ##next default for major trimming of the incoming sequences...             
-                                                                                                                                                                                                                                         #      d => 'Verbosity=0 -NoRecover -NoPolyBaseMask MinCovRep=500 InOverhang=30 EndOverhang=30 RemOverhang=30 QualSumLim=300 MaxInternalGaps=15 -ClipByBadEnd -ESTAssembly MaxOverlaps=50 -KeepDups',
-
-                                                                                                                                                                                                                                         ##next default limits trimming to 30 characters at ends...seems appropriate given cleaning up
-                                                                                                                                                                                                                                         ## sequences first in MakeAssemblySequences
-                                                                                                                                                                                                                                         d => 'Verbosity=0 -NoRecover -NoPolyBaseMask MinCovRep=500 InOverhang=30 EndOverhang=30 RemOverhang=30 QualSumLim=300 MaxInternalGaps=15 -ESTAssembly MaxOverlaps=50 -KeepDups',
-                                                                                                                                                                                                                                        },
-
-                                                                                                                                                                                                                                          testnumber        => {
-                                                                                                                                                                                                                                                                o => 'testnumber=i',
-                                                                                                                                                                                                                                                                h => 'number of iterations for testing',
-                                                                                                                                                                                                                                                               },
-
-                                                                                                                                                                                                                                                                 reassemble        => {
-                                                                                                                                                                                                                                                                                       o => 'reassemble!',
-                                                                                                                                                                                                                                                                                       h => 'Reassembles entirely from AssemblySequences rather than incremental',
-                                                                                                                                                                                                                                                                                      },
-
-                                                                                                                                                                                                                                                                                        taxon_id          => {
-                                                                                                                                                                                                                                                                                                              o => 'taxon_id=i',
-                                                                                                                                                                                                                                                                                                              h => 'taxon_id for these assemblies (8=human,14=mouse)',
-                                                                                                                                                                                                                                                                                                              #    e => [ qw ( 8 14 ) ],
-                                                                                                                                                                                                                                                                                                             },
-
-                                                                                                                                                                                                                                                                                                           } 
-}
 
 $| = 1;
 
@@ -147,7 +116,7 @@ my $newTotal = 0;
 my $msGroupId = 0;              ##global variable so that all merges and splits from a single "Cluster" are grouped together.
 my $algoInvo;                   ##global AlgorithmInvocation used for submits...
 
-sub Run {
+sub run {
   my $M   = shift;
   $ctx = shift;
 
@@ -172,7 +141,7 @@ sub Run {
   }
 
   ##create the Asembly object for the cache..
-  $assCache = Assembly->new();
+  $assCache = GUS::Model::DoTS::Assembly->new();
   $assCache->setSetDefaultsOnSubmit(1); ##set the defaults on assemblies that are submitted
 
   if ($ctx->{cla}->{debugPlugin}) { ##turns on debugging if passed in on cmdline
@@ -353,15 +322,15 @@ sub Run {
           ##if reassembling and one oldId and one NewId then is singleton...
           if ($ctx->{cla}->{reassemble} && scalar(@oldIds) == 1 && $totalNewIds == 1) {
             print STDERR "$cluster Processing Old singleton assembly\n" if $debug;
-            my $oldSingAss = $algoInvo->getFromDbCache('Assembly',$oldIds[0]);
+            my $oldSingAss = $algoInvo->getFromDbCache('GUS::Model::DoTS::Assembly',$oldIds[0]);
             ##gappedSequence for the singleton  should be set..
             ##need to make certain that the single AssemblySequence is child of this sequence..
             ##if not then add it....
-            if (!$oldSingAss->getChild('AssemblySequence')) {
+            if (!$oldSingAss->getChild('GUS::Model::DoTS::AssemblySequence')) {
               $oldSingAss->addChild($assCache->getCachedAssemblySequence($assIds[0]));
             }
-            $oldSingAss->getChild('AssemblySequence')->setGappedSequence($oldSingAss->getChild('AssemblySequence')->getSequence()) unless $oldSingAss->getChild('AssemblySequence')->getGappedSequence() eq $oldSingAss->getChild('AssemblySequence')->getSequence();
-            $oldSingAss->setGappedConsensus($oldSingAss->getChild('AssemblySequence')->getSequence()) unless  $oldSingAss->getGappedConsensus() eq $oldSingAss->getChild('AssemblySequence')->getSequence();
+            $oldSingAss->getChild('GUS::Model::DoTS::AssemblySequence')->setGappedSequence($oldSingAss->getChild('GUS::Model::DoTS::AssemblySequence')->getSequence()) unless $oldSingAss->getChild('GUS::Model::DoTS::AssemblySequence')->getGappedSequence() eq $oldSingAss->getChild('GUS::Model::DoTS::AssemblySequence')->getSequence();
+            $oldSingAss->setGappedConsensus($oldSingAss->getChild('GUS::Model::DoTS::AssemblySequence')->getSequence()) unless  $oldSingAss->getGappedConsensus() eq $oldSingAss->getChild('GUS::Model::DoTS::AssemblySequence')->getSequence();
             $assCache->cacheAssembly($oldSingAss);
             $algoInvo->addChild($oldSingAss);
            
@@ -496,16 +465,16 @@ sub Run {
 sub printDebuggingInfo {
   my($level) = shift;
   print STDERR "\nDebugging information...\n\n" if $level;
-  foreach my $ass ($algoInvo->getChildren('Assembly')) {
+  foreach my $ass ($algoInvo->getChildren('GUS::Model::DoTS::Assembly')) {
     print STDERR "\nFinished Assembly: DT.",$ass->getId(),", cacheId=",$ass->getCacheId(),"\nAlignment:\n" if $level; 
     print STDERR $ass->getCap2Alignment() if $level;
     print STDERR $ass->toXML(0,1) if $level;
     #              print STDERR $ass->toCAML(1);
     #              $ass->findSNPs(4,0.1);
-    foreach my $a ($ass->getChildren('AssemblySequence')) {
+    foreach my $a ($ass->getChildren('GUS::Model::DoTS::AssemblySequence')) {
       my $strim = $a->getSequenceStart() - $a->getQualityStart();
       my $etrim = $a->getQualityEnd() - $a->getSequenceEnd();
-      print STDERR "  AssemblySequence.",$a->getParent('ExternalNASequence')->getSourceId(),": length=",($a->getSequenceEnd() - $a->getSequenceStart() + 1),", trimmed, start=$strim, end=$etrim\n";
+      print STDERR "  AssemblySequence.",$a->getParent('GUS::Model::DoTS::ExternalNASequence')->getSourceId(),": length=",($a->getSequenceEnd() - $a->getSequenceStart() + 1),", trimmed, start=$strim, end=$etrim\n";
       #                if($strim + $etrim > 60){
       #                  print STDERR "    trimmed: ",$a->getSequence(),"\n";
       #                  $a->resetAssemblySequence();
@@ -533,7 +502,7 @@ sub iterateAssembly {
   open(T,">$tmpLib");
   print T "<CAML>\n";
   ##first print the cached assemblies...unless reassembling...
-  foreach my $ass ($algoInvo->getChildren('Assembly')) {
+  foreach my $ass ($algoInvo->getChildren('GUS::Model::DoTS::Assembly')) {
     if (!$ass->isMarkedDeleted()) { ##assemblies that are merged get marked deleted...
       print T $ass->toCAML(1);
       print STDERR "printing sequence for D".$ass->getCacheId()."\n" if $debug;
@@ -583,7 +552,7 @@ sub makeSingletonAssemblies {
 
 sub makeNewAssembly {
   my(@aseq) = @_;
-  my $singAss = Assembly->new({'sequence_type_id' => 5, ##all Assemblies are of type mRNA
+  my $singAss = GUS::Model::DoTS::Assembly->new({'sequence_type_id' => 5, ##all Assemblies are of type mRNA
                                'taxon_id' => $ctx->{cla}->{'taxon_id'},
                                'subclass_view' => 'Assembly',
                                'description' => 'Not Annotated'} );
@@ -619,11 +588,11 @@ sub submitUpdatedAssemblies {
   ##need to check to see that all assemblies that are not marked deleted have assemblysequences..
   #3this  can happen if an assembly gets trimmed entirely...it's
   #  foreach my $id (@oldIds){
-  #    my $ass = $algoInvo->getFromDbCache('Assembly',$id);
-  #    if(!$ass->isMarkedDeleted() && scalar($ass->getChildren('AssemblySequence')) == 0){
+  #    my $ass = $algoInvo->getFromDbCache('GUS::Model::DoTS::Assembly',$id);
+  #    if(!$ass->isMarkedDeleted() && scalar($ass->getChildren('GUS::Model::DoTS::AssemblySequence')) == 0){
   #      &markAssemblyAndChildrenDeleted($ass);
-  #      $algoInvo->addChild($ass) unless $ass->getParent('AlgorithmInvocation');
-  #    }elsif($ass->isMarkedDeleted() && $ass->getChildren('AssemblySequence')){
+  #      $algoInvo->addChild($ass) unless $ass->getParent('GUS::Model::DoTS::AlgorithmInvocation');
+  #    }elsif($ass->isMarkedDeleted() && $ass->getChildren('GUS::Model::DoTS::AssemblySequence')){
   #      print STDERR "ERROR: $id is marked deleted but still has AssemblySequence children\n";
   #      &printDebuggingInfo(1);
   #    }
@@ -633,7 +602,7 @@ sub submitUpdatedAssemblies {
 
   ##need to first submit any assemblysequence children (these have not been assembled and may have foreign key
   ## refereences to an assembly that is getting deleted..
-  foreach my $a ($algoInvo->getChildren('AssemblySequence')) {
+  foreach my $a ($algoInvo->getChildren('GUS::Model::DoTS::AssemblySequence')) {
     $a->submit(1,1);            ##submit not_deep and no_trans
   }
 
@@ -643,8 +612,8 @@ sub submitUpdatedAssemblies {
     if ($c->getClassName() eq 'Assembly') {
       next if exists $submitted{$c->getCacheId()};
       $submitted{$c->getCacheId()} = 1;
-      next if ( !$c->getId() && ($c->isMarkedDeleted() || scalar($c->getChildren('AssemblySequence')) < 1 ));
-      #      $c->markDeleted() if scalar($c->getChildren('AssemblySequence')) < 1;
+      next if ( !$c->getId() && ($c->isMarkedDeleted() || scalar($c->getChildren('GUS::Model::DoTS::AssemblySequence')) < 1 ));
+      #      $c->markDeleted() if scalar($c->getChildren('GUS::Model::DoTS::AssemblySequence')) < 1;
       if ($c->getId()) {        ##want to get the manually reviewed things...
         my $rna = $c->getRNA(1,1);
         if ($rna && $rna->getManuallyReviewed()) {
@@ -711,15 +680,15 @@ sub countAssembliesAndAssemblySequences {
     #    }
   }
 
-  #  foreach my $rna ($algoInvo->getChildren('RNA')){
+  #  foreach my $rna ($algoInvo->getChildren('GUS::Model::DoTS::RNA')){
   #    if($rna->getManuallyReviewed()){
-  #      push(@delReviewed,[$rna->getId(),$rna->getNASequence('Assembly',undef,1)->getId()]);
-  #      print STDERR "DeletedManuallyReviewed: rna.",$rna->getId(),", DT.",$rna->getNASequence('Assembly',undef,1)->getId(),"\n";
+  #      push(@delReviewed,[$rna->getId(),$rna->getNASequence('GUS::Model::DoTS::Assembly',undef,1)->getId()]);
+  #      print STDERR "DeletedManuallyReviewed: rna.",$rna->getId(),", DT.",$rna->getNASequence('GUS::Model::DoTS::Assembly',undef,1)->getId(),"\n";
   #    }
   #  }
 
   ##need to also add in the  AssemblySequences that were  marked as chimera..
-  foreach my $a ($algoInvo->getChildren('AssemblySequence')) {
+  foreach my $a ($algoInvo->getChildren('GUS::Model::DoTS::AssemblySequence')) {
     $ct++ if $a->getProcessedCategory() =~ /CHIMERA/;
   }
   
@@ -735,12 +704,12 @@ sub assignIdsForReassembly {
   my %mapNew;
   my %numNew;
   print STDERR "assignIdsForReassembly gene \n" if $debug;
-  foreach my $a ($algoInvo->getChildren('Assembly')) {
+  foreach my $a ($algoInvo->getChildren('GUS::Model::DoTS::Assembly')) {
     if ($a->getId()) {
       ##is one of old ones...already have the old mapping and these should not have any assemblies
-      if (scalar($a->getChildren('AssemblySequence')) > 0) {
+      if (scalar($a->getChildren('GUS::Model::DoTS::AssemblySequence')) > 0) {
         print STDERR "ERROR - assignIdsForReassembly: old assembly ".$a->getId()." still has AssemblySequence children (";
-        foreach my $c ($a->getChildren('AssemblySequence')) {
+        foreach my $c ($a->getChildren('GUS::Model::DoTS::AssemblySequence')) {
           print $c->getId().", ";
         }
         print ")\n";
@@ -749,7 +718,7 @@ sub assignIdsForReassembly {
       }
       next;
     }
-    foreach my $aseq ($a->getChildren('AssemblySequence')) {
+    foreach my $aseq ($a->getChildren('GUS::Model::DoTS::AssemblySequence')) {
       $mapNew{$a->getCacheId()}->{$mapAssSeq{$aseq->getId()}}++ if exists $mapAssSeq{$aseq->getId()}; #$mapNew{newAssemblyCacheId}->{oldAssemblyId}++;
       $numNew{$a->getCacheId()}++;
     }
@@ -772,16 +741,16 @@ sub assignIdsForReassembly {
       if (!$haveAssigned) {     ##have not yet made an assignment
         
         print STDERR "Assigning $numNew{$new_id} children of $new_id to $old_id\n" if $debug;
-        $oldAss = $assCache->getFromDbCache('Assembly',$old_id); ##will be in the DbCache as came from database
+        $oldAss = $assCache->getFromDbCache('GUS::Model::DoTS::Assembly',$old_id); ##will be in the DbCache as came from database
 
-        $oldAss->addChildren($newAss->getChildren('AssemblySequence')); ##give all the AssemblySequence children to the old id am keeping
+        $oldAss->addChildren($newAss->getChildren('GUS::Model::DoTS::AssemblySequence')); ##give all the AssemblySequence children to the old id am keeping
         ##so can reverse complement if need be
         print STDERR "assignIds..transferring values\n" if $debug;
         $oldAss->setGappedConsensus($newAss->getGappedConsensus());
         $oldAss->setGappedLength($newAss->getGappedLength());  
         $oldAss->setQualityValues($newAss->getQualityValues());
         $oldAss->setSequence($oldAss->makeConsensus());
-        $oldAss->setNumberOfContainedSequences(scalar($oldAss->getChildren('AssemblySequence')));
+        $oldAss->setNumberOfContainedSequences(scalar($oldAss->getChildren('GUS::Model::DoTS::AssemblySequence')));
         print STDERR "assignIds..transferring values complete\n" if $debug;
         $haveAssigned = 1;
         $algoInvo->addChild($oldAss);
@@ -789,7 +758,7 @@ sub assignIdsForReassembly {
       } else {
         ##create mergesplits here... and markDeleted!!!
         print STDERR "creating mergesplit for $old_id to ".$oldAss->getId()."\n" if $debug;
-        my $delAss = $newAss->getFromDbCache('Assembly',$old_id);
+        my $delAss = $newAss->getFromDbCache('GUS::Model::DoTS::Assembly',$old_id);
         ##add to algoInvo so gets submitted
         $algoInvo->addChild($delAss);
         ##mergesplit...
@@ -862,7 +831,7 @@ sub processAlignment{
     print STDERR "Processing Alignment ".$ct++.":\n\n$al\n\n" if $debug; ##$al\n" if $debug == 1;
     #				next;
     ##create assembly...parse
-    my $newAss = Assembly->new();
+    my $newAss = GUS::Model::DoTS::Assembly->new();
     
     push(@trimmedAssemblySequences, $newAss->parseCap4Caml($al));
 
@@ -884,7 +853,7 @@ sub processAlignment{
     ##what if there is something wrong with the parse and there aren't any AssemblySequences?
     ##or is conntig that did not assemble in next iteration
     ##want to just go on to the next one...
-    if (! $newAss->getChildren('AssemblySequence')) {
+    if (! $newAss->getChildren('GUS::Model::DoTS::AssemblySequence')) {
       #      print STDERR "ERROR: Unable to parse cap4 alignment\n$al\n";
       #      die "testing...so dying...\n";
       next;
@@ -894,7 +863,7 @@ sub processAlignment{
     
     ##note that at this point, if there is only a single old ID then should be finished...The
     ##old assembly is still cached so there is no reason to mess with this one further.
-    if ($newAss->countContainedAssemblies() == 1 && scalar($newAss->getChildren('AssemblySequence') == 1)) {
+    if ($newAss->countContainedAssemblies() == 1 && scalar($newAss->getChildren('GUS::Model::DoTS::AssemblySequence') == 1)) {
       print STDERR "\nAlignment contains only a single old ID and no new ones..moving on to next\n\n" if $debug;
       next;
     }
@@ -944,7 +913,7 @@ sub processAlignment{
 #   print STDERR "Deleting Assembly: ".$assembly->getCacheId()."\n" if $debug;
 #   my $r = $assembly->getRNA(1,1);
 #   $algoInvo->addChild($r);  ##do this so gets submitted in submit...
-#   foreach my $p ($assembly->getRNA()->getChildren('Protein',1)){
+#   foreach my $p ($assembly->getRNA()->getChildren('GUS::Model::DoTS::Protein',1)){
 #     print "Deleting $p from old $assembly\n" if $debug;
 #     $p->retrieveAllChildrenFromDB(1);  ##retrieves all children recursively
 #     $p->markDeleted(1);  ##marks self and all children deleted recursively
@@ -1028,7 +997,7 @@ sub processCap4 {
         print STDERR "Getting AssemblySequence $id from cache\n" if $debug;
       } else {
         print STDERR "Getting new Singleton Assembly Sequence $id from db....\n" if $debug;
-        $as = AssemblySequence->new({'assembly_sequence_id' => $id});
+        $as = GUS::Model::DoTS::AssemblySequence->new({'assembly_sequence_id' => $id});
         $as->retrieveFromDB();
         $assCache->cacheAssemblySequence($as);
       }
@@ -1036,7 +1005,7 @@ sub processCap4 {
       if ($string =~ /CHIMERA=\"*\'*(\w+)/) {
         $as->resetAssemblySequence();
         $as->setProcessedCategory("CHIMERA=$1");
-        $as->removeParent($as->getParent('Assembly')) if $as->getParent('Assembly');
+        $as->removeParent($as->getParent('GUS::Model::DoTS::Assembly')) if $as->getParent('GUS::Model::DoTS::Assembly');
         $algoInvo->addChild($as);
         print LOG "  ".$as->getId()." CHIMERA=$1, iterate='$iterate'\n";
       } else {
@@ -1056,9 +1025,9 @@ sub getNewSequences {
   my %del;
   foreach my $id (@assIds) {
     print STDERR "getNewSequences: $id\n" if $debug;
-    my $as = $assCache->getFromDbCache('AssemblySequence',$id);
+    my $as = $assCache->getFromDbCache('GUS::Model::DoTS::AssemblySequence',$id);
     if (!$as) {
-      $as = AssemblySequence->new({'assembly_sequence_id' => $id});
+      $as = GUS::Model::DoTS::AssemblySequence->new({'assembly_sequence_id' => $id});
       if (!$as->retrieveFromDB()) {
         ##has been deleted for some reason...
         ##want to remove from the list...
@@ -1077,10 +1046,10 @@ sub getNewSequences {
     ##don't want to assemble sequences that are shorter than 50 bp...results from setting quality_end = lenssequence.quality_stop
     ##NOTE: here need to add this to the $algoInnvo for submitting and remove the Assembly parent..
     if ($as->getLength() < 50) {
-      #      print STDERR "$id ",$as->getParent('ExternalNASequence',1)->getSourceId(),": length too short...\n";
+      #      print STDERR "$id ",$as->getParent('GUS::Model::DoTS::ExternalNASequence',1)->getSourceId(),": length too short...\n";
       $del{$id} = 1;
       $algoInvo->addChild($as);
-      $as->removeParent($as->getParent('Assembly')) if $as->getParent('Assembly');
+      $as->removeParent($as->getParent('GUS::Model::DoTS::Assembly')) if $as->getParent('GUS::Model::DoTS::Assembly');
       $as->setProcessedCategory('low_quality') unless $as->getProcessedCategory() eq 'low_quality';
     }
 
@@ -1104,7 +1073,7 @@ sub getGusEntriesForReassembly {
   }
   foreach my $na_seq_id (@oldIds) {
     if (! exists $mapAss{$na_seq_id}) { ##new assembly...
-      my $a  = Assembly->new({'na_sequence_id' => $na_seq_id,'taxon_id' => $ctx->{cla}->{taxon_id} });
+      my $a  = GUS::Model::DoTS::Assembly->new({'na_sequence_id' => $na_seq_id,'taxon_id' => $ctx->{cla}->{taxon_id} });
       my $haveAssSeqs = 0;
       if ($a->retrieveFromDB()) {
         #        $assCache->cacheAssembly($a);
@@ -1113,7 +1082,7 @@ sub getGusEntriesForReassembly {
         
         ##now want to get the AssemblySequence ids....push onto @assIds 
         ##need to be able at end to track these and assign identifiers correctly so need datastructure..
-        foreach my $aseq ($a->getChildren('AssemblySequence',1)) {
+        foreach my $aseq ($a->getChildren('GUS::Model::DoTS::AssemblySequence',1)) {
           push(@assIds,$aseq->getId());
           $mapAssSeq{$aseq->getId()} = $a->getId();
           push(@{$mapAss{$a->getId()}},$aseq->getId());
@@ -1148,7 +1117,7 @@ sub getGusEntries {
   foreach my $na_seq_id (@oldIds) {
     if (! $assCache->assemblyIsCached($na_seq_id)) { ##new assembly...
       ##check this....should use the where hash ref...need to modify these Gene and RNA methods..
-      my $a  = Assembly->new({'na_sequence_id' => $na_seq_id,'taxon_id' => $ctx->{cla}->{taxon_id} });
+      my $a  = GUS::Model::DoTS::Assembly->new({'na_sequence_id' => $na_seq_id,'taxon_id' => $ctx->{cla}->{taxon_id} });
       if ($a->retrieveFromDB()) {
         #        print STDERR "getGusEntries: ".$a->toXML() if $debug;
         $assCache->cacheAssembly($a);
@@ -1174,7 +1143,7 @@ sub getGusEntries {
 sub createMergeSplit {
   my($o,$n,$is_merge) = @_;
   print STDERR "Creating MergeSplit: Old:".$o->getId().", New:".$n->getId().", is_merge:'$is_merge'\n" if $debug;
-  my $ms = MergeSplit->new({'old_id' => $o->getId(),
+  my $ms = GUS::Model::DoTS::MergeSplit->new({'old_id' => $o->getId(),
                             'new_id' => $n->getId(),
                             'table_id' => $o->getTableIdFromTableName($o->getClassName()),
                             'merge_split_group_id' => $msGroupId,
@@ -1213,7 +1182,7 @@ sub runDebugFromFile {
   #        foreach my $r (@$reviewed){ print "  REVIEWED: rna.",$r->[0],", DT.",$r->[1],"\n"; }
   #        foreach my $r (@$delReviewed){ print "  REVIEWED deleted: rna.",$r->[0],", DT.",$r->[1],"\n"; }
   #      }
-  foreach my $ass ($algoInvo->getChildren('Assembly')) {
+  foreach my $ass ($algoInvo->getChildren('GUS::Model::DoTS::Assembly')) {
     #            print STDERR $ass->toXML(0,1);
     #            print STDERR $ass->toCAML(1);
     print STDERR "\nFinished Assembly: DT.",$ass->getId(),"\n",$ass->getCap2Alignment();
