@@ -16,13 +16,14 @@ use DoTS::Gene::Util;
 # command line options and usage
 my $taxonId = shift;
 my $genomeId = shift;
-my ($gusConfigFile, $coords, $score, $spliced, $stable,
+my ($gusConfigFile, $coords, $score, $spliced, $stable, $forDT,
     $format, $out_dir, $out_fn_pref, $ucsc_header_only, $help);
 &GetOptions("gusConfigFile=s" => \$gusConfigFile, 
 	    "coords:s" => \$coords,
             "score:i" => \$score,
 	    "spliced:i" => \$spliced,
 	    "stable!" => \$stable,
+            "forDT!" => \$forDT,
 	    "format:s" => \$format,
             "out_dir:s" => \$out_dir,
             "out_fn_pref:s" => \$out_fn_pref,
@@ -37,10 +38,11 @@ system("mkdir -p $out_dir") unless -d $out_dir;
 
 $| = 1;
 
-
 # for custom annoation track at UCSC
 my $track_name = 'DoTS Genes';
+$track_name = 'DoTS Transcripts (non-singleton)' if $forDT;
 my $track_desc = 'CBIL genes created from genomic alignments of DoTS';
+$track_desc = 'DoTS transcripts clustered and assembled from EST/mRNAs, and contain >1 EST/mRNAs' if $forDT;
 if ($ucsc_header_only) {
     &_printUCSCHeader($track_name, $track_desc);
     exit;
@@ -62,56 +64,65 @@ my $aid = &DoTS::Gene::Util::getAnalysisId($dbh, $taxonId, $genomeId);
 # get all the chromosome/coordinates to work on
 my @all_coords = &_getAllCoordinates($dbh, $aid, $coords);
 
-# get all genes from each region and print
+# get all genes/transcript from each region and print
 foreach (@all_coords) {
     my ($chr, $start, $end) = ($_->{chr}, $_->{start}, $_->{end});
-    my $fn = $out_fn_pref . "chr$chr" . ($start ? ":$start" : "") . ($end ? "-$end" : "")
-           . ($spliced eq '1' ? '' : ".spliced$spliced") . ($stable ? '' : '.unstable') . ".$format";
+    my $fn = $out_fn_pref . "chr$chr" . ($start ? ":$start" : "") . ($end ? "-$end" : "");
+    if (!$forDT) {
+      $fn .= ($spliced eq '1' ? '' : ".spliced$spliced") . ($stable ? '' : '.unstable');
+    }
+    $fn .= ".$format";
     my $of = ($out_dir ? "$out_dir/$fn" : "");
-    my $genes = &_getGenes($dbh, $aid, $chr, $start, $end, $score, $spliced, $stable);
+    my $feats;
+    if ($forDT) {
+      $feats = &_getTranscripts($dbh, $taxonId, $genomeId, $chr, $start, $end);
+    } else {
+      $feats = &_getGenes($dbh, $aid, $chr, $start, $end, $score, $spliced, $stable);
+    }
 
     my $msg = "\n# chr$chr" . ($start ? ":$start-$end" : "") . "\n#\n";
     if ($of) {
         open OF, ">$of" or die "could not open $of for write: $!\n";
 	print OF $msg;
-	foreach my $g (@$genes) {
-	   print OF &_GeneAsString($g, $format, 'DoTS2Gene');
+	foreach my $f (@$feats) {
+	   print OF &_FeatureAsString($f, $format, $forDT ? 'DotsTranscript' : 'DotsGene', $forDT);
         }
         close OF;
     } else {
         print $msg;
-        foreach my $g (@$genes) {
-           print &_GeneAsString($g, $format, 'DoTS2Gene');
+        foreach my $f (@$feats) {
+           print &_FeatureAsString($f, $format, $forDT ? 'DotsTranscript' : 'DotsGene', $forDT);
         }
     }
 }
 
 ####################### sub routines ###############################
 
-sub _GeneAsString {
-    my ($g, $format, $gene_prog) = @_;
+sub _FeatureAsString {
+    my ($f, $format, $fType, $forDT) = @_;
 
-    my $gid = $g->{gid};
-    my $chr = $g->{chr};
-    my $strand = $g->{strand};
-    my $start = $g->{start};
-    my $end = $g->{end};
-    my $exons = $g->{exons};
-    my $dep = $g->{deprecated};
-    my $est_plot_score = $g->{est_plot_score};
-    my $confidence_score = $g->{confidence_score};
+    my $gid = $f->{gid};
+    my $chr = $f->{chr};
+    my $strand = $f->{strand};
+    my $start = $f->{start};
+    my $end = $f->{end};
+    my $exons = $f->{exons};
+    my $dep = $f->{deprecated};
+    my $est_plot_score = $f->{est_plot_score};
+    my $confidence_score = $f->{score};
     my $score = 200;
     if ($confidence_score > 0) {
         $score += $confidence_score * (900/15);
     }
     $score = 1000 if $score > 1000;
+    $score = 1000 if $forDT;
 
     my $msg = "";
     $msg = '[reversed]' if $dep;
     $msg .= '[merge]' if $est_plot_score == -100;
-    my $gas = "# $gid: ($strand) chr$chr:$start-$end $msg\n";
+    my $gas = "# $gid: ($strand) chr$chr:$start-$end $msg\n"; $gas = "" if $forDT;
     if ($format =~ /gff/) {
-	$gas .=_GFFexonsAsString({ 'seqname' => "chr$chr", 'source' => $gene_prog,
+	$gas .=_GFFexonsAsString({ 'seqname' => "chr$chr", 'source' => $fType,
 				   'feature' => 'exon', 'coords' => $exons, 'score' => $score,
 				   'strand' => $strand, 'frame' => '.', 'group' => $gid });
     } else {
@@ -181,11 +192,48 @@ sub _getGenes {
 	my $dgid = &_getStableId($dbh, $agid);
 	my $gid = ($dgid ? "DG.$dgid" : "ag.$agid");
 	push @genes, { gid=>$gid, chr=>$chr, start=>$cs, end=>$ce, strand=>$strand, exons=>\@exons,
-                       deprecated=>$dep, est_plot_score=>$est_plot_score, confidence_score=>$confidence_score};
+                       deprecated=>$dep, est_plot_score=>$est_plot_score, score=>$confidence_score};
     }
     $sth->finish;
 
     \@genes;
+}
+
+sub _getTranscripts {
+  my ($dbh, $taxonId, $genomeId, $chr, $start, $end) = @_;
+
+  my ($chrId) = &DoTS::Gene::Util::getChromIdAndLen($dbh, $genomeId, $chr);
+  my $sql = "select query_na_sequence_id, is_reversed, target_start, target_end, "
+	. "number_of_spans, tstarts, blocksizes, score "
+	. "from DoTS.BlatAlignment b, DoTS.Assembly a "
+	. "where b.query_na_sequence_id = a.na_sequence_id "
+	. "and b.target_na_sequence_id = $chrId and b.query_taxon_id = $taxonId and query_table_id = 56 "
+	. ($start ? " and target_end >= $start" : "")
+	. ($end ? " and target_start <= $end" : "")
+    	. " and (a.number_of_contained_sequences > 1 or a.contains_mrna = 1)";
+
+    print STDERR "# running $sql...\n";
+    my $sth = $dbh->prepare($sql) or die "bad sql $sql: $!\n";
+    $sth->execute or die "could not run $sql: $!\n";
+    my @dts;
+    my %dtIds;
+    while (my ($id, $isRev, $cs, $ce, $ec, $ess, $sizes, $score) = $sth->fetchrow_array) {
+	my @ess = split(/,/, $ess);
+	my @sizes = split(/,/, $sizes);
+	die "unexpected exon starts $ess or sizes $sizes\n" 
+	  unless scalar(@ess) == $ec && scalar(@sizes) == $ec;
+	my @exons;
+	for (my $i=0; $i<$ec; $i++) {
+	  push @exons, [$ess[$i], $ess[$i] + $sizes[$i] - 1];
+	}
+        if ($dtIds{$id}) { $dtIds{$id}++; } else { $dtIds{$id} = 1; }
+	my $gid = "DT.$id"; $gid .= ':' . $dtIds{$id} if $dtIds{$id} > 1;
+	my $strand = ($isRev ? '-' : '+');
+	push @dts, { gid=>$gid, chr=>$chr, start=>$cs, end=>$ce, strand=>$strand, exons=>\@exons, score=>$score};
+    }
+    $sth->finish;
+
+    \@dts;
 }
 
 sub _getStableId {
@@ -262,6 +310,7 @@ sub usage {
 	. "\t--gusConfigFile: config file for db connection info\n"
         . "\t--out_dir: where to put result files, use <pwd> for working dir\n"
         . "\t--out_fn_pref: prefix for result files e.g. mus_dots_gene\n"
+	. "\t--forDT: make GFF files for DoTS transcripts instead of DoTS genes\n"
 	. "\t--coords: coordinates (e.g. chr2:1-100,chr4,chr9:100-), all chrs if ommited\n"
         . "\t--score: only those with a confidence score >= specified\n"
 	. "\t--spliced: only output genes that are spliced or has > specified num exons (-1 for unspliced only)\n"
