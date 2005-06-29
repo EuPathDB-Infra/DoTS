@@ -31,6 +31,11 @@ sub new {
 	t => 'int',
 	h => 'target external database release id'
 	},
+       {o => 'target_table_name',
+	t => 'string',
+	h => 'name of table containing target sequences',
+	d => 'VirtualSequence'
+	},
        {o => 'out',
 	t => 'string',
 	h => 'output file for clustering result'
@@ -57,7 +62,6 @@ sub new {
   return $self;
 }
 
-
 $| = 1;
 
 sub run {
@@ -76,16 +80,18 @@ sub run {
   my $test_chr = $cla->{'test_chr'};
   my $out_file = $cla->{'out'};
   my $sort = $cla->{'sort'};
-
+  my $target_table_name = $cla->{'target_table_name'};
+  my $target_table_id = &getTableId($dbh, $target_table_name);
+  
   my $aid = &getAlignedGeneAnalysisId($dbh,$taxon_id, $genome_id);
 
   $self->logData("seeding clusters ...");
-  my $clusters = &getClusterSeeds($dbh, $aid, $genome_id, $taxon_id, $test_chr, $query_dbid);
+  my $clusters = &getClusterSeeds($dbh, $aid, $genome_id, $target_table_name, $taxon_id, $test_chr, $query_dbid);
   $self->logData("number of clusters seeded: " . scalar(keys %$clusters) . '.');
 
   $self->logData("adding new members to clusters ...");
   my ($new_seqs, $changed_dgs, $no_dg_seqs) =
-      &addNewMembers($dbh, $aid, $taxon_id, $query_dbid, $genome_id, $stage, $clusters);
+      &addNewMembers($dbh, $aid, $taxon_id, $target_table_id, $query_dbid, $genome_id, $stage, $clusters);
   $self->logData("$new_seqs new seqs, enriched $changed_dgs existing clusters, $no_dg_seqs do not overlap existing clusters");
 
   $self->logData("get links between clusters ...");
@@ -229,7 +235,7 @@ sub getClusterLinks {
 }
 
 sub addNewMembers {
-    my ($dbh, $aid, $taxon_id, $query_dbid, $genome_id, $stage, $clusters) = @_;
+    my ($dbh, $aid, $taxon_id, $target_table_id, $query_dbid, $genome_id, $stage, $clusters) = @_;
 
     return if ! defined $aid;
 
@@ -243,7 +249,7 @@ sub addNewMembers {
 	. "where b.query_na_sequence_id = s.na_sequence_id "
 	. "and b.query_table_id = 57 and b.query_taxon_id = $taxon_id "
 	. "and b.query_external_db_release_id = $query_dbid "
-	. "and b.target_table_id = 245 and b.target_taxon_id = $taxon_id "
+	. "and b.target_table_id = $target_table_id and b.target_taxon_id = $taxon_id "
 	. "and b.target_external_db_release_id = $genome_id and b.is_best_alignment = 1";
     my $sth = $dbh->prepare($sql) or die "bad sql $sql";
     $sth->execute or die "could not run $sql";
@@ -284,6 +290,9 @@ return ($new_seqs, scalar(keys %changed_dgs), $no_dg_seqs);
 
 sub getAlignedGeneAnalysisId {
     my ($dbh,$taxon_id, $genome_id) = @_;
+
+    GUS::PluginMgr::Plugin->logData("no AllGenes schema, skipping aligned_gene_analysis_id lookup.") and return unless &haveAllgenesSchema($dbh);
+
     my $sql = "select aligned_gene_analysis_id from Allgenes.AlignedGeneAnalysis "
 	. "where target_external_db_id = $genome_id and parameters like '%--t $taxon_id %' "
 	. "order by aligned_gene_analysis_id desc";
@@ -297,9 +306,9 @@ sub getAlignedGeneAnalysisId {
 }
 
 sub getClusterSeeds {
-    my ($dbh, $aid, $genome_id, $taxon_id, $testChr, $query_dbid) = @_;
+    my ($dbh, $aid, $genome_id, $target_table_name, $taxon_id, $testChr, $query_dbid) = @_;
 
-    return &makeClusters($dbh, $genome_id, $taxon_id, $testChr, $query_dbid) if !defined $aid;
+    return &makeClusters($dbh, $genome_id, $target_table_name, $taxon_id, $testChr, $query_dbid) if !defined $aid;
 
     my $sql = "select ag.aligned_gene_id, 'DT.' || aga.na_sequence_id "
 	. "from Allgenes.AlignedGene ag, Allgenes.AlignedGeneAssembly aga "
@@ -317,9 +326,11 @@ sub getClusterSeeds {
 }
 
 sub makeClusters {
-    my ($dbh, $genome_id, $taxon_id, $testChr, $query_dbid) = @_;
+    my ($dbh, $genome_id, $target_table_name, $taxon_id, $testChr, $query_dbid) = @_;
 
-    my @seqs = &getSequencePieces($dbh, $genome_id, $testChr);
+    my @seqs = &getSequencePieces($dbh, $target_table_name, $genome_id, $testChr);
+   
+    my $target_table_id = &getTableId($dbh, $target_table_name);
 
     my $clusters = {};
     my $cinfo = {id=>0, start=>0, end=>0};
@@ -329,14 +340,14 @@ sub makeClusters {
         . "where b.query_na_sequence_id = s.na_sequence_id "
         . "and b.query_table_id = 57 and b.query_taxon_id = $taxon_id "
         . "and b.query_external_db_release_id = $query_dbid "
-        . "and b.target_table_id = 245 and b.target_taxon_id = $taxon_id "
+        . "and b.target_table_id = $target_table_id and b.target_taxon_id = $taxon_id "
         . "and b.target_na_sequence_id = $seqId and b.is_best_alignment = 1 "
         . "union "
         . "select 'DT.' || a.na_sequence_id as sid, b.target_start, b.target_end "
         . "from Dots.BlatAlignment b, Dots.Assembly a "
         . "where b.query_na_sequence_id = a.na_sequence_id "
         . "and b.query_table_id = 56 and b.query_taxon_id = $taxon_id "
-        . "and b.target_table_id = 245 and b.target_taxon_id = $taxon_id "
+        . "and b.target_table_id = $target_table_id and b.target_taxon_id = $taxon_id "
         . "and b.target_na_sequence_id = $seqId and b.is_best_alignment = 1 ";
         $sql = "select * from ($sql) order by target_start asc, target_end asc";
 
@@ -363,10 +374,11 @@ sub makeClusters {
 }
 
 sub getSequencePieces {
-    my ($dbh, $genome_id, $testChr) = @_;
+    my ($dbh, $target_table_name, $genome_id, $testChr) = @_;
 
-    my $sql = "select na_sequence_id from dots.VirtualSequence where external_database_release_id = $genome_id";
+    my $sql = "select na_sequence_id from dots.${target_table_name} where external_database_release_id = $genome_id";
     $sql .= " where chromosome = '$testChr'" if $testChr;
+   
     my $sth = $dbh->prepare($sql) or die "bad sql $sql";
     $sth->execute or die "could not run $sql";
     my @seqs = ();
@@ -374,6 +386,24 @@ sub getSequencePieces {
         push @seqs, $id;
     }
     @seqs;
+}
+
+sub getTableId {
+    my ($dbh, $target_table_name) = @_;
+    my $sth = $dbh->prepare("select table_id from core.tableinfo where lower(name) = lower('$target_table_name')");
+    $sth->execute(); 
+    my ($id) = $sth->fetchrow();
+    $sth->finish();     
+    return $id;
+}
+
+sub haveAllgenesSchema {
+    my $dbh = shift;
+    my $sth = $dbh->prepare("select count(*) from all_tables where owner = 'ALLGENES'");
+    $sth->execute(); 
+    my ($ct) = $sth->fetchrow();
+    $sth->finish();     
+    return $ct;
 }
 
 1;
