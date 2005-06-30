@@ -434,7 +434,7 @@ sub printCliqueDistribution {
 }
 
 sub putSingletonCliquesIntoBestClique {
-  print STDERR "\nPutting singleton cliques into the clique with most common nodes\n" if verbose;
+  print STDERR "\nPutting singleton cliques into the clique with most common nodes\n" if $verbose;
   foreach my $c (keys%cliques){
     next if scalar(@{$cliques{$c}}) > 1;
     my $node = $cliques{$c}->[0];
