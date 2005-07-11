@@ -62,7 +62,7 @@ my $dbh = $db->getQueryHandle();
 my $aid = &DoTS::Gene::Util::getAnalysisId($dbh, $taxonId, $genomeId);
 
 # get all the chromosome/coordinates to work on
-my @all_coords = &_getAllCoordinates($dbh, $aid, $coords);
+my @all_coords = &_getAllCoordinates($dbh, $genomeId, $coords);
 
 # get all genes/transcript from each region and print
 foreach (@all_coords) {
@@ -249,7 +249,7 @@ sub _getStableId {
 }
 
 sub _getAllCoordinates {
-    my ($dbh, $aid, $coords) = @_;
+    my ($dbh, $genomeId, $coords) = @_;
 
     my @all_coords;
     if ($coords) {
@@ -267,8 +267,8 @@ sub _getAllCoordinates {
 	    }
 	}
     } else {
-	my $sql = "select distinct chromosome from Allgenes.AlignedGene "
-		. "where aligned_gene_analysis_id = $aid";
+	my $sql = "select distinct chromosome from Dots.VirtualSequence "
+		. "where external_database_release_id = $genomeId";
 	my $sth = $dbh->prepare($sql) or die "bad sql $sql: $!\n";
 	$sth->execute or die "could not run $sql: $!\n";
 	while (my ($chr) = $sth->fetchrow_array) {
