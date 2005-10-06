@@ -596,8 +596,8 @@ sub startGenomicAlignmentOnCluster {
   return if $mgr->startStep("Starting genomic alignment with $name", $signal);
 
   $mgr->endStep($signal);
-  my $clusterCmdMsg = "submitPipelineJob runGenomeAlign $serverPath/$buildName NUMBER_OF_NODES";
-  $clusterCmdMsg = "submitPipelineJob runDotsGenomeAlign $serverPath/$buildName NUMBER_OF_NODES" if $name eq 'dots';
+  my $clusterCmdMsg = "runGenomeAlign $serverPath/$buildName NUMBER_OF_NODES";
+  $clusterCmdMsg = "runDotsGenomeAlign $serverPath/$buildName NUMBER_OF_NODES" if $name eq 'dots';
   my $clusterLogMsg = "monitor $serverPath/$buildName/logs/*.log and xxxxx.xxxx.stdout";
 
   $mgr->exitToCluster($clusterCmdMsg, $clusterLogMsg, 1);
@@ -832,7 +832,7 @@ sub startBlastMatricesOnCluster {
     $script = "runAssemAssemMatrices";
   }
 
-  my $clusterCmdMsg = "submitPipelineJob $script $serverPath/$mgr->{buildName} NUMBER_OF_NODES";
+  my $clusterCmdMsg = "$script $serverPath/$mgr->{buildName} NUMBER_OF_NODES";
   my $clusterLogMsg = "monitor $serverPath/$mgr->{buildName}/logs/*.log and xxxxx.xxxx.stdout";
 
   $mgr->exitToCluster($clusterCmdMsg, $clusterLogMsg, 1);
@@ -1095,7 +1095,7 @@ sub startDotsMatrixOnCluster {
 
   my $cmd = "run" . ucfirst($signal);
 
-  my $clusterCmdMsg = "submitPipelineJob $cmd $serverPath/$mgr->{buildName} NUMBER_OF_NODES";
+  my $clusterCmdMsg = "$cmd $serverPath/$mgr->{buildName} NUMBER_OF_NODES";
   my $clusterLogMsg = "monitor $serverPath/$mgr->{buildName}/logs/*.log and xxxxx.xxxx.stdout";
 
   $mgr->exitToCluster($clusterCmdMsg, $clusterLogMsg, 0);
@@ -1606,7 +1606,7 @@ sub startSimilaritiesOnCluster {
 
   $mgr->endStep($signal);
 
-  my $clusterCmdMsg = "submitPipelineJob runSimilarities $serverPath/$mgr->{buildName} NUMBER_OF_NODES";
+  my $clusterCmdMsg = "runSimilarities $serverPath/$mgr->{buildName} NUMBER_OF_NODES";
   my $clusterLogMsg = "monitor $serverPath/$mgr->{buildName}/logs/*.log and xxxxx.xxxx.stdout";
 
   $mgr->exitToCluster($clusterCmdMsg, $clusterLogMsg, 1);
