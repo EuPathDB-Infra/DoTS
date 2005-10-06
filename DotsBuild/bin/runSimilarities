@@ -13,9 +13,10 @@ umask 002;
 open(STDOUT, ">&STDERR")     || die "Can't dup stdout";
 
 my $buildDir = $ARGV[0];
+my $numnodes = $ARGV[1];
 
-if (!($buildDir)) {
-    print "usage:  runsimilarities buildDir\n";
+if (!($buildDir && $numnodes)) {
+    print "usage:  runsimilarities buildDir numnodes\n";
     exit(1);
 }
 
@@ -23,11 +24,11 @@ die "Build dir $buildDir doesn't exist" unless -d $buildDir;
 
 print "\n";
 
-&runSimilarity($buildDir, "finalDots", "nrdb");
+&runSimilarity($buildDir, $numnodes, "finalDots", "nrdb");
 
-&runSimilarity($buildDir, "finalDots", "cdd");
+&runSimilarity($buildDir, $numnodes, "finalDots", "cdd");
 
-&runSimilarity($buildDir, "finalDots","prodom");
+&runSimilarity($buildDir, $numnodes, "finalDots","prodom");
 
 print "Done\n";
 
