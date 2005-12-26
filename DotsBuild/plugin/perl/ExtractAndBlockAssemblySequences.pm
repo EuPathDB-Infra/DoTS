@@ -5,6 +5,92 @@ package DoTS::DotsBuild::Plugin::ExtractAndBlockAssemblySequences;
 use strict;
 use GUS::Model::DoTS::AssemblySequence;
 use CBIL::Bio::SequenceUtils;
+use GUS::PluginMgr::Plugin;
+
+
+my $argsDeclaration =
+[
+ integerArg({name => 'testnumber',
+             descr => 'number of iterations for testing',
+             constraintFunc => undef,
+             reqd => 0,
+             isList => 0
+	     }),
+
+ stringArg({name => 'taxon_id_list',
+            descr => 'comma delimited taxon_id list for sequences to process: 8=Hum, 14=Mus.',
+            constraintFunc => undef,
+            reqd => 1,
+            isList => 0
+	    }),
+
+ fileArg({name => 'outputfile',
+          descr => 'Name of file for output sequences',
+          constraintFunc => undef,
+          reqd => 1,
+          mustExist => 0,
+          isList => 0,
+          format => 'Text'
+	    }),
+
+ stringArg({name => 'rm_options',
+            descr => 'RepeatMasker options',
+            constraintFunc => undef,
+            reqd => 0,
+            isList => 0
+	    }),
+
+ stringArg({name => 'idSQL',
+            descr => 'SQL query that returns assembly_sequence_ids to be processed',
+            constraintFunc => undef,
+            reqd => 0,
+            isList => 0
+	    }),
+
+ booleanArg({ name => 'extractonly',
+              descr => 'if true then does not Block extracted sequences',
+              constraintFunc => undef,
+              reqd => 0,
+              isList => 0
+           })
+
+];
+
+my $purposeBrief = <<PURPOSEBRIEF;
+Extract unprocessed AssembySequences, block them and write to a file for clustering
+PURPOSEBRIEF
+
+my $purpose = <<PLUGIN_PURPOSE;
+Extract unprocessed AssembySequences, block them and write to a file for clustering
+PLUGIN_PURPOSE
+
+#check the documentation for this
+my $tablesAffected = [];
+
+my $tablesDependedOn = [
+    ['DoTS::AssemblySequence', '']
+];
+
+my $howToRestart = <<PLUGIN_RESTART;
+PLUGIN_RESTART
+
+my $failureCases = <<PLUGIN_FAILURE_CASES;
+PLUGIN_FAILURE_CASES
+
+my $notes = <<PLUGIN_NOTES;
+PLUGIN_NOTES
+
+
+my $documentation = {
+             purposeBrief => $purposeBrief,
+		     purpose => $purpose,
+		     tablesAffected => $tablesAffected,
+		     tablesDependedOn => $tablesDependedOn,
+		     howToRestart => $howToRestart,
+		     failureCases => $failureCases,
+		     notes => $notes
+		    };
+
 
 sub new {
 
@@ -13,44 +99,12 @@ sub new {
   my $self = {};
   bless($self,$class);
 
-  my $usage = 'Extract unprocessed AssembySequences, block them and write to a file for clustering';
-
-  my $easycsp =
-    [
-     {o => 'testnumber',
-      t => 'int',
-      h => 'number of iterations for testing',
-     },
-     {o => 'taxon_id_list',
-      t => 'string',
-      h => 'comma delimited list of taxon_ids for sequences to process: 8=Hum, 14=Mus.',
-     },
-     {o => 'outputfile',
-      t => 'string',
-      h => 'Name of file for output sequences',
-     },
-     {o => 'rm_options',
-      t => 'string',
-      h => 'RepeatMasker options',
-     },
-     {o => 'idSQL',
-      t => 'string',
-      h => 'SQL query that returns assembly_sequence_ids to be processed',
-     },
-     {o => 'extractonly',
-      t => 'boolean',
-      h => 'if true then does not Block extracted sequences',
-     }
-    ];
-
-  $self->initialize({requiredDbVersion => {},
-		  cvsRevision => '$Revision$', # cvs fills this in!
-		  cvsTag => '$Name$', # cvs fills this in!
-		  name => ref($self),
-		  revisionNotes => 'make consistent with GUS 3.0',
-		  easyCspOptions => $easycsp,
-		  usage => $usage
-		 });
+  $self->initialize({requiredDbVersion => 3.5,
+		     cvsRevision => '$Revision$', # cvs fills this in!
+		     name => ref($self),
+		     argsDeclaration   => $argsDeclaration,
+		     documentation     => $documentation
+		    });
 
   return $self;
 }
