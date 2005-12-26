@@ -7,6 +7,104 @@ use strict;
 use GUS::Model::DoTS::ExternalNASequence;
 use GUS::Model::DoTS::AssemblySequence;
 use CBIL::Bio::SequenceUtils;
+use GUS::PluginMgr::Plugin;
+
+my $argsDeclaration =
+[
+ integerArg({name => 'testnumber1',
+	     descr => 'number of iterations for testing',
+	     constraintFunc => undef,
+	     reqd => 0,
+	     isList => 0
+	     }),
+
+ stringArg({name => 'date',
+	    descr => 'earliest date for sequences to include: default = all',
+	    constraintFunc => undef,
+	    reqd => 0,
+	    isList => 0
+	    }),
+
+ stringArg({name => 'taxon_id_list',
+	    descr => 'comma delimited taxon_id list for sequences to process: 8=Hum, 14=Mus.',
+	    constraintFunc => undef,
+	    reqd => 1,
+	    isList => 0
+	    }),
+
+ stringArg({name => 'idSQL',
+	    descr => 'SQL query that returns na_sequence_ids from ExternalNASequence to be processed',
+	    constraintFunc => undef,
+	    reqd => 0,
+	    isList => 0
+	    }),
+
+ fileArg({name => 'export',
+	    descr => 'filename to export sequences to...default does not export',
+	    constraintFunc => undef,
+	    reqd => 0,
+	    mustExist => 0,
+	    isList => 0,
+    	format => 'Text'
+	    }),
+
+ fileArg({name => 'repeatFile',
+	  descr => 'full path of file of repeats',
+	  constraintFunc => undef,
+	  reqd => 1,
+	  isList => 0,
+	  mustExist => 1,
+	  format => 'Text'
+        }),
+
+ fileArg({name => 'phrapDir',
+	  descr => 'full path of the directory containing phrap\'s cross_match program',
+	  constraintFunc => undef,
+	  reqd => 1,
+	  isList => 0,
+	  mustExist => 1,
+	  format => 'Directory'
+        }),
+
+
+ ];
+
+
+my $purposeBrief = <<PURPOSEBRIEF;
+Retrieves ExternalNASequences that are not assembly sequences and inserts AssemblySequence entry
+PURPOSEBRIEF
+
+my $purpose = <<PLUGIN_PURPOSE;
+Retrieves ExternalNASequences that are not assembly sequences and inserts AssemblySequence entry
+PLUGIN_PURPOSE
+
+#check the documentation for this
+my $tablesAffected = [];
+
+my $tablesDependedOn = [
+    ['DoTS::ExternalNASequence', ''],
+    ['DoTS::AssemblySequence', '']
+];
+
+my $howToRestart = <<PLUGIN_RESTART;
+PLUGIN_RESTART
+
+my $failureCases = <<PLUGIN_FAILURE_CASES;
+PLUGIN_FAILURE_CASES
+
+my $notes = <<PLUGIN_NOTES;
+PLUGIN_NOTES
+
+
+my $documentation = {
+             purposeBrief => $purposeBrief,
+		     purpose => $purpose,
+		     tablesAffected => $tablesAffected,
+		     tablesDependedOn => $tablesDependedOn,
+		     howToRestart => $howToRestart,
+		     failureCases => $failureCases,
+		     notes => $notes
+		    };
 
 sub new {
   my ($class) = @_;
@@ -14,48 +112,11 @@ sub new {
   my $self = {};
   bless($self,$class);
 
-  my $usage = 'Retrieves ExternalNASequences that are not assembly sequences and inserts AssemblySequence entry';
-
-  my $easycsp =
-    [
-     {o => 'testnumber',
-      t => 'int',
-      h => 'number of iterations for testing',
-     },
-     {o => 'date',
-      t => 'string',
-      h => 'earliest date for sequences to include: default = all',
-     },
-
-     {o => 'taxon_id_list',
-      t => 'string',
-      h => 'comma delimited taxon_id list for sequences to process: 8=Hum, 14=Mus.',
-     },
-     {o => 'idSQL',
-      t => 'string',
-      h => 'SQL query that returns na_sequence_ids from ExternalNASequence to be processed',
-     },
-     {o => 'export',
-      t => 'string',
-      h => 'filename to export sequences to...default does not export',
-     },
-     {o => 'repeatFile',
-      t => 'string',
-      h => 'full path of file of repeats',
-     },
-     {o => 'phrapDir',
-      t => 'string',
-      h => "full path of the directory containing phrap's cross_match program",
-     }
-    ];
-
-  $self->initialize({requiredDbVersion => {},
+  $self->initialize({requiredDbVersion => 3.5,
 		     cvsRevision => '$Revision$', # cvs fills this in!
-		     cvsTag => '$Name$', # cvs fills this in!
 		     name => ref($self),
-		     revisionNotes => 'make consistent with GUS 3.0',
-		     easyCspOptions => $easycsp,
-		     usage => $usage
+		     argsDeclaration   => $argsDeclaration,
+		     documentation     => $documentation
 		    });
   return $self;
 }
