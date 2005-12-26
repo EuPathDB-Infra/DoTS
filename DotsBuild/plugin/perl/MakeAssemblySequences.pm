@@ -11,7 +11,7 @@ use GUS::PluginMgr::Plugin;
 
 my $argsDeclaration =
 [
- integerArg({name => 'testnumber1',
+ integerArg({name => 'testnumber',
 	     descr => 'number of iterations for testing',
 	     constraintFunc => undef,
 	     reqd => 0,
