@@ -1,63 +1,116 @@
 package DoTS::DotsBuild::Plugin::ClusterByGenome;
 
-
-
 @ISA = qw(GUS::PluginMgr::Plugin);
 
 use strict;
+use GUS::PluginMgr::Plugin;
 use GUS::ObjRelP::DbiDatabase;
+
+my $purposeBrief = <<PURPOSEBRIEF;
+DoTS Clustering using genome alignments
+PURPOSEBRIEF
+
+my $purpose = <<PLUGIN_PURPOSE;
+DoTS Clustering using genome alignments
+PLUGIN_PURPOSE
+
+#check the documentation for this
+my $tablesAffected = [];
+
+my $tablesDependedOn = [];
+
+my $howToRestart = <<PLUGIN_RESTART;
+PLUGIN_RESTART
+
+my $failureCases = <<PLUGIN_FAILURE_CASES;
+PLUGIN_FAILURE_CASES
+
+my $notes = <<PLUGIN_NOTES;
+PLUGIN_NOTES
+
+my $documentation = {
+             purposeBrief => $purposeBrief,
+		     purpose => $purpose,
+		     tablesAffected => $tablesAffected,
+		     tablesDependedOn => $tablesDependedOn,
+		     howToRestart => $howToRestart,
+		     failureCases => $failureCases,
+		     notes => $notes
+		    };
+
+
+my $argsDeclaration =
+      [
+      stringArg({
+          name => 'stage',
+          descr => 'stage of clustering in DoTS build pipeline',
+          constraintFunc => undef,
+          reqd => 1,
+          isList => 0
+      }),
+      integerArg({
+          name => 'taxon_id',
+          descr => 'taxon id',
+          constraintFunc => undef,
+          reqd => 1,
+          isList => 0
+      }),
+      integerArg({
+          name => 'query_db_rel_id',
+          descr => 'query database release id',
+          constraintFunc => undef,
+          reqd => 1,
+          isList => 0
+      }),
+      integerArg({
+          name => 'target_db_rel_id',
+          descr => 'target external database release id',
+          constraintFunc => undef,
+          reqd => 1,
+          isList => 0
+      }),
+      stringArg({
+          name => 'target_table_name',
+          descr => 'name of table containing target sequences',
+          default => 'VirtualSequence',
+          constraintFunc => undef,
+          reqd => 0,
+          isList => 0
+      }),
+      stringArg({
+          name => 'out',
+          descr => 'output file for clustering result',
+          constraintFunc => undef,
+          reqd => 0,
+          isList => 0
+      }),
+      stringArg({
+          name => 'test_chr',
+          descr => 'chromosome for test',
+          constraintFunc => undef,
+          reqd => 0,
+          isList => 0
+      }),
+      booleanArg({
+          name => 'sort',
+          descr => 'whether to sort the output by cluster size (ascending)',
+          constraintFunc => undef,
+          reqd => 0,
+          isList => 0
+      })
+];
 
 sub new {
   my ($class) = @_;
   my $self = {};
   bless($self,$class);
 
-  my $usage = 'DoTS Clustering using genome alignments';
-
-  my $easycsp =
-      [{o => 'stage',
-	t => 'string',
-	h => 'stage of clustering in DoTS build pipeline'
-	},
-       {o => 'taxon_id',
-	t => 'int',
-	h => 'taxon id'
-	},
-       {o => 'query_db_rel_id',
-	t => 'int',
-	h => 'query database release id'
-	},
-       {o => 'target_db_rel_id',
-	t => 'int',
-	h => 'target external database release id'
-	},
-       {o => 'target_table_name',
-	t => 'string',
-	h => 'name of table containing target sequences',
-	d => 'VirtualSequence'
-	},
-       {o => 'out',
-	t => 'string',
-	h => 'output file for clustering result'
-	},
-       {o => 'test_chr',
-	t => 'string',
-	h => 'chromosome for test'
-	},
-       {o => 'sort',
-	t => 'boolean',
-	h => 'whether to sort the output by cluster size (ascending)'
-	}
-       ];
-
-  $self->initialize({requiredDbVersion => {},
-		     cvsRevision => '$Revision$ $',  # cvs fills this in!
-		     cvsTag => '$Name$', # cvs fills this in!
+  $self->initialize({requiredDbVersion => 3.5,
+		     cvsRevision => '$Revision$', # cvs fills this in!
 		     name => ref($self),
-		     revisionNotes => ' ',
-		     easyCspOptions => $easycsp,
-		     usage => $usage
-		    });
+		     argsDeclaration => $argsDeclaration,
+		     documentation => $documentation
+		     });
 
   return $self;
 }
@@ -244,13 +297,25 @@ sub addNewMembers {
     my %assSeqs;
     my $no_dg_seqs = 0;
 
-    my $sql = "select s.assembly_sequence_id, b.target_start, b.target_end, b.target_na_sequence_id "
-	. "from DoTS.BlatAlignment b, DoTS.AssemblySequence s "
-	. "where b.query_na_sequence_id = s.na_sequence_id "
-	. "and b.query_table_id = 57 and b.query_taxon_id = $taxon_id "
-	. "and b.query_external_db_release_id = $query_dbid "
-	. "and b.target_table_id = $target_table_id and b.target_taxon_id = $taxon_id "
-	. "and b.target_external_db_release_id = $genome_id and b.is_best_alignment = 1";
+    my $sql = <<"EOSQL";
+    SELECT s.assembly_sequence_id, 
+           b.target_start,
+           b.target_end, 
+           b.target_na_sequence_id 
+    FROM   DoTS.BlatAlignment b, 
+           DoTS.AssemblySequence s,
+           core.tableinfo ti
+    WHERE  b.query_na_sequence_id = s.na_sequence_id 
+      AND  b.query_table_id = ti.table_id  
+      AND  lower(ti.name) = 'assemblysequence' 
+      AND  b.query_taxon_id = $taxon_id 
+      AND  b.query_external_db_release_id = $query_dbid 
+      AND  b.target_table_id = $target_table_id 
+      AND  b.target_taxon_id = $taxon_id 
+      AND  b.target_external_db_release_id = $genome_id 
+      AND  b.is_best_alignment = 1
+EOSQL
+
     my $sth = $dbh->prepare($sql) or die "bad sql $sql";
     $sth->execute or die "could not run $sql";
 
@@ -314,6 +379,8 @@ sub getClusterSeeds {
 	. "from Allgenes.AlignedGene ag, Allgenes.AlignedGeneAssembly aga "
 	. "where ag.aligned_gene_analysis_id = $aid and ag.aligned_gene_id = aga.aligned_gene_id";
     $sql .= " and ag.chromosome = '$testChr'" if $testChr;
+    
+    print STDERR "getClsterSeeds sql: $sql\n\n"; # DEBUG
     my $sth = $dbh->prepare($sql) or die "bad sql $sql";
     $sth->execute or die "could not run $sql";
     my $seed_clusters = {};
@@ -335,20 +402,37 @@ sub makeClusters {
     my $clusters = {};
     my $cinfo = {id=>0, start=>0, end=>0};
     foreach my $seqId (@seqs) {
-        my $sql = "select '' || s.assembly_sequence_id as sid, b.target_start, b.target_end "
-        . "from DoTS.BlatAlignment b, DoTS.AssemblySequence s "
-        . "where b.query_na_sequence_id = s.na_sequence_id "
-        . "and b.query_table_id = 57 and b.query_taxon_id = $taxon_id "
-        . "and b.query_external_db_release_id = $query_dbid "
-        . "and b.target_table_id = $target_table_id and b.target_taxon_id = $taxon_id "
-        . "and b.target_na_sequence_id = $seqId and b.is_best_alignment = 1 "
-        . "union "
-        . "select 'DT.' || a.na_sequence_id as sid, b.target_start, b.target_end "
-        . "from Dots.BlatAlignment b, Dots.Assembly a "
-        . "where b.query_na_sequence_id = a.na_sequence_id "
-        . "and b.query_table_id = 56 and b.query_taxon_id = $taxon_id "
-        . "and b.target_table_id = $target_table_id and b.target_taxon_id = $taxon_id "
-        . "and b.target_na_sequence_id = $seqId and b.is_best_alignment = 1 ";
+        my $sql = <<"EOSQL";
+        SELECT '' || s.assembly_sequence_id AS sid, 
+               b.target_start, b.target_end 
+        FROM   DoTS.BlatAlignment b, 
+               DoTS.AssemblySequence s, 
+               core.tableinfo ti 
+        WHERE  b.query_na_sequence_id = s.na_sequence_id 
+          AND  b.query_table_id = ti.table_id  
+          AND  lower(ti.name) = 'assemblysequence' 
+          AND  b.query_taxon_id = $taxon_id 
+          AND  b.query_external_db_release_id = $query_dbid 
+          AND  b.target_table_id = $target_table_id  
+          AND b.target_taxon_id = $taxon_id 
+          AND  b.target_na_sequence_id = $seqId  
+          AND b.is_best_alignment = 1 
+        UNION
+        SELECT 'DT.' || a.na_sequence_id AS sid, 
+               b.target_start, b.target_end 
+        FROM   Dots.BlatAlignment b, 
+               Dots.Assembly a,
+               core.tableinfo ti 
+        WHERE  b.query_na_sequence_id = a.na_sequence_id 
+          AND  b.query_table_id = ti.table_id  
+          AND  lower(ti.name) = 'assembly'  
+          AND  b.query_taxon_id = $taxon_id 
+          AND  b.target_table_id = $target_table_id  
+          AND  b.target_taxon_id = $taxon_id 
+          AND  b.target_na_sequence_id = $seqId
+          AND  b.is_best_alignment = 1
+EOSQL
+
         $sql = "select * from ($sql) order by target_start asc, target_end asc";
 
         my $sth = $dbh->prepare($sql) or die "bad sql $sql";
