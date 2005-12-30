@@ -8,6 +8,7 @@ use GUS::PluginMgr::Plugin;
 use GUS::Model::DoTS::Assembly;
 use GUS::Model::DoTS::AssemblySequence;
 use GUS::Model::DoTS::MergeSplit;
+use GUS::Model::DoTS::SequenceType;
 
 my $debug = 0;
 
@@ -134,13 +135,15 @@ my $tablesAffected = [
 my $tablesDependedOn = [
     ['DoTS::AssemblySequence', ''],
     ['DoTS::Assembly', ''],
-    ['DoTS::MergeSplit', '']
+    ['DoTS::MergeSplit', ''],
+    ['DoTS::SequenceType', 'to lookup id for mRNA']
 ];
 
 my $howToRestart = <<PLUGIN_RESTART;
 PLUGIN_RESTART
 
 my $failureCases = <<PLUGIN_FAILURE_CASES;
+Fails if there is no DoTS.SequenceType entry for 'mRNA'
 PLUGIN_FAILURE_CASES
 
 my $notes = <<PLUGIN_NOTES;
@@ -194,6 +197,7 @@ my $oldTotal = 0;
 my $newTotal = 0;
 my $msGroupId = 0;              ##global variable so that all merges and splits from a single "Cluster" are grouped together.
 my $algoInvo;                   ##global AlgorithmInvocation used for submits...
+my $mRnaSeqTypeId;
 
 sub run {
   my $M   = shift;
@@ -205,6 +209,8 @@ sub run {
     die "$cap4 does not exist";
   }
 
+  $mRnaSeqTypeId = &getRnaSeqTypeId();
+  
   ##set no version on if not committing
   $ctx->{self_inv}->setGlobalNoVersion(1) unless $ctx->{cla}->{commit};
 
@@ -632,9 +638,18 @@ sub makeSingletonAssemblies {
   }
 }
 
+sub getRnaSeqTypeId {
+    return $mRnaSeqTypeId if $mRnaSeqTypeId;
+    
+    my $st = GUS::Model::DoTS::SequenceType->new({'name' => 'mRNA'});
+    unless ($st->retrieveFromDB()) { die "Aborting. No entry for 'mRNA' in Dots.SequenceType\n"; }
+    $mRnaSeqTypeId = $st->getSequenceTypeId;
+}
+
 sub makeNewAssembly {
   my(@aseq) = @_;
-  my $singAss = GUS::Model::DoTS::Assembly->new({'sequence_type_id' => 5, ##all Assemblies are of type mRNA
+
+  my $singAss = GUS::Model::DoTS::Assembly->new({'sequence_type_id' => $mRnaSeqTypeId, ##all Assemblies are of type mRNA
                                'taxon_id' => $ctx->{cla}->{'taxon_id'},
                                'subclass_view' => 'Assembly',
                                'description' => 'Not Annotated'} );
