@@ -151,14 +151,14 @@ PLUGIN_NOTES
 
 
 my $documentation = {
-             purposeBrief => $purposeBrief,
-		     purpose => $purpose,
-		     tablesAffected => $tablesAffected,
-		     tablesDependedOn => $tablesDependedOn,
-		     howToRestart => $howToRestart,
-		     failureCases => $failureCases,
-		     notes => $notes
-		    };
+    purposeBrief => $purposeBrief,
+    purpose => $purpose,
+    tablesAffected => $tablesAffected,
+    tablesDependedOn => $tablesDependedOn,
+    howToRestart => $howToRestart,
+    failureCases => $failureCases,
+    notes => $notes
+};
 
 sub new {
     my ($class) = @_;
