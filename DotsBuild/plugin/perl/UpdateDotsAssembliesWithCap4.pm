@@ -4,12 +4,158 @@ package DoTS::DotsBuild::Plugin::UpdateDotsAssembliesWithCap4;
 
 use strict;
 
+use GUS::PluginMgr::Plugin;
 use GUS::Model::DoTS::Assembly;
 use GUS::Model::DoTS::AssemblySequence;
 use GUS::Model::DoTS::MergeSplit;
 
 my $debug = 0;
 
+my $argsDeclaration =
+[
+    stringArg({
+        name => 'clusterfile',
+        descr => 'name of cluster file for input',
+        constraintFunc => undef,
+        reqd => 0,
+        isList => 0
+    }),
+    stringArg({
+        name => 'cap4Dir',
+        descr => 'location of executable cap4',
+        constraintFunc => undef,
+        reqd => 0,
+        isList => 0
+    }),
+    stringArg({
+        name => 'directory',
+        descr => 'location of working directory accessible from both current machine and cap4_machine',
+        default => `pwd`,
+        constraintFunc => undef,
+        reqd => 0,
+        isList => 0
+    }),
+    stringArg({
+        name => 'remote_dir',
+        descr => 'working directory on cap4_machine',
+        default => "/scratch1/$ENV{USER}/cap4",
+        constraintFunc => undef,
+        reqd => 0,
+        isList => 0
+    }),
+    stringArg({
+        name => 'debug_assem_file',
+        descr => 'cap4 output file to  be parse in and iterated on for debugging Assembly',
+        constraintFunc => undef,
+        reqd => 0,
+        isList => 0
+    }),
+    booleanArg({
+        name => 'assemble_old',
+        descr => 'does not assemble clusters with only old ids unless true',
+        constraintFunc => undef,
+        reqd => 0,
+        isList => 0
+    }),
+    booleanArg({
+        name => 'no_delete',
+        descr => 'if true, tags Assembly.description with \'DELETED\' rather than deleting',
+        constraintFunc => undef,
+        reqd => 0,
+        isList => 0
+    }),
+    booleanArg({
+        name => 'debugPlugin',
+        descr => 'if true, turns debugging on specifically in plugin...not relationalrow',
+        constraintFunc => undef,
+        reqd => 0,
+        isList => 0
+    }),
+    integerArg({
+        name => 'max_iterations',
+        descr => 'maximum number of times to iterate',
+        default => 1,
+        constraintFunc => undef,
+        reqd => 0,
+        isList => 0
+    }),
+    stringArg({
+        name => 'cap4_machine',
+        descr => 'node to rsh to to run cap4',
+        default => 'server',
+        constraintFunc => undef,
+        reqd => 0,
+        isList => 0
+    }),
+    stringArg({
+        name => 'cap4_params',
+        descr => 'parameters to pass to cap4',
+        default => 'Verbosity=0 -NoRecover -NoPolyBaseMask MinCovRep=500 InOverhang=30 EndOverhang=30 RemOverhang=30 QualSumLim=300 MaxInternalGaps=15 -ESTAssembly MaxOverlaps=50 -KeepDups',
+        constraintFunc => undef,
+        reqd => 0,
+        isList => 0
+    }),
+    integerArg({
+        name => 'testnumber',
+        descr => 'number of iterations for testing',
+        constraintFunc => undef,
+        reqd => 0,
+        isList => 0
+    }),
+    booleanArg({
+        name => 'reassemble',
+        descr => 'Reassembles entirely from AssemblySequences rather than incremental',
+        constraintFunc => undef,
+        reqd => 0,
+        isList => 0
+    }),
+    integerArg({
+        name => 'taxon_id',
+        descr => 'taxon_id for these assemblies (8=human,14=mouse)',
+        constraintFunc => undef,
+        reqd => 0,
+        isList => 0
+    })
+];
+
+my $purposeBrief = <<PURPOSEBRIEF;
+Incremental update of DOTS Assemblies
+PURPOSEBRIEF
+
+my $purpose = <<PLUGIN_PURPOSE;
+Incremental update of DOTS Assemblies: reassembles entirely from AssemblySequences if --reassemble
+PLUGIN_PURPOSE
+
+#check the documentation for this
+my $tablesAffected = [
+    ['DoTS::AssemblySequence', '']
+];
+
+my $tablesDependedOn = [
+    ['DoTS::AssemblySequence', ''],
+    ['DoTS::Assembly', ''],
+    ['DoTS::MergeSplit', '']
+];
+
+my $howToRestart = <<PLUGIN_RESTART;
+PLUGIN_RESTART
+
+my $failureCases = <<PLUGIN_FAILURE_CASES;
+PLUGIN_FAILURE_CASES
+
+my $notes = <<PLUGIN_NOTES;
+PLUGIN_NOTES
+
+
+my $documentation = {
+             purposeBrief => $purposeBrief,
+		     purpose => $purpose,
+		     tablesAffected => $tablesAffected,
+		     tablesDependedOn => $tablesDependedOn,
+		     howToRestart => $howToRestart,
+		     failureCases => $failureCases,
+		     notes => $notes
+		    };
 
 sub new {
     my ($class) = @_;
@@ -17,78 +163,12 @@ sub new {
     my $self = {};
     bless($self,$class);
     
-    my $usage = 'Incremental update of DOTS Assemblies: reassembles entirely from AssemblySequences if --reassemble';
-    my $easycsp =
-	[{o => 'clusterfile',
-	  t => 'string',
-	  h => 'name of cluster file for input',
-         },
-	 {o => 'cap4Dir',
-          t => 'string',
-	  h => 'location of executable cap4',
-         },
-	 {o => 'directory',
-          t => 'string',
-	  h => 'location of working directory accessible from both current machine and cap4_machine',
-	  d => `pwd`,
-         },
-	 {o => 'remote_dir',
-	  t => 'string',
-	  h => 'working directory on cap4_machine',
-	  d => "/scratch1/$ENV{USER}/cap4",
-         },
-	 {o => 'debug_assem_file',
-	  t => 'string',
-	  h => 'cap4 output file to  be parse in and iterated on for debugging Assembly',
-         },
-	 {o => 'assemble_old',
-	  t => 'boolean',
-	  h => 'does not assemble clusters with only old ids unless true',
-         },
-	 {o => 'no_delete',
-	  t => 'boolean',
-	  h => 'if true, tags Assembly.description with \'DELETED\' rather than deleting',
-         },
-	 {o => 'debugPlugin',
-	  t => 'boolean',
-	  h => 'if true, turns debugging on specifically in plugin...not relationalrow',
-         },
-	 {o => 'max_iterations',
-	  t => 'int',
-	  h => 'maximum number of times to iterate',
-	  d => 1,
-         },
-	 {o => 'cap4_machine',
-	  t => 'string',
-	  h => 'node to rsh to to run cap4',
-	  d => 'server',
-         },
-	 {o => 'cap4_params',
-	  t => 'string',
-	  h => 'parameters to pass to cap4',
-	  d => 'Verbosity=0 -NoRecover -NoPolyBaseMask MinCovRep=500 InOverhang=30 EndOverhang=30 RemOverhang=30 QualSumLim=300 MaxInternalGaps=15 -ESTAssembly MaxOverlaps=50 -KeepDups',
-         },
-	 {o => 'testnumber',
-	  t => 'int',
-	  h => 'number of iterations for testing',
-         },
-	 {o => 'reassemble',
-          t => 'boolean',
-	  h => 'Reassembles entirely from AssemblySequences rather than incremental',
-         },
-	 {o => 'taxon_id',
-          t => 'int',                                                                                                                                h => 'taxon_id for these assemblies (8=human,14=mouse)',
-         }
-	 ];
-    
-    $self->initialize({requiredDbVersion => {},
-		       cvsRevision => '$Revision$',  # cvs fills this in!
-		     cvsTag => '$Name$', # cvs fills this in!
-		       name => ref($self),
-		       revisionNotes => 'make consistent with GUS 3.0',
-		       easyCspOptions => $easycsp,
-		       usage => $usage
-		       });
+    $self->initialize({requiredDbVersion => 3.5,
+		     cvsRevision => '$Revision$', # cvs fills this in!
+		     name => ref($self),
+		     argsDeclaration   => $argsDeclaration,
+		     documentation     => $documentation
+		    });
     
     return $self;
 }
