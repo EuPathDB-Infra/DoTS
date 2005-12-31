@@ -8,7 +8,7 @@ use strict;
 use lib "$ENV{GUS_HOME}/lib/perl";
 use Getopt::Long;
 use GUS::ObjRelP::DbiDatabase;
-use GUS::Common::GusConfig;
+use GUS::Supported::GusConfig;
 
 ##wannt to change so that does essentailly a graph analysis (allthought without graphs!)
 ##first build cliques where all members of a click have the threshhold cutoffs to all the other members.
@@ -84,7 +84,7 @@ my $db;
 my $stmt;
 if($useCloneIds){
   print STDERR "Establishing dbi login\n" if $verbose;
-  my $gusconfig = GUS::Common::GusConfig->new($gusConfigFile);
+  my $gusconfig = GUS::Supported::GusConfig->new($gusConfigFile);
 
   my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
 					  $gusconfig->getReadOnlyDatabaseLogin(),
@@ -127,7 +127,7 @@ print STDERR "InputFiles: chimera=$chimeraFile, ignorefile=$ignoreFile\n  matrix
 my %chimera;
 if ($chimeraFile) {
   ##need to bet db connections
-  my $gusconfig = GUS::Common::GusConfig->new($gusConfigFile);
+  my $gusconfig = GUS::Supported::GusConfig->new($gusConfigFile);
 
   my $db = GUS::ObjRelP::DbiDatabase->new($gusconfig->getDbiDsn(),
 					  $gusconfig->getReadOnlyDatabaseLogin(),
