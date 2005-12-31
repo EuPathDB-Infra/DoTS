@@ -3,37 +3,78 @@ package DoTS::DotsBuild::Plugin::DeleteAssembliesWithNoAssemblySequences;
 @ISA = qw(GUS::PluginMgr::Plugin);
 
 use strict;
+use GUS::PluginMgr::Plugin;
 use GUS::ObjRelP::DbiDatabase;
 use GUS::Model::DoTS::Assembly;
+
+my $argsDeclaration =
+[
+    integerArg({
+        name => 'testnumber',
+        descr => 'number of iterations for testing',
+        constraintFunc => undef,
+        reqd => 0,
+        isList => 0
+    }),
+    integerArg({
+        name => 'taxon_id',
+        descr => 'taxon_id of assemblies that will be deleted',
+        constraintFunc => undef,
+        reqd => 1,
+        isList => 0
+    }),
+
+];
+
+my $purposeBrief = <<PURPOSEBRIEF;
+Deletes assemblies and children that have no AssemblySequences
+PURPOSEBRIEF
+
+my $purpose = <<PLUGIN_PURPOSE;
+Deletes assemblies and children that have no AssemblySequences
+PLUGIN_PURPOSE
+
+#check the documentation for this
+my $tablesAffected = [
+    ['DoTS::Assembly', 'and children']    
+];
+
+my $tablesDependedOn = [
+    ['DoTS::Assembly', ''],
+];
+
+my $howToRestart = <<PLUGIN_RESTART;
+PLUGIN_RESTART
+
+my $failureCases = <<PLUGIN_FAILURE_CASES;
+Fails if there is no DoTS.SequenceType entry for 'mRNA'
+PLUGIN_FAILURE_CASES
+
+my $notes = <<PLUGIN_NOTES;
+PLUGIN_NOTES
+
+
+my $documentation = {
+    purposeBrief => $purposeBrief,
+    purpose => $purpose,
+    tablesAffected => $tablesAffected,
+    tablesDependedOn => $tablesDependedOn,
+    howToRestart => $howToRestart,
+    failureCases => $failureCases,
+    notes => $notes
+};
 
 sub new {
   my ($class) = @_;
   my $self = {};
   bless($self,$class);
-  
-  my $usage = 'Deletes assemblies and children that have no AssemblySequences';
-  
-  my $easycsp =
-    [
-     {o => 'testnumber',
-      t => 'int',
-      h => 'number of iterations for testing',
-     },
-     {o => 'taxon_id',
-      t => 'int',
-      h => 'taxon_id of assemblies that will be deleted',
-     }
-    ];
-  
-  $self->initialize({requiredDbVersion => {},
-		     cvsRevision => '$Revision$',  # cvs fills this in!
-		     cvsTag => '$Name$', # cvs fills this in!
-		     name => ref($self),
-		     revisionNotes => 'make consistent with GUS 3.0',
-		     easyCspOptions => $easycsp,
-		     usage => $usage
-		    });
-  
+      
+  $self->initialize({requiredDbVersion => 3.5,
+           cvsRevision => '$Revision$', # cvs fills this in!
+           name => ref($self),
+           argsDeclaration   => $argsDeclaration,
+           documentation     => $documentation
+          });
   return $self;
 }
 
