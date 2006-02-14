@@ -21,9 +21,9 @@ die "Build dir $buildDir doesn't exist" unless -d $buildDir;
 
 print "\n";
 
-my $assemSeqsRM = &runRepeatMask($buildDir, $numnodes, "assemSeqs");
+my $assemSeqsRM = &runRepeatMask($buildDir, $numnodes, "assemSeqs", 10080);
 
-&runGenomeAlign($buildDir, $numnodes, "assemSeqs", "genome") if $assemSeqsRM;
+&runGenomeAlign($buildDir, $numnodes, "assemSeqs", "genome", 10080) if $assemSeqsRM;
 
 print "Done\n";
 
