@@ -1,0 +1,30 @@
+#!@perl@
+
+use strict;
+
+use lib "$ENV{GUS_HOME}/lib/perl";
+use CBIL::Util::Utils;
+use GUS::Pipeline::TaskRunAndValidate;
+
+$| = 1;
+umask 002;
+
+#work around liniac bug that loses stdout
+open(STDOUT, ">&STDERR")     || die "Can't dup stdout";
+
+my($buildDir,$numNodes,$queryFile,$subjectFile) = @ARGV;
+ 
+if (!$buildDir || !$numNodes || !$queryFile || !$subjectFile) {
+    print "usage:  runPfam buildDir numNodes queryFile subjectFile\n";
+    exit(1);
+}
+ 
+die "Build dir $buildDir doesn't exist" unless -d $buildDir;
+ 
+print "\n"; 
+
+my $time = 3000; 
+ 
+&runPfam($buildDir, "$queryFile", "$subjectFile", $numNodes, $time);
+ 
+print "Done\n";
