@@ -12,7 +12,7 @@ umask 002;
 #work around liniac bug that loses stdout
 open(STDOUT, ">&STDERR")     || die "Can't dup stdout";
 
-my($buildDir,$numNodes,$queryFile,$subjectFile) = @ARGV;
+my($buildDir,$numNodes,$queryFile,$subjectFile,$queue) = @ARGV;
  
 if (!$buildDir || !$numNodes || !$queryFile || !$subjectFile) {
     print "usage:  runsimilarities buildDir numNodes queryFile subjectFile\n";
@@ -29,8 +29,12 @@ my $cmd = "grep -c '>' $buildDir/seqfiles/$file";
  
 my $querynum = system($cmd);
 
-my $time = (3 * $querynum)/(4 * $numNodes) > 60 ? (3 * $querynum)/(4 * $numNodes) : 60; 
+#my $time = (3 * $querynum)/(4 * $numNodes) > 60 ? (3 * $querynum)/(4 * $numNodes) : 60; 
  
-&runSimilarity($buildDir, "$queryFile", "$subjectFile", $numNodes, $time);
+my $time = 7200;
+
+$queue = "--q $queue" if ($queue);
+
+&runSimilarity($buildDir, "$queryFile", "$subjectFile", $numNodes, $time, $queue);
  
 print "Done\n";
