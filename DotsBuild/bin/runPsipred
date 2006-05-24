@@ -1,0 +1,29 @@
+#!@perl@
+
+use strict;
+
+use lib "$ENV{GUS_HOME}/lib/perl";
+use CBIL::Util::Utils;
+use GUS::Pipeline::TaskRunAndValidate;
+
+
+$| = 1;
+umask 002;
+
+#work around liniac bug that loses stdout
+open(STDOUT, ">&STDERR")     || die "Can't open dump output:  $!";
+
+my ($buildDir, $numNodes, $queryFile, $subjectFile, $queue) = @ARGV;
+ 
+if (!$buildDir || !$numNodes || !$queryFile) {
+  print "usage:  runPsipred buildDir numNodes queryFile subjectFile\n";
+  exit(1);
+}
+
+my $time = 7200;
+
+$queue = "--q $queue" if ($queue);
+
+&runPsipred($buildDir, $queryFile, $subjectFile, $numNodes, $time, $queue);
+ 
+print "Done\n";
