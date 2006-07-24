@@ -192,23 +192,31 @@ sub run {
     
     ##next get the things from embl that are RNAs longer than 500 bp...
     ##need to check this for things that are not human or mouse...may need to use less sophisticated query!
-    my $mRNASql = 
-        "select o.na_sequence_id 
-        from dots.externalnasequence o 
-        where o.na_sequence_id 
-        in ( select s.na_sequence_id 
-             from dots.externalnasequence s, dots.transcript t, 
-             dots.nalocation l, dots.sequencetype st
-             where s.taxon_id in ($taxonIdList) 
-             and st.name = 'RNA'
-             and s.sequence_type_id = st.sequence_type_id    
-             and t.na_sequence_id = s.na_sequence_id
-             and t.name = 'CDS'
-             and l.na_feature_id = t.na_feature_id
-             group by s.na_sequence_id having count(*) = 1 )
-             and o.length > 400
-             and o.na_sequence_id 
-             not in (select a.na_sequence_id from dots.AssemblySequence a)";
+    my $mRNASql = select s.na_sequence_id
+              from dots.externalnasequence s, dots.sequencetype st
+              where s.taxon_id in ($taxonIdList)
+              and st.name = 'RNA'
+              and s.sequence_type_id = st.sequence_type_id
+              and s.length > 400
+              and s.na_sequence_id
+              not in (select a.na_sequence_id from dots.AssemblySequence a)";
+
+       #  "select o.na_sequence_id 
+#         from dots.externalnasequence o 
+#         where o.na_sequence_id 
+#         in ( select s.na_sequence_id 
+#              from dots.externalnasequence s, dots.transcript t, 
+#              dots.nalocation l, dots.sequencetype st
+#              where s.taxon_id in ($taxonIdList) 
+#              and st.name = 'RNA'
+#              and s.sequence_type_id = st.sequence_type_id    
+#              and t.na_sequence_id = s.na_sequence_id
+#              and t.name = 'CDS'
+#              and l.na_feature_id = t.na_feature_id
+#              group by s.na_sequence_id having count(*) = 1 )
+#              and o.length > 400
+#              and o.na_sequence_id 
+#              not in (select a.na_sequence_id from dots.AssemblySequence a)";
 
     
     if ($self->getCla->{'date'}) {
