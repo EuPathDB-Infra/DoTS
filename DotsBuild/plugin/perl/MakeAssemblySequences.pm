@@ -192,7 +192,7 @@ sub run {
     
     ##next get the things from embl that are RNAs longer than 500 bp...
     ##need to check this for things that are not human or mouse...may need to use less sophisticated query!
-    my $mRNASql = select s.na_sequence_id
+    my $mRNASql = "select s.na_sequence_id
               from dots.externalnasequence s, dots.sequencetype st
               where s.taxon_id in ($taxonIdList)
               and st.name = 'RNA'
