@@ -8,9 +8,13 @@ use File::Basename;
 my ($filesFile);
 &GetOptions("filesFile=s"=>\$filesFile);
 
+die ("usage: runFaToNib --filesFile (file of new line delimited list of fasta sequence files\n") unless (-e $filesFile);
+
 print "$filesFile\n";
 
-open (FILES,$filesFile);
+open (FILES,$filesFile) || die ("file of fatsa files cannot be opened for reading\n";;
+
+print "$filesFile, file of file names is being read\n";
 
 while(<FILES>) {
   chomp;
@@ -23,9 +27,11 @@ while(<FILES>) {
   system("mkdir -p $dir/nib");
 
   my $nibFile = $faFile;
-  $faFile =~ s/\.\S+/\.nib/;
+  $nibFile =~ s/\.\S+/\.nib/;
 
   system("faToNib $filePath $dir/nib/$faFile");
+
+  print("$filePath reformatted to $nibFile\n");
 }
 
 
