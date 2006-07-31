@@ -1,0 +1,38 @@
+#!@perl@
+
+use strict;
+use lib "$ENV{GUS_HOME}/lib/perl";
+use Getopt::Long;
+use File::Basename;
+
+my ($filesFile);
+&GetOptions("filesFile=s"=>\$filesFile);
+
+print "$filesFile\n";
+
+open (FILES,$filesFile);
+
+while(<FILES>) {
+  chomp;
+  next if ($_ =~ /^\s+$/);
+
+  my $filePath = $_;
+  my $faFile = basename($filePath);
+  my $dir = dirname($filePath);
+
+  system("mkdir -p $dir/nib");
+
+  my $nibFile = $faFile;
+  $faFile =~ s/\.\S+/\.nib/;
+
+  system("faToNib $filePath $dir/nib/$faFile");
+}
+
+
+
+
+
+
+
+
+
