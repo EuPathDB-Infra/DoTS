@@ -12,7 +12,7 @@ die ("usage: runFaToNib --filesFile (file of new line delimited list of fasta se
 
 print "$filesFile\n";
 
-open (FILES,$filesFile) || die ("file of fatsa files cannot be opened for reading\n";;
+open (FILES,$filesFile) || die ("file of fasta files cannot be opened for reading\n");
 
 print "$filesFile, file of file names is being read\n";
 
