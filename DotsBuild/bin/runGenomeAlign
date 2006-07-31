@@ -21,6 +21,8 @@ die "Build dir $buildDir doesn't exist" unless -d $buildDir;
 
 print "\n";
 
+system("runFaToNib --filesFile $buildDir/genome/aasemSeqs-genome/target.lst");
+
 my $assemSeqsRM = &runRepeatMask($buildDir, $numnodes, "assemSeqs", 10080);
 
 &runGenomeAlign($buildDir, $numnodes, "assemSeqs", "genome", 10080) if $assemSeqsRM;
