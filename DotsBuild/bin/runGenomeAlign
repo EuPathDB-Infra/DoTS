@@ -23,7 +23,7 @@ die "Build dir $buildDir doesn't exist" unless -d $buildDir;
 
 print "\n";
 
-system("runFaToNib --filesFile $buildDir/genome/assemSeqs-genome/target.lst");
+system("runFaToNib --filesFile $buildDir/genome/assemSeqs-genome/input/target.lst");
 
 my $assemSeqsRM = &runRepeatMask($buildDir, $numnodes, "assemSeqs", 10080, $queue);
 
