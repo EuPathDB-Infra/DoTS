@@ -11,6 +11,8 @@ umask 002;
 
 my $buildDir = $ARGV[0];
 my $numnodes = $ARGV[1];
+my $queue = $ARGV[2];
+
 
 if (!($buildDir && $numnodes)) {
     print "usage:  runGenomeAlign buildDir numnodes\n";
@@ -23,9 +25,9 @@ print "\n";
 
 system("runFaToNib --filesFile $buildDir/genome/assemSeqs-genome/target.lst");
 
-my $assemSeqsRM = &runRepeatMask($buildDir, $numnodes, "assemSeqs", 10080);
+my $assemSeqsRM = &runRepeatMask($buildDir, $numnodes, "assemSeqs", 10080, $queue);
 
-&runGenomeAlign($buildDir, $numnodes, "assemSeqs", "genome", 10080) if $assemSeqsRM;
+&runGenomeAlign($buildDir, $numnodes, "assemSeqs", "genome", 10080, $queue) if $assemSeqsRM;
 
 print "Done\n";
 
