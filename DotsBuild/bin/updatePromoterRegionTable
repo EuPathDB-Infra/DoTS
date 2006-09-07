@@ -32,7 +32,7 @@ my $dbh = $db->getQueryHandle();
 my $tableName = "${allgenesSchema}.PromoterRegion";
 
 my $deleteSql =
-"delete from $tableName  where na_sequence_id in (select na_sequence_id from dots.assembly where taxon_id = $taxonId)";
+"delete from $tableName where taxon_id = $taxonId";
 print STDERR "Deleting \n";
 print STDERR "deleteSql: $deleteSql\n" if $verbose;
 
@@ -44,13 +44,15 @@ $dbh->commit();
 # forward strand
 my $insertSql = 
 "insert into $tableName 
-    select distinct query_na_sequence_id, vs.chromosome, ba.target_start, ba.target_end, '(+)' as strand,
+    select distinct ba.query_na_sequence_id, vs.chromosome, ba.target_start, ba.target_end, '(+)' as strand,
        lower(dbms_lob.substr(vs.sequence, 1500, ba.target_start - 1200)) as sequence,$taxonId
-    from DoTS.BlatAlignment ba, DoTS.VirtualSequence vs
+    from DoTS.BlatAlignment ba, DoTS.VirtualSequence vs, DoTS.assembly a
     where ba.target_na_sequence_id = vs.na_sequence_id
+    and ba.query_na_sequence_id = a.na_sequence_id
     and ba.query_table_id = 56
-    and ba.is_reversed = 1
-    and ba.is_best_alignment = 1
+    and ba.is_reversed = 0
+    and (ba.blat_alignment_quality_id in (1,2,3)  or
+       (ba.blat_alignment_quality_id = 4 and ba.is_best_alignment = 1))
     and ba.query_taxon_id = $taxonId
     and ba.target_table_id = 245
     and ba.target_external_db_release_id = $genomeExtRelDbId
@@ -63,13 +65,15 @@ $dbh->do($insertSql) || die "Insert failed.\nSQL: $insertSql";
 
 # reverse strand
 my $selectSql = 
-"select distinct na_sequence_id, vs.chromosome, ba.target_start, ba.target_end, '(-)' as strand,
+"select distinct ba.query_na_sequence_id, vs.chromosome, ba.target_start, ba.target_end, '(-)' as strand,
        lower(dbms_lob.substr(vs.sequence, 1500, ba.target_end - 300)) as sequence,$taxonId
-    from DoTS.BlatAlignment ba, DoTS.VirtualSequence vs
+    from DoTS.BlatAlignment ba, DoTS.VirtualSequence vs, DoTS.assembly a
     where ba.target_na_sequence_id = vs.na_sequence_id
+    and ba.query_na_sequence_id = a.na_sequence_id
     and ba.query_table_id = 56
     and ba.is_reversed = 1
-    and ba.is_best_alignment = 1
+    and (ba.blat_alignment_quality_id in (1,2,3)  or
+       (ba.blat_alignment_quality_id = 4 and ba.is_best_alignment = 1))
     and ba.query_taxon_id = $taxonId
     and ba.target_table_id = 245
     and ba.target_external_db_release_id = $genomeExtRelDbId
