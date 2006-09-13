@@ -90,6 +90,13 @@ my $argsDeclaration =
           isList => 0
       }),
       stringArg({
+	  name => 'gffDir',
+          descr => 'output file for clustering result',
+          constraintFunc => undef,
+          reqd => 0,
+          isList => 0
+      }),
+      stringArg({
           name => 'testChr',
           descr => 'chromosome for test',
           constraintFunc => undef,
