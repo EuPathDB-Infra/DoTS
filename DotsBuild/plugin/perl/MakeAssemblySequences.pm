@@ -177,10 +177,10 @@ sub run {
     ##first get the ESTs and mRNAs..
     my $sql =
         "select e.na_sequence_id 
-         from dots.ExternalNASequence e, dots.sequencetype st 
+         from dots.ExternalNASequence e, sres.sequenceontology s 
          where e.taxon_id in($taxonIdList)
-         and st.name in ('mRNA', 'EST')
-         and e.sequence_type_id = st.sequence_type_id    
+         and s.term_name in ('mRNA', 'EST')
+         and e.sequence_ontology_id = st.sequence_ontology_id    
          and e.na_sequence_id not in 
          (select a.na_sequence_id from dots.AssemblySequence a) ";
     
@@ -193,10 +193,10 @@ sub run {
     ##next get the things from embl that are RNAs longer than 500 bp...
     ##need to check this for things that are not human or mouse...may need to use less sophisticated query!
     my $mRNASql = "select s.na_sequence_id
-              from dots.externalnasequence s, dots.sequencetype st
+              from dots.externalnasequence s, sres.sequenceontology st
               where s.taxon_id in ($taxonIdList)
-              and st.name = 'RNA'
-              and s.sequence_type_id = st.sequence_type_id
+              and st.term_name = 'RNA'
+              and s.sequence_ontology_id = st.sequence_ontology_id
               and s.length > 400
               and s.na_sequence_id
               not in (select a.na_sequence_id from dots.AssemblySequence a)";
