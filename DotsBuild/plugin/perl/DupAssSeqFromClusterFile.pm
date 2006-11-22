@@ -104,7 +104,7 @@ sub run {
 
   my $newClusterFH = new FileHandle("$newClusterFile", ">>") || $self->userError ("Can't open $newClusterFile for writing");
 
-  my $clustersDone = scalar (keys %{$done}) if $self->getArg('restart');
+  my $clustersDone;
 
   my %assSeqs;
 
