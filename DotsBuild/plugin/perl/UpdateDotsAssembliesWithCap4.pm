@@ -652,6 +652,7 @@ sub makeNewAssembly {
   my $singAss = GUS::Model::DoTS::Assembly->new({'sequence_type_id' => $mRnaSeqTypeId, ##all Assemblies are of type mRNA
                                'taxon_id' => $ctx->{cla}->{'taxon_id'},
                                'subclass_view' => 'Assembly',
+			       'sequence_version' => 1,
                                'description' => 'Not Annotated'} );
   
   print STDERR "Adding AssemblySequence child\n" if $debug == 1;
@@ -999,6 +1000,7 @@ sub processAlignment{
     $newAss->setTaxonId($ctx->{cla}->{'taxon_id'});
     $newAss->setSubclassView('Assembly');
     $newAss->setDescription('Not Annotated');
+    $newAss->setSequenceVersion(1);
     
     $newAss->cacheAssembly($newAss); ##note that will need to be added as will replace the one currently there..
   }
