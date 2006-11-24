@@ -1,10 +1,10 @@
 package DoTS::DotsBuild::Plugin::UpdateDotsAssembliesWithCap4;
 
 @ISA = qw(GUS::PluginMgr::Plugin);
+use GUS::PluginMgr::Plugin;
 
 use strict;
 
-use GUS::PluginMgr::Plugin;
 use GUS::Model::DoTS::Assembly;
 use GUS::Model::DoTS::AssemblySequence;
 use GUS::Model::DoTS::MergeSplit;
