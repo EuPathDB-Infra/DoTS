@@ -66,6 +66,13 @@ my $argsDeclaration =
         isList => 0
     }),
     booleanArg({
+        name => 'sim_mRNA',
+        descr => 'if true, get sequence_tye_id for similarity_mRNA',
+        constraintFunc => undef,
+        reqd => 0,
+        isList =>
+    }),
+    booleanArg({
         name => 'debugPlugin',
         descr => 'if true, turns debugging on specifically in plugin...not relationalrow',
         constraintFunc => undef,
@@ -641,8 +648,8 @@ sub makeSingletonAssemblies {
 sub getRnaSeqTypeId {
     return $mRnaSeqTypeId if $mRnaSeqTypeId;
     
-    my $st = GUS::Model::DoTS::SequenceType->new({'name' => 'mRNA'});
-    unless ($st->retrieveFromDB()) { die "Aborting. No entry for 'mRNA' in Dots.SequenceType\n"; }
+    my $st = $ctx->{cla}->{'sim_mRNA'} ? GUS::Model::DoTS::SequenceType->new({'name' => 'similarity_mRNA'}) : GUS::Model::DoTS::SequenceType->new({'name' => 'mRNA'});
+    unless ($st->retrieveFromDB()) { die "Aborting. No entry for mRNA in Dots.SequenceType\n"; }
     $mRnaSeqTypeId = $st->getSequenceTypeId;
 }
 
