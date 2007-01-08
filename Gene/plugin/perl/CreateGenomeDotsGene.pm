@@ -170,14 +170,13 @@ NOTES
 		})
     ];
 
-    $self->initialize({requiredDbVersion => {},
-		     cvsRevision => '$Revision$',
-		     cvsTag => '$Name$',
-		     name => ref($self),
-		     revisionNotes => '',
-		     argsDeclaration => $argsDeclaration,
-		     documentation => $documentation
-		    });
+    $self->initialize({requiredDbVersion => 3.5,
+		       cvsRevision => '$Revision$',
+		       name => ref($self),
+		       revisionNotes => '', 
+		       argsDeclaration => $argsDeclaration,
+		       documentation => $documentation
+		      });
     return $self;
 }
 
