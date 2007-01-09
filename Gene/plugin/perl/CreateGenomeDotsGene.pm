@@ -61,7 +61,20 @@ NOTES
 		 reqd  => 1,
 		 isList => 0 
 		 }),
- 
+     integerArg({name => 'queryTableId',
+                 descr => 'table_id for the query table',
+                 constraintFunc=> undef,
+                 reqd  => 1,
+                 isList => 0
+                 }),
+
+    integerArg({name => 'targetTableId',
+                 descr => 'table_id for target table',
+                 constraintFunc=> undef,
+                 reqd  => 1,
+                 isList => 0
+                 }),
+
     integerArg({name => 'genome_db_rls_id',
 		descr => 'genome external dabtabase release id',
 		constraintFunc=> undef,
@@ -261,14 +274,18 @@ sub getInitialGeneAndTranscriptIds {
 sub getBaseQuerySelector {
     my $self = shift;
     my $taxonId = $self->getArg('taxon_id');
-    return { query_taxon_id => $taxonId, query_table_id => 56, is_best_alignment => 1 };
+    my $queryTableId = $self->getArg('queryTableId');
+
+    return { query_taxon_id => $taxonId, query_table_id => $queryTableId, is_best_alignment => 1 };
 }
 
 sub getBaseTargetSelector {
     my $self = shift;
     my $taxonId = $self->getArg('taxon_id');
     my $genomeId = $self->getArg('genome_db_rls_id');
-    return { target_taxon_id => $taxonId, target_table_id => 245,
+    my $targetTableId = $self->getArg('targetTableId');
+
+    return { target_taxon_id => $taxonId, target_table_id => $targetTableId,
 	     target_external_db_release_id => $genomeId };
 }
 
