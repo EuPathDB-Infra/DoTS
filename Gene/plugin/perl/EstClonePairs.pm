@@ -149,8 +149,7 @@ BAS_SQL
     print STDERR "# creating ${tmp}.EstClonePair table...\n";
     $dbh->sqlexec($sql);
     $dbh->sqlexec("GRANT SELECT ON ${tmp}.EstClonePair to PUBLIC");
-    $dbh->sqlexec("create index ESTCLONEPAIR_IND01 on ${tmp}.EstClonePair($cols[2])");
-    $dbh->sqlexec("create index ESTCLONEPAIR_IND02 on ${tmp}.EstClonePair($cols[8])");
+    $dbh->sqlexec("create index ESTCLONEPAIR_IND04 on ${tmp}.EstClonePair($cols[2],$cols[8],$cols[5])");
   }
 
   "${tmp}.EstClonePair";
