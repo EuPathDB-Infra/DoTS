@@ -180,7 +180,15 @@ NOTES
 		descr => 'run plugin in a test region',
 		reqd => 0,
 		default => 0,
-		})
+		}),
+
+    stringArg({name => 'tableName',
+		descr => 'base name for gene and transcript temporary tables',
+		constraintFunc=> undef,
+		reqd => 1,
+		isList => 0, 
+	    }), 
+     
     ];
 
     $self->initialize({requiredDbVersion => 3.5,
@@ -313,7 +321,9 @@ sub getMergeCriteria {
 sub createTempTables {
   my ($self, $dbh, $tmpLogin, $donotCreate) = @_;
 
-  my $gdg_tab = 'GenomeDotsGene';
+  my $tableBase = $self->getArg('tableName');
+
+  my $gdg_tab = "${tableBase}Gene";
   my @gdg_cols = ('genome_dots_gene_id', 'taxon_id', 'genome_external_db_release_id',
 		  'chromosome', 'chromosome_start', 'chromosome_end', 'strand', 'gene_size',
 		  'number_of_exons', 'min_exon', 'max_exon', 'min_intron', 'max_intron',
@@ -335,7 +345,7 @@ sub createTempTables {
   my @gdg_csts = ("alter table ${tmpLogin}.$gdg_tab add constraint PK_" . uc($gdg_tab) . " primary key ($gdg_cols[0])",
                   "create index " . uc($gdg_tab) . "_IND02 on ${tmpLogin}.$gdg_tab($gdg_cols[1],$gdg_cols[2])"); 
 
-  my $gdt_tab = 'GenomeDotsTranscript';
+  my $gdt_tab = "${tableBase}Transcript";
   my @gdt_cols = ('genome_dots_transcript_id', 'taxon_id', 'genome_external_db_release_id',
 		  $gdg_cols[0], 'blat_alignment_id', 'na_sequence_id');
   my @gdt_types = ('NUMBER(10) NOT NULL', 'NUMBER(10) NOT NULL', 'NUMBER(10)',$gdg_types[0],
@@ -382,8 +392,10 @@ sub createTable {
 
 sub createTempProcedures {
     my ($self, $dbh, $essSp, $eesSp) = @_;
-    $self->createStoredProcedure($dbh, $essSp, 'GenomeDotsGene', 'genome_dots_gene_id', 'exonstarts');
-    $self->createStoredProcedure($dbh, $eesSp, 'GenomeDotsGene', 'genome_dots_gene_id', 'exonends');
+    my $tableBase = $self->getArg('tableName');
+    my $tab = "${tableBase}Gene";
+    $self->createStoredProcedure($dbh, $essSp, $tab, 'genome_dots_gene_id', 'exonstarts');
+    $self->createStoredProcedure($dbh, $eesSp, $tab, 'genome_dots_gene_id', 'exonends');
 }
 
 sub saveGene {
