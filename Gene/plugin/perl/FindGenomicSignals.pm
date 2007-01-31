@@ -90,7 +90,17 @@ NOTES
 		constraintFunc=> undef,
 		reqd  => 0,
 		default => 0,
-	    })
+	    }),
+     tableNameArg({name => 'targetTableName',
+               descr => 'Table name for alignment sequence db, in schema::table format. e.g. DoTS::VirtualSequence',
+               reqd => 1,
+               constraintFunc => undef,
+               isList => 0 }),
+     tableNameArg({name => 'queryTableName',
+		   descr => 'Table name for alignment query sequences, in schema::table format. e.g. DoTS::ExternalNASequence',
+		   reqd => 1,
+		   constraintFunc => undef,
+		   isList => 0 }),
     ];
 
     $self->initialize({requiredDbVersion => 3.5,
@@ -124,9 +134,9 @@ sub run {
   my %skip_chroms; foreach (@skip) { $skip_chroms{$_} = 1; }
   my $taxonId = $self->getArgs->{'taxon_id'};
   my $t_taxon_id = $taxonId;
-  my $t_table_id = 245;
+  my $t_table_id = $self->className2TableId($self->getArg('targetTableName'));
   my $q_taxon_id = $taxonId;
-  my $q_table_id = 56;
+  my $q_table_id = $self->className2TableId($self->getArg('queryTableName'));
   my $clean = $self->getArgs->{'clean'};
 
   # create the result table if it is not there yet, clean old result if there
