@@ -102,7 +102,7 @@ FAILURE_CASES
 		}),
     ];
 
-    $self->initialize({requiredDbVersion => {},
+    $self->initialize({requiredDbVersion => 3.5,
 		     cvsRevision => '$Revision$',
 		     cvsTag => '$Name$',
 		     name => ref($self),
