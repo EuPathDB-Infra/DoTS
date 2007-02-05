@@ -128,7 +128,7 @@ sub makeCopy {
     my $genomeId = $self->getArg('genome_db_rls_id');
 
     my $sql = "create table $gDGpref$copyTabSuf as "
-    	. "(select * from $gDGtab where $taxonId = $taxonId"
+    	. "(select * from $gDGtab where taxon_id = $taxonId"
 	. " and genome_external_db_release_id = $genomeId)";
     $self->log("making a copy of gene result: sql=$sql");
     $dbh->sqlexec($sql);
