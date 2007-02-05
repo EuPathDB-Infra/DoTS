@@ -43,7 +43,7 @@ sub getAnalysisId {
     my ($dbh, $taxonId, $genomeId) = @_;
 
     my $sql = "select aligned_gene_analysis_id from Allgenes.AlignedGeneAnalysis "
-	. "where parameters like '%--t $taxonId --dbr %' "
+	. "where parameters like '%--taxon_id $taxonId --genome_db_rls_id %' "
 	. "order by aligned_gene_analysis_id desc";
     my $sth = $dbh->prepareAndExecute($sql);
     my @aids = ();
