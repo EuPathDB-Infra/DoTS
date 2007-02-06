@@ -157,7 +157,7 @@ sub moveNewResults {
 
     $maxg = $maxg ? $maxg : 0;
 
-    $maxt = $maxt ? $maxt : 0
+    $maxt = $maxt ? $maxt : 0;
 
     my $sql = "insert into Allgenes.AlignedGene "
 	. "(select (genome_dots_gene_id + $maxg) as aligned_gene_id, "
