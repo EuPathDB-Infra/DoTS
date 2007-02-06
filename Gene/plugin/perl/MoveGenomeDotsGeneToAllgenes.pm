@@ -177,7 +177,7 @@ sub moveNewResults {
     $sql = "insert into Allgenes.AlignedGeneAssembly "
 	. "(select (genome_dots_transcript_id + $maxt) as aligned_gene_assembly_id, "
 	. "(genome_dots_gene_id + $maxg) as aligned_gene_id, na_sequence_id, "
-	. "blat_alignment_id "
+	. "'' as cluster_id, blat_alignment_id "
 	. "from $gdtTab where taxon_id = $taxonId "
 	. "and genome_external_db_release_id = $genomeId)";
     $self->log("moving new transcript results: sql=$sql");
