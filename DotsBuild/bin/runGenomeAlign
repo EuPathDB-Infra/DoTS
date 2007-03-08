@@ -27,8 +27,6 @@ die "Build dir $buildDir doesn't exist" unless -d $buildDir;
 
 print "\n";
 
-system("runFaToNib --filesFile $buildDir/genome/${query}-$target/input/target.lst");
-
 my $seqsRM = &runRepeatMask($buildDir, $numnodes, "$query", 10080, $queue);
 
 &runGenomeAlign($buildDir, $numnodes, $query, $target, 10080, $queue) if $seqsRM;
