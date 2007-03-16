@@ -29,7 +29,7 @@ while(<FILES>) {
   my $nibFile = $faFile;
   $nibFile =~ s/\.\S+/\.nib/;
 
-  system("faToNib $filePath $dir/nib/$faFile");
+  system("faToNib $dir/$faFile $dir/nib/$nibFile");
 
   print("$filePath reformatted to $nibFile\n");
 }
