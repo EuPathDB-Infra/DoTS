@@ -6,79 +6,109 @@ use GUS::PluginMgr::Plugin;
 use strict;
 use GUS::Model::SRes::DbRef;
 
-my $debug = 0;
 
 $| = 1;
 
 sub new {
-    my ($class) = @_;
-    my $self = {};
-    bless($self,$class);
+  my ($class) = @_;
+  my $self = {};
+  bless($self,$class);
 
-    my $usage = 'Plug_in to load additional information from MGI files to entries in DbRef';
+  my $purpose = <<PURPOSE;
+Add information from downloaded files to MGI ids in DbRef
+PURPOSE
 
-    my $easycsp =
-	[{o => 'testnumber',
-	  t => 'int',
-	  h => 'number of iterations for testing',
-         },
-	 {o => 'infoFile',
-	  t => 'string',
-	  h => 'file downloaded from MGI containing additional information for rows in DbRef',
-         },
-	 {o => 'geneFile',
-          t => 'string',
-          h => 'file downloaded from MGI containing Entrez Gene ids for rows in DbRef',
-         },
-	 {o => 'external_db_release_id',
-	  t => 'string',
-	  h => 'file downloaded from MGI containing additional information for rows in DbRef',
-         }
+  my $purposeBrief = <<PURPOSE_BRIEF;
+Add MGI information from files
+PURPOSE_BRIEF
+
+  my $notes = <<NOTES;
+NOTES
+
+  my $tablesAffected = <<TABLES_AFFECTED;
+DbRef
+TABLES_AFFECTED
+
+  my $tablesDependedOn = <<TABLES_DEPENDED_ON;
+DbRef
+TABLES_DEPENDED_ON
+
+  my $howToRestart = <<RESTART;
+RESTART
+
+  my $failureCases = <<FAIL_CASES;
+FAIL_CASES
+
+  my $documentation ={ purpose => $purpose,
+                       purposeBrief => $purposeBrief,
+                       notes => $notes,
+                       tablesAffected => $tablesAffected,
+                       tablesDependedOn => $tablesDependedOn,
+                       howToRestart => $howToRestart,
+                       failureCases     => $failureCases };
+
+  my $argsDeclaration =
+    [
+     integerArg({name => 'test_number',
+                 descr => 'number of iterations for testing',
+                 constraintFunc => undef,
+                 reqd => 0,
+                 isList => 0
+		}),
+     stringArg({name => 'infoFile',
+                descr => 'file containing additional info from MGI',
+                constraintFunc => undef,
+                reqd => 1,
+                isList => 0
+               }),
+     stringArg({name => 'geneFile',
+                descr => 'file from MGI containing Entrez Gene ids',
+                constraintFunc => undef,
+                reqd => 1,
+                isList => 0
+               }),
+     integerArg({name => 'external_db_release_id',
+                 descr => 'db rel id for MGI',
+                 constraintFunc => undef,
+                 reqd => 1,
+                 isList => 0
+                })
 	 ];
 
     $self->initialize({requiredDbVersion => 3.5,
-		       cvsRevision => '$Revision$',  # cvs fills this in!
+		       cvsRevision => '$Revision$',
 		       name => ref($self),
-		       revisionNotes => 'make consistent with GUS 3.0',
-		       easyCspOptions => $easycsp,
-		       usage => $usage
-		       });
+		       argsDeclaration => $argsDeclaration,
+		       documentation => $documentation});
     return $self;
 }
 
 
 sub run {
+  my ($self)  = shift;
 
-  my $M  = shift;
-  my $ctx = shift;
-  my $testnum;
-  print STDERR $ctx->{cla}->{'commit'}?"***COMMIT ON***\n":"**COMMIT TURNED OFF**\n";
-  if ($ctx->{'cla'}->{'testnumber'}) {
-    print STDERR "Testing on $ctx->{'cla'}->{'testnumber'} insertions 
-                into temp table\n" 
-      if $ctx->{'cla'}->{'testnumber'};
-    $testnum = $ctx->{'cla'}->{'testnumber'};
+  my $testnum = $self->getArg('testnumber') if $self->getArg('testnumber');
+
+  if ($testnum) {
+    $self->log ("Testing on $testnum insertions into temp table");
   }
 
-  if (!$ctx->{'cla'}->{'infoFile'} || !$ctx->{'cla'}->{'external_db_release_id' || !$ctx->{'cla'}->{'geneFile'}}) {
+  my $infoFile = $self->getArg('infoFile');
 
-    die "--infoFile --geneFile --external_db_release_id must be supplied\n";
+  my $geneFile = $self->getArg('geneFile');
 
-  }
-  my $infoFile = $ctx->{'cla'}->{'infoFile'};
+  my $external_db_release_id = $self->getArg('external_db_release_id');
 
-  my $geneFile = $ctx->{'cla'}->{'geneFile'};
+  my $dataHash = $self->makeDataHash($infoFile, $geneFile, $testnum);
 
-  my $external_db_release_id = $ctx->{'cla'}->{'external_db_release_id'};
+  my $stmt = $self->updateDbRef($dataHash, $external_db_release_id);
 
-  my $dataHash = &makeDataHash($infoFile, $geneFile, $testnum);
-
-  &updateDbRef($dataHash, $external_db_release_id);    
+  return "$stmt";
 }
 
 sub makeDataHash {
 
-    my ($infoFile, $geneFile, $testnum) = @_;
+    my ($self,$infoFile, $geneFile, $testnum) = @_;
 
     my %dataHash;
 
@@ -86,7 +116,7 @@ sub makeDataHash {
 
     my $num = 0;
 
-    open (FILE, $infoFile) || die "Can't open the info file\n"; 
+    open (FILE, $infoFile) || die "Can't open the info file\n";
 
     while (<FILE>) {
       chomp;
@@ -106,7 +136,7 @@ sub makeDataHash {
       $entryHash{$id}++;
 
       if ($entryHash{$id} > 1) {
-	print STDERR ("Duplicate entries for $id\n");
+	$self->log ("Duplicate entries for $id");
       }
 
       $dataHash{$id}= [$chrom,$cm,$symbol,$descr];
@@ -133,12 +163,12 @@ sub makeDataHash {
     }
     close(GENE);
 
-    print STDERR ("$num MGI entries will be processed\nThere are $geneNum corresponding gene ids\n");
+    $self->log ("$num MGI entries will be processed\nThere are $geneNum corresponding gene ids");
     return \%dataHash;
 }
 
 sub updateDbRef($dataHash) {
-    my ($dataHash,$external_db_release_id) = @_;
+    my ($self,$dataHash,$external_db_release_id) = @_;
 
     my $num = 0;
 
@@ -169,17 +199,15 @@ sub updateDbRef($dataHash) {
 	$num += $newDbRef->submit();
 	$newDbRef->undefPointerCache();
     }
-    print STDERR ("$num DbRef rows processed\n");
+
+    my $stmt = "$num DbRef rows processed";
+    $self->log ("$stmt");
+
+    return $stmt;
 }
 
 
 
 1;
 __END__
-=pod
-=head1 Description
-B<LoadMGIInfo> - a plug_in that udates rows in DbRef with information from MGI for C<ga> (GUS application) package.
 
-=head1 Purpose
-B<LoadMGIInfo> plug_in that updates informtion in DbRef rows.
-=cut
