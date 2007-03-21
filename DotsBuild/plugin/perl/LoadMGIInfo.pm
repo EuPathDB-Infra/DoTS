@@ -49,7 +49,7 @@ FAIL_CASES
 
   my $argsDeclaration =
     [
-     integerArg({name => 'test_number',
+     integerArg({name => 'testnumber',
                  descr => 'number of iterations for testing',
                  constraintFunc => undef,
                  reqd => 0,
