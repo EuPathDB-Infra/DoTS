@@ -1,6 +1,7 @@
 package DoTS::DotsBuild::Plugin::LoadMGIInfo;
 
-@ISA = qw(GUS::PluginMgr::Plugin);
+@ISA = qw( GUS::PluginMgr::Plugin );
+use GUS::PluginMgr::Plugin;
 
 use strict;
 use GUS::Model::SRes::DbRef;
