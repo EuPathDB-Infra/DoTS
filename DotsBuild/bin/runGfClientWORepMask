@@ -1,0 +1,35 @@
+#!@perl@
+
+use strict;
+
+use lib "$ENV{GUS_HOME}/lib/perl";
+use CBIL::Util::Utils;
+use GUS::Pipeline::TaskRunAndValidate;
+use Getopt::Long;
+
+$| = 1;
+umask 002;
+my ($buildDir,$numnodes,$queue,$query,$target);
+&GetOptions("buildDir=s" => \$buildDir,
+	    "numnodes=i" => \$numnodes,
+	    "query=s" => \$query,
+	    "queue=s" => \$queue,
+	    "target=s" => \$target);
+
+
+
+if (!($buildDir && $numnodes && $query && $target)) {
+    print "usage:  runGenomeAlign --buildDir --numnodes --query --target --queue (opt)\n";
+    exit();
+}
+
+die "Build dir $buildDir doesn't exist" unless -d $buildDir;
+
+print "\n";
+
+system("runFaToNib --filesFile $buildDir/genome/${query}-$target/input/target.lst");
+
+&runGenomeAlignWithGfClient($buildDir, $numnodes, $query, $target, 10080, $queue) if $seqsRM;
+
+print "Done\n";
+
