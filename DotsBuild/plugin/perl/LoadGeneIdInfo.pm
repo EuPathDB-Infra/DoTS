@@ -3,6 +3,7 @@ package DoTS::DotsBuild::Plugin::LoadGeneIdInfo;
 @ISA = qw(GUS::PluginMgr::Plugin);
 
 use strict;
+use GUS::PluginMgr::Plugin;
 use GUS::Model::SRes::DbRef;
 use FileHandle;
 
@@ -13,53 +14,89 @@ sub new {
 
     my $self = {};
     bless($self,$class);
-    my $usage = 'A package to update sres.DBRef from a tab delimited gene_info file.';
 
-    my $easycsp =
-	[{o => 'testnumber',
-	  t => 'int',
-	  h => 'number of iterations for testing',
-         },
-	 {o => 'externalDbRel',
-	  t => 'int',
-	  h => 'sres.externaldatabaserelease.external_database_release_id of GeneId',
-	 },
-	 {o => 'infoFile',
-	  t => 'string',
-	  h => 'file downloaded from NCBI Gene containing additional information for rows in DbRef',
-         },
-	 {o => 'ncbiTaxId',
-	  t => 'int',
-	  h => 'ncbi tax_id, e.g. mouse-10090, human-9606',
-         }
-	 ];
-    
-    $self->initialize({requiredDbVersion => {},
+    my $purpose = <<PURPOSE;
+Insert information from downloaded file into sres.dbref pertaining to NCBI Gene DB entries 
+PURPOSE
+
+my $purposeBrief = <<PURPOSE_BRIEF;
+Insert information pertaining to NCBI Gene DB entries
+PURPOSE_BRIEF
+
+my $notes = <<NOTES;
+tab delimited input file with
+tax_id,GeneId,Symbol,LocusTag,Synonyms,dbXrefs,chromosome,map location,description,type of gene,symbol from nomenclature authority,full name for nomenclature authority,nomenclature status,otherdesignation 
+NOTES
+
+my $tablesAffected = <<TABLES_AFFECTED;
+    [ ['SRes::DbRef', '']
+    ];
+TABLES_AFFECTED
+
+my $tablesDependedOn = <<TABLES_DEPENDED_ON;
+  [ ['SRes::DbRef','']];
+TABLES_DEPENDED_ON
+
+my $howToRestart = <<RESTART;
+RESTART
+
+my $failureCases = <<FAIL_CASES;
+FAIL_CASES
+
+my $documentation = { purpose          => $purpose,
+		      purposeBrief     => $purposeBrief,
+		      notes            => $notes,
+		      tablesAffected   => $tablesAffected,
+		      tablesDependedOn => $tablesDependedOn,
+		      howToRestart     => $howToRestart,
+		      failureCases     => $failureCases };
+
+
+
+
+
+    my $argsDeclaration =
+	[
+	 integerArg({name  => 'testnumber',
+            descr => 'number of iterations for testing',
+            reqd  => 0,
+            constraintFunc=> undef,
+            isList=> 0
+            }),
+	 integerArg({name  => 'externalDbRel',
+            descr => 'sres.externaldatabaserelease.id for NCBI Gene DB',
+            reqd  => 1,
+            constraintFunc=> undef,
+            isList=> 0
+            }),
+	 stringArg({name => 'infoFile',
+            descr => 'file downloaded from NCBI Gene containing additional information for rows in DbRef',
+            reqd  => 1,
+            constraintFunc=> undef,
+            isList=> 0
+            }),
+	 integerArg({name  => 'ncbiTaxId',
+            descr => 'ncbi tax_id, e.g. mouse-10090, human-9606',
+            reqd  => 1,
+	    constraintFunc=> undef,
+		     isList=> 0
+	    })
+	];
+
+    $self->initialize({requiredDbVersion => 3.5,
 		       cvsRevision => '$Revision$', # cvs fills this in!
-		       cvsTag => '$Name$', # cvs fills this in!
 		       name => ref($self),
-		       revisionNotes => 'make consistent with GUS 3.0',
-		       easyCspOptions => $easycsp,
-		       usage => $usage
-		       });
-    
-    return $self;
+		       argsDeclaration   => $argsDeclaration,
+		       documentation     => $documentation});
+
+
+  return $self;
 }
 
 
 sub run {
 
   my $self  = shift;
-
-  $self->log ($self->getArgs()->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n");
-
-  $self->log ("Testing on". $self->getArgs()->{'testnumber'}."insertions\n") if $self->getArgs()->{'testnumber'};
-
-  if (!$self->getArgs()->{'infoFile'} || !$self->getArgs()->{'ncbiTaxId'} || !$self->getArgs()->{'externalDbRel'}) {
-
-    die "--infoFile --ncbiTaxId --externalDbRel must be supplied\n";
-
-  }
 
   $self->updateDbRef();
 }
@@ -68,19 +105,19 @@ sub run {
 sub updateDbRef {
   my ($self) = @_;
 
-  my $infoFile = $self->getArgs()->{'infoFile'};
+  my $infoFile = $self->getArg('infoFile');
 
-  my $ncbiTaxId = $self->getArgs()->{'ncbiTaxId'};
+  my $ncbiTaxId = $self->getArg('ncbiTaxId');
 
-  my $externalDbRel = $self->getArgs()->{'externalDbRel'};
+  my $externalDbRel = $self->getArg('externalDbRel');
 
-  my $testnumber = $self->getArgs()->{'testnumber'} if $self->getArgs()->{'testnumber'};
+  my $testnumber = $self->getArg('testnumber') if $self->getArg('testnumber');
 
-  my $fh = new FileHandle($infoFile) || die "Could not open". $self->getArgs()->{'infoFile'};
+  open (FILE, $infoFile);
 
   my $num = 0;
 
-  while (<$fh>) {
+  while (<FILE>) {
     my @line = split(/\t/,$_);
 
     next if $line[0] != $ncbiTaxId;
@@ -112,6 +149,7 @@ sub updateDbRef {
   }
 
   $self->log ("$num DbRef rows updated\n");
+  close (FILE);
 }
 
 
