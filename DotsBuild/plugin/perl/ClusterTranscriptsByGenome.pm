@@ -79,7 +79,7 @@ my $argsDeclaration =
           name => 'targetTableName',
           descr => 'name of table containing target sequences',
           constraintFunc => undef,
-          reqd => 0,
+          reqd => 1,
           isList => 0
       }),
       stringArg({
@@ -146,34 +146,38 @@ sub run {
 
   $self->logData("making clusters");
 
-  my $clusters = $self->makeClusters($dbh);
+  my $numClusters = $self->makeClusters($dbh);
+
+  return "$numClusters created and written to outputFile\n";
+}
+
+sub makeClusterFile {
+  my ($self, $cKeys, $clusters) = @_;
 
   my $outFile = $self->getArg('outFile');
 
-  my $sort = $self->getArg('sortClusterSize');
-
   $self->logData("writing into $outFile ...");
-  open (OUT, ">$outFile") || die "could not write $outFile\n";
-
-  my $cKeys = &getClusterKeyList($clusters, $sort);
+  open (OUT, ">>$outFile") || die "could not write $outFile\n";
 
   my $c = 0;
   my $biggest = 0;
+
   foreach (@$cKeys) {
       my @seqs = keys %{ $clusters->{$_} };
       my $csize = scalar(@seqs);
-      print OUT "Cluster_" . (++$c) . " ($csize sequences): (" . join(', ', @seqs) . ")\n";
+      print OUT "Cluster_" . ($_) . " ($csize sequences): (" . join(', ', @seqs) . ")\n";
       $biggest = $csize if $csize > $biggest;
   }
-  close O;
+
+  close OUT;
+
   $self->logData("biggest cluster has $biggest sequences.");
 }
 
-####################
-
-
 sub getClusterKeyList {
-    my ($clusters, $sort) = @_;
+    my ($self, $clusters) = @_;
+
+    my $sort = $self->getArg('sortClusterSize');
 
     if (!$sort) { my @res = keys %$clusters; return \@res; }
 
@@ -190,32 +194,38 @@ sub getClusterKeyList {
 	push @$res, @{ $countHash{$_} };
     }
 
-    $res;
+    return $res;
 }
 
 
 sub makeClusters {
-    my ($self, $dbh) = @_;
+  my ($self, $dbh) = @_;
 
-    my $taxonId = $self->getTaxonId($dbh);
+  my $taxonId = $self->getTaxonId($dbh);
 
-    my $targetTableId = $self->getTableId($dbh);
+  my $targetTableId = $self->getTableId($dbh);
 
-    my $qDbRlsId = $self->getExtDbRlsId($self->getArg('queryDbName'),$self->getArg('queryDbRlsVer'));
+  my $qDbRlsId = $self->getExtDbRlsId($self->getArg('queryDbName'),$self->getArg('queryDbRlsVer'));
 
-    my $tDbRlsId = $self->getExtDbRlsId($self->getArg('targetDbName'),$self->getArg('targetDbRlsVer'));
+  my $tDbRlsId = $self->getExtDbRlsId($self->getArg('targetDbName'),$self->getArg('targetDbRlsVer'));
 
-    my $seqs = $self->getSequencePieces($dbh, $tDbRlsId);
+  my $seqs = $self->getSequencePieces($dbh, $tDbRlsId);
 
-    my $space = $self->getArg('ucscScoreTableSpace');
+  my $space = $self->getArg('ucscScoreTableSpace');
 
-    my $clusters = {};
+  my $clusters = {};
 
-    my $cinfo = {id=>0, start=>0, end=>0};
+  my $cinfo = {id=>0, start=>0, end=>0};
 
-    foreach my $seqId (keys %{$seqs}) {
-       my $sql = <<"EOSQL";
-         SELECT s.assembly_sequence_id, x.source_id
+  my $numClusters = 0;
+
+  foreach my $seqId (keys %{$seqs}) {
+    $clusters = {};
+    $cinfo->{'start'} = 0;
+    $cinfo->{'end'} = 0;
+
+    my $sql = <<"EOSQL";
+         SELECT s.assembly_sequence_id, x.source_id,u.score,
                 b.target_start, b.target_end,
                 b.tstarts, b.blocksizes
          FROM   DoTS.BlatAlignment b,
@@ -235,81 +245,86 @@ sub makeClusters {
            AND  b.target_na_sequence_id = ?
            AND  b.target_external_db_release_id = ?
            AND  u.is_best_score = 1
+           order by target_start asc, target_end asc
 EOSQL
 
+    my $sth = $dbh->prepare($sql) or die "bad sql $sql";
+    $sth->execute($taxonId,$qDbRlsId,$targetTableId,$taxonId,$seqId,$tDbRlsId) or die "could not run $sql";
 
-       $sql = "select * from ($sql) order by target_start asc, target_end asc";
+    my $gffFile = {};
+    my ($sid, $qSourceId, $score,$s, $e,$tstarts,$blocksizes);
 
-       my $sth = $dbh->prepare($sql) or die "bad sql $sql";
-       $sth->execute($taxonId,$qDbRlsId,$targetTableId,$taxonId,$seqId,$tDbRlsId) or die "could not run $sql";
+    while (($sid, $qSourceId, $score,$s, $e,$tstarts,$blocksizes) = $sth->fetchrow_array) {
+      if ($cinfo->{'end'} == 0 || $s > $cinfo->{'end'}) { #make new cluster, just starting or no overlap
+	$self->makeGffFile($gffFile,$seqs->{$seqId},$cinfo->{'start'},$cinfo->{'end'}) if $cinfo->{'end'} > 0;
+	$gffFile = {};
+	my $newCid = $cinfo->{'id'} + 1;
+	$cinfo = {'id'=>$newCid, 'start'=>$s, 'end'=>$e};
+	$clusters->{$newCid}->{$sid} = '';   #clusterHash{cluster number}->{assembly_sequence_id}=''
+	%{$gffFile->{$cinfo->{'id'}}->{$qSourceId}} = ('tstarts'=>$tstarts,'blocksizes'=> $blocksizes,'score'=>$score);
+      }
+      else {
+	my $cid = $cinfo->{'id'};   #otherwise, put the sequence in the same cluster and set the end to the larger value
+	%{$gffFile->{$cinfo->{'id'}}->{$qSourceId}} = ('tstarts'=>$tstarts,'blocksizes'=> $blocksizes,'score'=>$score);
+	$clusters->{$cid}->{$sid} = '';
+	$cinfo->{'end'} = $e if $e > $cinfo->{'end'};
+      }
+    }
+    $sth->finish;
+    $self->makeGffFile($gffFile,$seqs->{$seqId},$cinfo->{'start'},$cinfo->{'end'});
 
-       my %gffFile;
+    my $cKeys = $self->getClusterKeyList($clusters);
 
-       while (my ($sid, $qSourceId, $s, $e,$tstarts,$blocksizes) = $sth->fetchrow_array) {
-	 if ($cinfo->{'end'} == 0 || $s > $cinfo->{'end'}) { #make new cluster, just starting or no overlap
-	   $self->makeGffFile(\%gffFile,$seqs->{$seqId},$cinfo->{start},$cinfo->{end}) if $cinfo->{end} > 0;
-	   undef %gffFile;
-	   my $newCid = $cinfo->{'id'} + 1;
-	   $cinfo = {'id'=>$newCid, 'start'=>$s, 'end'=>$e};
-	   $clusters->{$newCid}->{$sid} = '';   #clusterHash{cluster number}->{assembly_sequence_id}=''
-           $gffFile{$cinfo-{'id'}}->{$qSourceId}->{'tstarts'} = $tstarts;
-	   $gffFile{$cinfo-{'id'}}->{$qSourceId}->{'blocksizes'} = $blocksizes;
-	 } 
-	 else {
-	   my $cid = $cinfo->{'id'};   #otherwise, put the sequence in the same cluster and set the end to the larger value
-	   $gffFile{$cinfo-{'id'}}->{$qSourceId}->{'tstarts'} = $tstarts;
-	   $gffFile{$cinfo-{'id'}}->{$qSourceId}->{'blockSizes'} = $blocksizes;
-	   $clusters->{$cid}->{$sid} = '';
-	   $cinfo->{'end'} = $e if $e > $cinfo->{'end'};
-	 }
-       }
-       $sth->finish;
-     }
+    $self->makeClusterFile($cKeys,$clusters);
 
-    return $clusters;
+    $numClusters += scalar (keys %{$clusters});
+
+  }
+
+  return  $numClusters;
+
 }
 
 sub getSequencePieces {
-   my ($self, $dbh, $tDbRlsId) = @_;
+  my ($self, $dbh, $tDbRlsId) = @_;
 
-   my $targetTableName = $self->getArg('targetTableName');
+  my $targetTableName = $self->getArg('targetTableName');
 
-   my $testChr = $self->getArg('testChr');
+  my $testChr = $self->getArg('testChr');
 
-   $testChr = ",$testChr";
+  my $sql = "select na_sequence_id, source_id from $targetTableName where external_database_release_id = ?";
+  $sql .= " and chromosome = '$testChr'" if $testChr;
 
-   my $sql = "select na_sequence_id, source_id from $targetTableName where external_database_release_id = ?";
-   $sql .= " where chromosome = ?" if $testChr;
+  my $sth = $dbh->prepare($sql) or die "bad sql $sql";
 
-   my $sth = $dbh->prepare($sql) or die "bad sql $sql";
+  $sth->execute($tDbRlsId) || die "could not run $sql";
 
-   $sth->execute($tDbRlsId,$testChr) || die "could not run $sql";
+  my %seqs;
 
-   my %seqs;
+  while (my ($naSeqId,$sourceId) = $sth->fetchrow_array) {
+    $seqs{$naSeqId}=$sourceId;
+    print STDERR "$naSeqId,$sourceId\n";
+  }
 
-   while (my ($naSeqId,$sourceId) = $sth->fetchrow_array) {
-     $seqs{$naSeqId}=$sourceId;
-   }
-
-   return \%seqs;
+  return \%seqs;
 }
 
 sub getTableId {
-    my ($self, $dbh) = @_;
+  my ($self, $dbh) = @_;
 
-    my $targetTableName = $self->getArg('targetTableName');
+  my $targetTableName = $self->getArg('targetTableName');
 
-    $targetTableName =~ s/\S+\.//;
+  $targetTableName =~ s/\S+\.//;
 
-    my $sth = $dbh->prepare("select table_id from core.tableinfo where lower(name) = lower(?)");
+  my $sth = $dbh->prepare("select table_id from core.tableinfo where lower(name) = lower(?)");
 
-    $sth->execute($targetTableName);
+  $sth->execute($targetTableName);
 
-    my ($tableId) = $sth->fetchrow();
+  my ($tableId) = $sth->fetchrow();
 
-    $sth->finish();
+  $sth->finish();
 
-    return $tableId;
+  return $tableId;
 }
 
 sub getTaxonId {
@@ -331,25 +346,26 @@ sub getTaxonId {
 sub makeGffFile {
   my ($self, $gffFile, $tSourceId, $clusterStart, $clusterEnd) = @_;
 
-  my $clusterId = keys %{$gffFile};
+  foreach my $clusterId (keys %{$gffFile}) {
 
-  my $dir = $self->getArg('gffDir');
+    my $dir = $self->getArg('gffDir');
 
-  open (GFF,"> $dir/${clusterId}.gff") || die "Can't open $dir/${clusterId}.gff for writing\n";
+    open (GFF,"> $dir/${clusterId}.gff") || die "Can't open $dir/${clusterId}.gff for writing\n";
 
-  print GFF "browser position ${tSourceId}:${clusterStart}-$clusterEnd
-             track name=Cluster$clusterId description='transcript alignments for Cluster$clusterId' visibility=2";
+    print GFF "browser position ${tSourceId}:${clusterStart}-$clusterEnd
+track name=Cluster$clusterId description='transcript alignments for Cluster$clusterId' visibility=2\n";
 
-  foreach my $qSourceId (keys %{$gffFile->{$clusterId}}) {
-    my $score = $gffFile->{$clusterId}->{$qSourceId}->{'score'};
-    my @tStarts = split (/,/, $gffFile->{$clusterId}->{$qSourceId}->{'tstarts'});
-    my @blockSizes = split(/,/, $gffFile->{$clusterId}->{$qSourceId}->{'blocksizes'});
-    for (my $i=0;$i<@tStarts;$i) {
-      print GFF "$tSourceId\tBLAT\texon\t$tStarts[$i]\t$tStarts[$i]+$blockSizes[$i]\t$score\t.\t.\t$qSourceId\n";
+    foreach my $qSourceId (keys %{$gffFile->{$clusterId}}) {
+      my $score = $gffFile->{$clusterId}->{$qSourceId}->{'score'};
+      my @tStarts = split (/,/, $gffFile->{$clusterId}->{$qSourceId}->{'tstarts'});
+      my @blockSizes = split(/,/, $gffFile->{$clusterId}->{$qSourceId}->{'blocksizes'});
+      for (my $i=0;$i<@tStarts;$i++) {
+	my $end = ($tStarts[$i] + $blockSizes[$i]);
+	print GFF "$tSourceId\tBLAT\texon\t$tStarts[$i]\t$end\t$score\t.\t.\t$qSourceId\n";
+      }
     }
   }
-
-    close GFF;
+  close GFF;
 }
 
 1;
