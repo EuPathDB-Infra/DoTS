@@ -20,7 +20,7 @@ my $argsDeclaration =
  stringArg({name => 'taxon_id_list',
             descr => 'comma delimited taxon_id list for sequences to process: 8=Hum, 14=Mus.',
             constraintFunc => undef,
-            reqd => 1,
+            reqd => 0,
             isList => 0
 	    }),
 
