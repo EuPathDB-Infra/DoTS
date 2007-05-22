@@ -1,0 +1,28 @@
+#!/usr/bin/perl
+
+use strict;
+
+use lib "$ENV{GUS_HOME}/lib/perl";
+use CBIL::Util::Utils;
+use GUS::Pipeline::TaskRunAndValidate;
+
+$| = 1;
+umask 002;
+
+my $buildDir = $ARGV[0];
+my $numnodes = $ARGV[1];
+
+if (!($buildDir && $numnodes)) {
+    print "usage:  runUnalignedAssSeqMatrix buildDir numnodes\n";
+    exit(1);
+}
+
+die "Build dir $buildDir doesn't exist" unless -d $buildDir;
+
+print "\n";
+
+my $unalignedAssemSeqsRM = &runRepeatMask($buildDir, $numnodes, "unalignedAssemSeqs");
+
+&runMatrix($buildDir, $numnodes, "unalignedAssemSeqs", "unalignedAssemSeqs") if $unalignedAssemSeqsRM;
+
+print "Done\n";
