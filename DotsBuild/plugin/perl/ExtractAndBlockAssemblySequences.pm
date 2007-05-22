@@ -184,7 +184,7 @@ sub run {
 	push(@todo,$id);
 	$count++;
     }
-    $self->logAlert ("Extracting",($cla->{extractonly} ? " " : " and blocking "),"$count sequences from taxon_id(s) $cla->{'taxon_idist'}\n");
+    $self->logAlert ("Extracting",($cla->{extractonly} ? " " : " and blocking "),"$count sequences from taxon_id(s) $cla->{'taxon_id_list'}\n or from $cla->{idSQL}\n");
     
     $count = 0;
     my $countProc = 0;
