@@ -132,28 +132,27 @@ my $library;
 $| = 1;
 
 sub run {
-  my $self = shift;
-  my $ctx = shift;  
-  print STDERR ($self->getCla->{'commit'} ? "COMMIT ON\n" : "COMMIT TURNED OFF\n");
-  print STDERR ("Testing on". $self->getCla->{'testnumber'}."\n") if $self->getCla->{'testnumber'};
-  
+  my ($self,$ctx) = @_;
+  print STDERR ($self->getArg('commit') ? "COMMIT ON\n" : "COMMIT TURNED OFF\n");
+  print STDERR ("Testing on". $self->getArg('testnumber')."\n") if $self->getArg('testnumber');
+
   ##set the taxon_id_list...
-  die "You must enter either the --taxon_id_list and optionally --idSQL on the command line\n" unless $self->getCla->{taxon_id_list};
+  die "You must enter either the --taxon_id_list and optionally --idSQL on the command line\n" unless $self->getArg('taxon_id_list');
 
-  die "You must provide the subdirectory and repeat file, e.g. unknown_release/vector_humMitoRibo.lib\n" unless $self->getCla->{repeatFile};
+  die "You must provide the subdirectory and repeat file, e.g. unknown_release/vector_humMitoRibo.lib\n" unless $self->getArg('repeatFile');
 
-  die "You must provide a --phrapDir in which an executable cross_match program resides" unless -x $self->getCla->{phrapDir} . "/cross_match";
+  die "You must provide a --phrapDir in which an executable cross_match program resides" unless -x $self->getArg('phrapDir') . "/cross_match";
 
-  $library = $self->getCla->{repeatFile};
+  $library = $self->getArg('repeatFile');
   print STDERR ("Running cross_match with $library\n");
-  
+
   $ctx->{'self_inv'}->setMaximumNumberOfObjects(100000);
-  
+
   my $dbh = $self->getQueryHandle();
-  
-  if ($self->getCla->{export}) {
-    my $export = $self->getCla->{export}; 
-    if (-e $self->getCla->{export}) {
+
+  if ($self->getArg('export')) {
+    my $export = $self->getArg('export');
+    if (-e $self->getArg('export')) {
       open(F,"$export");
       while (<F>) {
 	if (/^\>(\S+)/) {
@@ -165,31 +164,31 @@ sub run {
     }
     open(EX,">>$export");
   }
-  
-  if ($self->getCla->{idSQL}) {
-    $self->processQuery($self->getCla->{idSQL});
+
+  if ($self->getArg('idSQL')) {
+    $self->processQuery($self->getArg('idSQL'));
   } else {
-    
-    print STDERR ("Generating new AssemblySequences for taxon(s)". $self->getCla->{taxon_id_list}."\n");
-    
-    my $taxonIdList = $self->getCla->{taxon_id_list};
-    
+
+    print STDERR ("Generating new AssemblySequences for taxon(s)". $self->getArg('taxon_id_list')."\n");
+
+    my $taxonIdList = $self->getArg('taxon_id_list');
+
     ##first get the ESTs and mRNAs..
     my $sql =
         "select e.na_sequence_id 
-         from dots.ExternalNASequence e, sres.sequenceontology s 
+         from dots.ExternalNASequence e, sres.sequenceontology s
          where e.taxon_id in($taxonIdList)
          and s.term_name in ('mRNA', 'EST')
          and e.sequence_ontology_id = s.sequence_ontology_id
-         and e.na_sequence_id not in 
+         and e.na_sequence_id not in
          (select a.na_sequence_id from dots.AssemblySequence a) ";
-    
-    if ($self->getCla->{'date'}) {
-      $sql .= "and modification_date >= '".$self->getCla->{'date'}."'";
-    } 
-    
+
+    if ($self->getArg('date')) {
+      $sql .= "and modification_date >= '".$self->getArg('date')."'";
+    }
+
     $self->processQuery($sql);
-    
+
     ##next get the things from embl that are RNAs longer than 500 bp...
     ##need to check this for things that are not human or mouse...may need to use less sophisticated query!
     my $mRNASql = "select s.na_sequence_id
@@ -218,36 +217,36 @@ sub run {
 #              and o.na_sequence_id 
 #              not in (select a.na_sequence_id from dots.AssemblySequence a)";
 
-    
-    if ($self->getCla->{'date'}) {
-      $mRNASql .= "and modification_date >= '".$self->getCla->{'date'}."'";
-    } 
+
+    if ($self->getArg('date')) {
+      $mRNASql .= "and modification_date >= '".$self->getArg('date')."'";
+    }
     $self->processQuery($mRNASql);
-    
+
   }
-  
+
   # unlink "tmpLib";
   # unlink "tmpLib.mask";
-  
+
   close EX;
   my $results = "Processed $countProcessed AssemblySequences and marked $countBad as 'low_quality'";
-  
+
   print STDERR ("\n$results\n");
-  
+
   return $results;
 }
 
 sub processQuery {
-  
+
   my $self   = shift;
   my($sql) = @_;
-  
+
   print STDERR ("\n$sql\n"); ## if $debug;
   my $dbh = $self->getQueryHandle();
-  
+
   my $stmt = $dbh->prepare($sql);
   $stmt->execute() || die "SQL ERROR: $stmt->errstr()";
-  
+
   my $miniLib;
   my $count = 0;
   ##following segment for pre fetching theids...is less efficient than row...
@@ -256,7 +255,7 @@ sub processQuery {
     #    next unless $id > 1000000;
     next if exists $finished{$id};
     $count++;
-    last if ($self->getCla->{'testnumber'} && $count >= $self->getCla->{'testnumber'}); ##testing..
+    last if ($self->getArg('testnumber') && $count >= $self->getArg('testnumber')); ##testing..
     print STDERR ("fetching $count ids to process\n") if $count % 10000 == 0;
     push(@ids,$id);
   }
@@ -295,19 +294,19 @@ sub processQuery {
 }
 
 sub processSet {
-  
+
   my $self   = shift;
   my($miniLib) = @_;
-  
+
   open(S, ">tmpLib") || die "Can't open tmpLib";
   print S $miniLib;
   close S;
 
-  my $phrapDir = $self->getCla->{phrapDir};
+  my $phrapDir = $self->getArg('phrapDir');
     ##NOTE that need to get this installed correctly...
   #  system("/usr/local/src/bio/PHRAP_etal/phrap.SUNWspro/ultra.bin/cross_match tmpLib /usr/local/db/others/repeat/vector -screen > cross.test");
   die unless -x "$phrapDir/cross_match";
-  my $retCode = system("$phrapDir/cross_match tmpLib $library -screen > cross.test 2> cross_match.err");  
+  my $retCode = system("$phrapDir/cross_match tmpLib $library -screen > cross.test 2> cross_match.err");
   die "Failed with status $retCode running cross_match" if $retCode;
 
   ##generate better sequence....
@@ -329,11 +328,11 @@ sub processSet {
 }
 
 sub makeAndInsertAssSeq {
-  
+
   my $self   = shift;
   my($na_seq_id,$seq) = @_;
   my $qseq = $self->returnQuality($seq);
-  
+
   my $ass = GUS::Model::DoTS::AssemblySequence->new( { 'na_sequence_id' => $na_seq_id,
 						       'assembly_offset' => 0,
 						       'assembly_strand' => 1 } );
@@ -349,14 +348,14 @@ sub makeAndInsertAssSeq {
   }
   print STDERR ($ass->toString(0,1)) if $debug;
   $ass->submit();
-  print EX $ass->toFasta(1) if ($self->getCla->{commit} && $self->getCla->{export} && $ass->getHaveProcessed() == 0);
+  print EX $ass->toFasta(1) if ($self->getArg('commit') && $self->getArg('export') && $ass->getHaveProcessed() == 0);
   $countProcessed++;
 }
 
 ##trims leadint TTTT and trailing AAAAA and scans for stretch of good sequence
 ##by looking at the %Ns in a 20 bp window...must be less than 20%
 sub returnQuality{
-  
+
   my $self   = shift;
   my($seq) = @_;
   my $newSeq;
@@ -373,7 +372,7 @@ sub returnQuality{
 	#	print STDERR ("Trimming Poor qual beginning: newStart set to $newstart\n");
       } else {
 	$newSeq = substr($seq, $newstart, ($i + 10 - $newstart));
-	return $self->trimAT($newSeq); 
+	return $self->trimAT($newSeq);
       }
     }
   }
@@ -384,7 +383,7 @@ sub returnQuality{
 ##steps through sequence with 30 bp window...if >=36 As or Ts then truncates
 ##either beginning or end (whichever is closer)
 sub trimAT {
-  
+
   my $self   = shift;
   my($seq) = @_;
   $seq =~ s/\s//g;
