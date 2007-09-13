@@ -9,19 +9,22 @@ use Getopt::Long;
 
 $| = 1;
 umask 002;
-my ($buildDir,$numnodes,$queue,$query,$target);
+my ($buildDir,$numnodes,$queue,$query,$target,$ppn);
 &GetOptions("buildDir=s" => \$buildDir,
 	    "numnodes=i" => \$numnodes,
 	    "query=s" => \$query,
 	    "queue=s" => \$queue,
-	    "target=s" => \$target);
+	    "target=s" => \$target,
+            "ppn=i" => \$ppn);
 
 
 
 if (!($buildDir && $numnodes && $query && $target)) {
-    print "usage:  runGenomeAlign --buildDir --numnodes --query --target --queue (opt)\n";
+    print "usage:  runGenomeAlign --buildDir --numnodes --query --target --queue (opt) --ppn (opt)\n";
     exit();
 }
+
+$queue = "" unless $queue;
 
 die "Build dir $buildDir doesn't exist" unless -d $buildDir;
 
@@ -31,7 +34,7 @@ system("runFaToNib --filesFile $buildDir/genome/${query}-$target/input/target.ls
 
 my $seqsRM = &runRepeatMask($buildDir, $numnodes, "$query", 10080, $queue);
 
-&runGenomeAlignWithGfClient($buildDir, $numnodes, $query, $target, 10080, $queue) if $seqsRM;
+&runGenomeAlignWithGfClient($buildDir, $numnodes, $query, $target, 10080, $queue, $ppn) if $seqsRM;
 
 print "Done\n";
 
