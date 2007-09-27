@@ -104,7 +104,7 @@ my $argsDeclaration =
           constraintFunc => undef,
           reqd => 0,
           isList => 0
-      })
+      }),
       integerArg({
           name => 'distanceBetweenStarts',
           descr => 'alignments are included in the same clusters if their starts are less than this number, default is 100,000',
@@ -496,7 +496,7 @@ EOSQL
     }
 
 
-    my $clusterNum = scalar (keys %{$cluster});
+    my $clusterNum = scalar (keys %{$clusters});
 
     print STDERR "Number of clusters from make clusters: $clusterNum\n";
     return $clusters;
