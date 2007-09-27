@@ -105,6 +105,14 @@ my $argsDeclaration =
           reqd => 0,
           isList => 0
       })
+      integerArg({
+          name => 'distanceBetweenStarts',
+          descr => 'alignments are included in the same clusters if their starts are less than this number, default is 100,000',
+          constraintFunc => undef,
+          reqd => 0,
+          isList => 0
+      }),
+       distanceBetweenStarts
 ];
 
 sub new {
@@ -401,8 +409,12 @@ sub getClusterSeeds {
 sub makeClusters {
     my ($self, $dbh, $genome_id, $target_table_name, $taxon_id, $testChr, $query_dbid) = @_;
 
-    my @seqs = $self->getSequencePieces($dbh, $target_table_name, $genome_id, $testChr);
-   
+    my @seqs = $self->getSequencePieces($dbh, $target_table_name, $genome_id, $testChr); 
+
+    my $targetNumber = @seqs;
+
+    print STDERR "Total number of target pieces = $targetNumber\n";
+
     my $target_table_id = $self->getTableId($dbh, $target_table_name);
 
     my $clusters = {};
@@ -463,12 +475,14 @@ EOSQL
 
         $sql = "select * from ($sql) order by target_start asc, target_end asc";
 
+	print STDERR "SQL to make clusters: $sql\n";
+
         my $sth = $dbh->prepare($sql) or die "bad sql $sql";
         $sth->execute or die "could not run $sql";
 
         while (my ($sid, $s, $e) = $sth->fetchrow_array) {
             # make this a new command line arg
-            my $CDIST = 100000;
+            my $CDIST = $self->getArg('distanceBetweenStarts') ? $self->getArg('distanceBetweenStarts') : 100000;
             if ($cinfo->{end} == 0 || $s - $cinfo->{start} > $CDIST) {
                 my $newCid = $cinfo->{id} + 1;
                 $cinfo = {id=>$newCid, start=>$s, end=>$e};
@@ -482,6 +496,10 @@ EOSQL
         $sth->finish;
     }
 
+
+    my $clusterNum = scalar (keys %{$cluster});
+
+    print STDERR "Number of clusters from make clusters: $clusterNum\n";
     return $clusters;
 }
 
