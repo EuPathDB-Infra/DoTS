@@ -111,8 +111,7 @@ my $argsDeclaration =
           constraintFunc => undef,
           reqd => 0,
           isList => 0
-      }),
-       distanceBetweenStarts
+      })
 ];
 
 sub new {
