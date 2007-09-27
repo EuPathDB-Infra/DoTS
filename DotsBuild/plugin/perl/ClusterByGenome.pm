@@ -45,7 +45,7 @@ my $argsDeclaration =
           name => 'stage',
           descr => 'stage of clustering in DoTS build pipeline',
           constraintFunc => undef,
-          reqd => 1,
+          reqd => 0,
           isList => 0
       }),
       integerArg({
@@ -59,7 +59,7 @@ my $argsDeclaration =
           name => 'query_db_rel_id',
           descr => 'query database release id',
           constraintFunc => undef,
-          reqd => 1,
+          reqd => 0,
           isList => 0
       }),
       integerArg({
@@ -91,6 +91,13 @@ my $argsDeclaration =
           reqd => 0,
           isList => 0
       }),
+      booleanArg({
+          name => 'mixedESTs',
+          descr => 'query seqs are ESTs from multiple sources, use alternative sql to make clusters',
+          constraintFunc => undef,
+          reqd => 0,
+          isList => 0
+      }), 
       booleanArg({
           name => 'sort',
           descr => 'whether to sort the output by cluster size (ascending)',
@@ -124,45 +131,44 @@ sub run {
   $self->logArgs;
 
   my $dbh = $self->getQueryHandle();
-  my $cla = $self->getCla();
 
-  my $stage = $cla->{'stage'};
-  my $taxon_id = $cla->{'taxon_id'};
-  my $genome_id = $cla->{'target_db_rel_id'};
-  my $query_dbid = $cla->{'query_db_rel_id'};
-  my $test_chr = $cla->{'test_chr'};
-  my $out_file = $cla->{'out'};
-  my $sort = $cla->{'sort'};
-  my $target_table_name = $cla->{'target_table_name'};
-  my $target_table_id = &getTableId($dbh, $target_table_name);
+  my $stage = $self->getArg('stage') if $self->getArg('stage');
+  my $taxon_id = $self->getArg('taxon_id');
+  my $genome_id = $self->getArg('target_db_rel_id');
+  my $query_dbid = $self->getArg('query_db_rel_id');
+  my $test_chr = $self->getArg('test_chr');
+  my $out_file = $self->getArg('out');
+  my $sort = $self->getArg('sort');
+  my $target_table_name = $self->getArg('target_table_name');
+  my $target_table_id = $self->getTableId($dbh, $target_table_name);
   
-  my $aid = &getAlignedGeneAnalysisId($dbh,$taxon_id, $genome_id);
+  my $aid = $self->getAlignedGeneAnalysisId($dbh,$taxon_id, $genome_id);
 
   $self->logData("seeding clusters ...");
-  my $clusters = &getClusterSeeds($dbh, $aid, $genome_id, $target_table_name, $taxon_id, $test_chr, $query_dbid);
+  my $clusters = $self->getClusterSeeds($dbh, $aid, $genome_id, $target_table_name, $taxon_id, $test_chr, $query_dbid);
   $self->logData("number of clusters seeded: " . scalar(keys %$clusters) . '.');
 
   $self->logData("adding new members to clusters ...");
   my ($new_seqs, $changed_dgs, $no_dg_seqs) =
-      &addNewMembers($dbh, $aid, $taxon_id, $target_table_id, $query_dbid, $genome_id, $stage, $clusters);
+      $self->addNewMembers($dbh, $aid, $taxon_id, $target_table_id, $query_dbid, $genome_id, $stage, $clusters);
   $self->logData("$new_seqs new seqs, enriched $changed_dgs existing clusters, $no_dg_seqs do not overlap existing clusters");
 
   $self->logData("get links between clusters ...");
-  my $clnks = &getClusterLinks($clusters);
+  my $clnks = $self->getClusterLinks($clusters);
   $self->logData("number of links found: " . scalar(keys %$clnks) . ".");
 
   $self->logData("get linked cluster groups ...");
-  my $cgrps = &getLinkedClusterGroups($clnks);
+  my $cgrps = $self->getLinkedClusterGroups($clnks);
   $self->logData("number of linked cluster groups: " . scalar(keys %$cgrps) . ".");
 
   $self->logData("merging linked clusters ...");
-  &mergeLinkedClusters($clusters, $cgrps);
+  $self->mergeLinkedClusters($clusters, $cgrps);
   $self->logData("number of final clusters: " . scalar(keys %$clusters) . ".");
 
   $self->logData("writing into $out_file ...");
   open O, ">$out_file" or die "could not write $out_file";
 
-  my $cKeys = &getClusterKeyList($clusters, $sort);
+  my $cKeys = $self->getClusterKeyList($clusters, $sort);
 
   my $c = 0;
   my $biggest = 0;
@@ -179,7 +185,7 @@ sub run {
 ####################
 
 sub getClusterKeyList {
-    my ($clusters, $sort) = @_;
+    my ($self,$clusters, $sort) = @_;
 
     if (!$sort) { my @res = keys %$clusters; return \@res; }
 
@@ -200,7 +206,7 @@ sub getClusterKeyList {
 }
 
 sub mergeLinkedClusters {
-    my ($clusters, $cgrps) = @_;
+    my ($self,$clusters, $cgrps) = @_;
 
     foreach (keys %$cgrps) {
 	my @sids = keys %{ $cgrps->{$_} };
@@ -218,7 +224,7 @@ sub mergeLinkedClusters {
 }
 
 sub getLinkedClusterGroups {
-    my ($clnks) = @_;
+    my ($self,$clnks) = @_;
 
     return $clnks unless $clnks;
     return $clnks unless scalar(keys %$clnks) > 1;
@@ -246,7 +252,7 @@ sub getLinkedClusterGroups {
 }
 
 sub getClusterLinks {
-    my ($clusters) = @_;
+    my ($self,$clusters) = @_;
 
    # clusters linked by a member seq
     my $clnks = {};
@@ -288,7 +294,7 @@ sub getClusterLinks {
 }
 
 sub addNewMembers {
-    my ($dbh, $aid, $taxon_id, $target_table_id, $query_dbid, $genome_id, $stage, $clusters) = @_;
+    my ($self,$dbh, $aid, $taxon_id, $target_table_id, $query_dbid, $genome_id, $stage, $clusters) = @_;
 
     return if ! defined $aid;
 
@@ -354,7 +360,7 @@ return ($new_seqs, scalar(keys %changed_dgs), $no_dg_seqs);
 }
 
 sub getAlignedGeneAnalysisId {
-    my ($dbh,$taxon_id, $genome_id) = @_;
+    my ($self,$dbh,$taxon_id, $genome_id) = @_;
 
     GUS::PluginMgr::Plugin->logData("no AllGenes schema, skipping aligned_gene_analysis_id lookup.") and return unless &haveAllgenesSchema($dbh);
 
@@ -371,9 +377,9 @@ sub getAlignedGeneAnalysisId {
 }
 
 sub getClusterSeeds {
-    my ($dbh, $aid, $genome_id, $target_table_name, $taxon_id, $testChr, $query_dbid) = @_;
+    my ($self, $dbh, $aid, $genome_id, $target_table_name, $taxon_id, $testChr, $query_dbid) = @_;
 
-    return &makeClusters($dbh, $genome_id, $target_table_name, $taxon_id, $testChr, $query_dbid) if !defined $aid;
+    return $self->makeClusters($dbh, $genome_id, $target_table_name, $taxon_id, $testChr, $query_dbid) if !defined $aid;
 
     my $sql = "select ag.aligned_gene_id, 'DT.' || aga.na_sequence_id "
 	. "from Allgenes.AlignedGene ag, Allgenes.AlignedGeneAssembly aga "
@@ -393,11 +399,11 @@ sub getClusterSeeds {
 }
 
 sub makeClusters {
-    my ($dbh, $genome_id, $target_table_name, $taxon_id, $testChr, $query_dbid) = @_;
+    my ($self, $dbh, $genome_id, $target_table_name, $taxon_id, $testChr, $query_dbid) = @_;
 
-    my @seqs = &getSequencePieces($dbh, $target_table_name, $genome_id, $testChr);
+    my @seqs = $self->getSequencePieces($dbh, $target_table_name, $genome_id, $testChr);
    
-    my $target_table_id = &getTableId($dbh, $target_table_name);
+    my $target_table_id = $self->getTableId($dbh, $target_table_name);
 
     my $clusters = {};
     my $cinfo = {id=>0, start=>0, end=>0};
@@ -433,6 +439,28 @@ sub makeClusters {
           AND  b.is_best_alignment = 1
 EOSQL
 
+	my $altSql = <<"EOSQL";
+	SELECT s.assembly_sequence_id AS sid, b.target_start, b.target_end 
+        FROM DoTS.BlatAlignment b,
+             DoTS.AssemblySequence s,
+             core.tableinfo ti,
+             dots.externalnasequence x,
+             sres.sequenceontology so  
+        WHERE  b.query_na_sequence_id = s.na_sequence_id 
+          AND  b.query_table_id = ti.table_id
+          AND  lower(ti.name) = 'assemblysequence'
+          AND  b.query_taxon_id = $taxon_id 
+          AND  b.target_table_id = $target_table_id
+          AND  b.target_na_sequence_id = $seqId
+          AND  b.is_best_alignment = 1
+	  AND  s.na_sequence_id = x.na_sequence_id
+          AND  x.sequence_ontology_id = so.sequence_ontology_id
+          AND  so.term_name = 'EST'
+EOSQL
+
+
+	$sql = $altSql if $self->getArg('mixedESTs');
+
         $sql = "select * from ($sql) order by target_start asc, target_end asc";
 
         my $sth = $dbh->prepare($sql) or die "bad sql $sql";
@@ -458,7 +486,7 @@ EOSQL
 }
 
 sub getSequencePieces {
-    my ($dbh, $target_table_name, $genome_id, $testChr) = @_;
+    my ($self,$dbh, $target_table_name, $genome_id, $testChr) = @_;
 
     my $sql = "select na_sequence_id from dots.${target_table_name} where external_database_release_id = $genome_id";
     $sql .= " where chromosome = '$testChr'" if $testChr;
@@ -473,7 +501,7 @@ sub getSequencePieces {
 }
 
 sub getTableId {
-    my ($dbh, $target_table_name) = @_;
+    my ($self,$dbh, $target_table_name) = @_;
     my $sth = $dbh->prepare("select table_id from core.tableinfo where lower(name) = lower('$target_table_name')");
     $sth->execute(); 
     my ($id) = $sth->fetchrow();
@@ -482,11 +510,11 @@ sub getTableId {
 }
 
 sub haveAllgenesSchema {
-    my $dbh = shift;
+    my ($self,$dbh) = @_;
     my $sth = $dbh->prepare("select count(*) from all_tables where owner = 'ALLGENES'");
-    $sth->execute(); 
+    $sth->execute();
     my ($ct) = $sth->fetchrow();
-    $sth->finish();     
+    $sth->finish();
     return $ct;
 }
 
