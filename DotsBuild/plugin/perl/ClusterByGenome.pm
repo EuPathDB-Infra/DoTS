@@ -362,7 +362,7 @@ return ($new_seqs, scalar(keys %changed_dgs), $no_dg_seqs);
 sub getAlignedGeneAnalysisId {
     my ($self,$dbh,$taxon_id, $genome_id) = @_;
 
-    GUS::PluginMgr::Plugin->logData("no AllGenes schema, skipping aligned_gene_analysis_id lookup.") and return unless &haveAllgenesSchema($dbh);
+    GUS::PluginMgr::Plugin->logData("no AllGenes schema, skipping aligned_gene_analysis_id lookup.") and return unless $self->haveAllgenesSchema($dbh);
 
     my $sql = "select aligned_gene_analysis_id from Allgenes.AlignedGeneAnalysis "
 	. "where target_external_db_id = $genome_id and parameters like '%--t $taxon_id %' "
