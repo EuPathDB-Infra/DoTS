@@ -205,6 +205,7 @@ my $newTotal = 0;
 my $msGroupId = 0;              ##global variable so that all merges and splits from a single "Cluster" are grouped together.
 my $algoInvo;                   ##global AlgorithmInvocation used for submits...
 my $mRnaSeqTypeId;
+my $soId;
 
 sub run {
   my $M   = shift;
@@ -217,6 +218,7 @@ sub run {
   }
 
   $mRnaSeqTypeId = &getRnaSeqTypeId();
+  $soId = &getSoId();
   
   ##set no version on if not committing
   $ctx->{self_inv}->setGlobalNoVersion(1) unless $ctx->{cla}->{commit};
@@ -648,16 +650,26 @@ sub makeSingletonAssemblies {
 sub getRnaSeqTypeId {
 
     my $st = $ctx->{cla}->{'sim_mRNA'} ? GUS::Model::DoTS::SequenceType->new({'name' => 'similarity_mRNA'}) : GUS::Model::DoTS::SequenceType->new({'name' => 'mRNA'});
-    unless ($st->retrieveFromDB()) { die "Aborting. No entry for mRNA in Dots.SequenceType\n"; }
+    unless ($st->retrieveFromDB()) { $st->submit();}
     $mRnaSeqTypeId = $st->getSequenceTypeId;
 
     return $mRnaSeqTypeId;
+}
+
+sub getSoId {
+
+    my $so = GUS::Model::SRes::SequenceOntology->new({'term_name' => 'assembly'});
+    unless ($so->retrieveFromDB()) { $so->submit();}
+    $soId = $so->getSequenceTypeId;
+
+    return $soId;
 }
 
 sub makeNewAssembly {
   my(@aseq) = @_;
 
   my $singAss = GUS::Model::DoTS::Assembly->new({'sequence_type_id' => $mRnaSeqTypeId, ##all Assemblies are of type mRNA
+			       'sequence_ontology_id' => $soId,
                                'taxon_id' => $ctx->{cla}->{'taxon_id'},
                                'subclass_view' => 'Assembly',
 			       'sequence_version' => 1,
