@@ -649,7 +649,7 @@ sub makeSingletonAssemblies {
 
 sub getRnaSeqTypeId {
 
-    my $st = $ctx->{cla}->{'sim_mRNA'} ? GUS::Model::DoTS::SequenceType->new({'name' => 'similarity_mRNA'}) : GUS::Model::DoTS::SequenceType->new({'name' => 'mRNA'});
+    my $st = $ctx->{cla}->{'sim_mRNA'} ? GUS::Model::DoTS::SequenceType->new({'name' => 'similarity_mRNA', 'hierarchy' => 3, 'nucleotide_type' => 'RNA'}) : GUS::Model::DoTS::SequenceType->new({'name' => 'mRNA', 'hierarchy' => 3, 'nucleotide_type' => 'RNA'});
     unless ($st->retrieveFromDB()) { $st->submit();}
     $mRnaSeqTypeId = $st->getSequenceTypeId;
 
@@ -659,7 +659,7 @@ sub getRnaSeqTypeId {
 sub getSoId {
 
     my $so = GUS::Model::SRes::SequenceOntology->new({'term_name' => 'assembly'});
-    unless ($so->retrieveFromDB()) { $so->submit();}
+    unless ($so->retrieveFromDB()) { die "term_name assembly is not in the sequenceontology table\n";}
     $soId = $so->getSequenceTypeId;
 
     return $soId;
