@@ -11,7 +11,7 @@ use GUS::Model::DoTS::AssemblySequence;
 use GUS::Model::DoTS::MergeSplit;
 use GUS::Model::DoTS::SequenceType;
 use GUS::Model::SRes::SequenceOntology;
-
+use GUS::ObjRelP::DbiDatabase;
 
 
 my $debug = 0;
