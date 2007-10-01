@@ -191,7 +191,7 @@ sub new {
 $| = 1;
 
 ##Global variables##
-my $ctx;
+
 my @oldIds;
 my @assIds;
 my %mapAss;
@@ -212,32 +212,32 @@ my $mRnaSeqTypeId;
 my $soId;
 
 sub run {
-  my $M   = shift;
-  $ctx = shift;
-  print $ctx->{cla}->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
-  print "Testing on $ctx->{cla}->{'testnumber'}\n" if $ctx->{cla}->{'testnumber'};
-  $cap4 = $ctx->{cla}->{'cap4Dir'}."/cap4";
+  my $self   = shift;
+
+  print $self->getArg('commit') ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
+  print "Testing on $self->getArg('testnumber')\n" if $self->getArg('testnumber');
+  $cap4 = $self->getArg('cap4Dir')."/cap4";
   if (!(-e "$cap4")) {
     die "$cap4 does not exist";
   }
 
-  $mRnaSeqTypeId = &getRnaSeqTypeId();
-  $soId = &getSoId();
+  $mRnaSeqTypeId = $self->getRnaSeqTypeId();
+  $soId = $self->getSoId();
   
   ##set no version on if not committing
-  $ctx->{self_inv}->setGlobalNoVersion(1) unless $ctx->{cla}->{commit};
+  $self->setGlobalNoVersion(1) unless $self->getArg('commit');
 
   ##NOTE: WANT TO NOT DELETE EVIDENCE OR  SIMILARITY BY DEFAULT TO INCREASE THROUGHPUT...DELETE THESE SEPARATELY
-  $ctx->{self_inv}->setGlobalDeleteEvidenceOnDelete(0);
-  $ctx->{self_inv}->setGlobalDeleteSimilarityOnDelete(0);
+  $self->setGlobalDeleteEvidenceOnDelete(0);
+  $self->setGlobalDeleteSimilarityOnDelete(0);
 
   ##may need more objects as do all in one transaction...
-  $ctx->{'self_inv'}->setMaximumNumberOfObjects(300000);
-  $algoInvo = $ctx->{self_inv}; 
+  $self->setMaximumNumberOfObjects(300000);
+  $algoInvo =  $self->getAlgInvocation();
 
-  chomp $ctx->{cla}->{directory};
+  chomp $self->getArg('directory');
 
-  if ((!$ctx->{cla}->{'clusterfile'} && !$ctx->{cla}->{debug_assem_file}) || !$ctx->{cla}->{'taxon_id'} || !$ctx->{cla}->{cap4_machine}) {
+  if ((!$self->getArg('clusterfile') && !$self->getArg('debug_assem_file')) || !$self->getArg('taxon_id') || !$self->getArg('cap4_machine')) {
     die "You must include --clusterfile --taxon_id and --cap4_machine on the command line\n";
   }
 
@@ -245,18 +245,18 @@ sub run {
   $assCache = GUS::Model::DoTS::Assembly->new();
   $assCache->setSetDefaultsOnSubmit(1); ##set the defaults on assemblies that are submitted
 
-  if ($ctx->{cla}->{debugPlugin}) { ##turns on debugging if passed in on cmdline
+  if ($self->getArg('debugPlugin')) { ##turns on debugging if passed in on cmdline
     $debug = 1;
     $assCache->setAssemblyDebugging(1);
   }
 
   ##create the remote_dir on the cap4_machine
-  if ($ctx->{cla}->{cap4_machine} !~ /^s/i) {
-    my @tmp = split(/\//,$ctx->{cla}->{remote_dir});
+  if ($self->getArg('cap4_machine') !~ /^s/i) {
+    my @tmp = split(/\//,$self->getArg('remote_dir'));
     my $totPath = "";
     for (my $i = 0;$i< scalar(@tmp);$i++) {
       next unless $tmp[$i];
-      system("rsh -n $ctx->{cla}->{cap4_machine} 'mkdir $totPath/$tmp[$i]'") unless $tmp[$i] =~ /scratch/;
+      system("rsh -n $self->getArg('cap4_machine') 'mkdir $totPath/$tmp[$i]'") unless $tmp[$i] =~ /scratch/;
       $totPath .= "/$tmp[$i]";
     }
   }
@@ -280,7 +280,7 @@ sub run {
   #  print STDERR "<html>\n<preg>\n\n";
 
   ##do  the iterate params..and print the params to the log...
-  $iterateParams = $ctx->{cla}->{cap4_params};
+  $iterateParams = $self->getArg('cap4_params');
   $iterateParams =~ s/ MaxOverlaps=\d+//;
   $iterateParams =~ s/ -ClipByBadEnd//;
   ##also don't want to look for chimeras here...as depth too low?
@@ -288,13 +288,13 @@ sub run {
   #  $iterateParams =~ s/-ChimeraOut //;
   print STDERR "IterateParams: $iterateParams\n" if $debug;
 
-  print STDERR "\nCAP4 params: $ctx->{cla}->{cap4_params}\n\n";
+  print STDERR "\nCAP4 params: $self->getArg('cap4_params')\n\n";
   print STDERR  "CAP4 iterate params: $iterateParams\n\n";
 
-  if ($ctx->{cla}->{debug_assem_file}) {
-    &runDebugFromFile();
+  if ($self->getArg('debug_assem_file')) {
+    $self->runDebugFromFile();
   } else {
-    open(F,"$ctx->{cla}->{'clusterfile'}") || die "clusterfile $ctx->{cla}->{'clusterfile'} not found\n";
+    open(F,"$self->getArg('clusterfile')") || die "clusterfile $self->getArg('clusterfile') not found\n";
 
     while (<F>) {
       ##reset variables...
@@ -324,7 +324,7 @@ sub run {
         my $cluster = $1;
         next if exists $finished{$cluster}; # && !$debug;
         $count++;
-        last if $ctx->{cla}->{'testnumber'} && $count > $ctx->{cla}->{'testnumber'}; 
+        last if $self->getArg('testnumber') && $count > $self->getArg('testnumber'); 
         foreach my $id (split(', ',$2)) {
           if ($id =~ /^DT\.(\d+)/) {
             push(@oldIds,$1);
@@ -343,10 +343,10 @@ sub run {
         
         ##if am reassembling....
         my $okToReass = 0;
-        if ($ctx->{cla}->{'reassemble'}) {
-          $okToReass = &getGusEntriesForReassembly();
+        if ($self->getArg('reassemble')) {
+          $okToReass = $self->getGusEntriesForReassembly();
         } else {
-          $okToReass = &getGusEntries(); ##retrieve all the existing dots_ids and merge genes if necessary
+          $okToReass = $self->getGusEntries(); ##retrieve all the existing dots_ids and merge genes if necessary
         }
         
         if (!$okToReass) {      ##returns undef if one (or more) of the DOTS entries are not found!!
@@ -357,7 +357,7 @@ sub run {
         print STDERR "Starting $cluster: ",`date` if $debug;
 
         ##next get the new sequences...cache and get/generate AssemblySequences...
-        &getNewSequences();     ##get the new sequences
+        $self->getNewSequences();     ##get the new sequences
 
         $totalNewIds = scalar(@assIds);
 
@@ -376,11 +376,11 @@ sub run {
           my $singAssSeq = $assCache->getCachedAssemblySequence($assIds[0]);
           
           ##next create a new Assembly and add it to algoInvo for submitting..
-          $algoInvo->addChild(&makeNewAssembly($singAssSeq));
+          $algoInvo->addChild($self->makeNewAssembly($singAssSeq));
           
           ##submit
-          my ($subRet,$reviewed,$delReviewed) = &submitUpdatedAssemblies();
-          my($assCt,$assSeqCt) = &countAssembliesAndAssemblySequences();
+          my ($subRet,$reviewed,$delReviewed) = $self->submitUpdatedAssemblies();
+          my($assCt,$assSeqCt) = $self->countAssembliesAndAssemblySequences();
           if ($subRet) {
             print LOG "$cluster finished: $assCt Assemblies: ",scalar(@oldIds)," DT, $assSeqCt total\n";
             if ($reviewed || $delReviewed) {
@@ -397,13 +397,13 @@ sub run {
           next;
         }
         
-        ##if contains only old DOTS_ids go to next unless $ctx->{cla}->{assemble_old}
+        ##if contains only old DOTS_ids go to next unless $self->getArg('assemble_old')
         if ($totalNewIds == 0) { ##there are no new sequences...only old (happens in transClosure when bring in cluster info)
-          if ( !$ctx->{cla}->{assemble_old} ) { ##is singleton or not assembling only old ones...don't bother to assemble...
-            if ($ctx->{cla}->{'reassemble'}) {
+          if ( !$self->getArg('assemble_old') ) { ##is singleton or not assembling only old ones...don't bother to assemble...
+            if ($self->getArg('reassemble')) {
               print LOG "$cluster ERROR: unable to retrieve any AssemblySequences\n" ;
               ##NOTE: need to submit here as need to update the assemblysequences that may be low quality...
-              my ($subRet,$reviewed,$delReviewed) = &submitUpdatedAssemblies();
+              my ($subRet,$reviewed,$delReviewed) = $self->submitUpdatedAssemblies();
               next;
             }
             print LOG "$cluster finished: ",scalar(@oldIds), " DOTS assemblies with no new sequences\n";
@@ -415,13 +415,13 @@ sub run {
           }
           ##NOTE..want to use the iterate parameters for assembling as all are contigs
           ## and thus want to limit trimming...won't  iterate  at end...
-          &iterateAssembly(scalar(@oldIds),0);
+          $self->iterateAssembly(scalar(@oldIds),0);
 
         } else {                ##else $totalNewIds > 0
 
 
           ##if reassembling and one oldId and one NewId then is singleton...
-          if ($ctx->{cla}->{reassemble} && scalar(@oldIds) == 1 && $totalNewIds == 1) {
+          if ($self->getArg('reassemble') && scalar(@oldIds) == 1 && $totalNewIds == 1) {
             print STDERR "$cluster Processing Old singleton assembly\n" if $debug;
             my $oldSingAss = $algoInvo->getFromDbCache('GUS::Model::DoTS::Assembly',$oldIds[0]);
             ##gappedSequence for the singleton  should be set..
@@ -474,11 +474,11 @@ sub run {
               $i += 100 if $amt == 599;
             
               ##now run cap4 and parse output...
-              my($t_countContigs,$t_countSinglets,$t_singlets,$t_align) = &processCap4();
+              my($t_countContigs,$t_countSinglets,$t_singlets,$t_align) = $self->processCap4();
               if (!defined $t_align && !defined $t_singlets) { ##didn't get any valid cap4 output
                 next;
               }
-              &processAlignment($t_align);
+              $self->processAlignment($t_align);
 
               ##need to now total  the things above...
               $countContigs += $t_countContigs;
@@ -496,14 +496,14 @@ sub run {
             ##  need to determine the rules for this very carefully!!
             ##no! just iterate once but with the MaxOverlaps not set so does full alignment
           
-            &iterateAssembly($countContigs,$countSinglets);
+            $self->iterateAssembly($countContigs,$countSinglets);
 
             ##perhaps should assemble trimmed AssSeqs here rather than in iterateAssembly sub
 
 
             ##Lastly, need to assign identifiers if am reassembling
-            if ($ctx->{cla}->{'reassemble'}) {
-              if (! &assignIdsForReassembly()) {
+            if ($self->getArg('reassemble')) {
+              if (! $self->assignIdsForReassembly()) {
                 ##reassignment failed....print error msg to log and do not submit...
                 print LOG "$cluster ERROR, NOT SUBMITTED: reassigning ids failed\n";
                 next;
@@ -515,11 +515,11 @@ sub run {
         
         ##now do the submits.... 
         print STDERR "Submitting non-singleton\n" if $debug;
-        my ($subRet,$reviewed,$delReviewed) = &submitUpdatedAssemblies();
-        my($assCt,$assSeqCt) = &countAssembliesAndAssemblySequences();
+        my ($subRet,$reviewed,$delReviewed) = $self->submitUpdatedAssemblies();
+        my($assCt,$assSeqCt) = $self->countAssembliesAndAssemblySequences();
         ##debugging information...
-        if (!$ctx->{cla}->{commit} || $debug) {
-          &printDebuggingInfo($debug);
+        if (!$self->getArg('commit') || $debug) {
+          $self->printDebuggingInfo($debug);
         } 
         if ($subRet) {
           
@@ -533,7 +533,7 @@ sub run {
               print LOG "  REVIEWED merged: rna.",$r->[0],", DT.",$r->[1],"\n";
             }
           }
-          if ($ctx->{cla}->{'reassemble'} && $totalNewIds != $assSeqCt) {
+          if ($self->getArg('reassemble') && $totalNewIds != $assSeqCt) {
             print LOG "  Number of AssemblySequences ($assSeqCt) does not match total input for reassembly ($totalNewIds)\n";
           }
         } else {
@@ -549,7 +549,7 @@ sub run {
   ############################################################
   ###  put an informative summary in the results variable
   ############################################################
-  my $results = "Processed $count clusters: $oldTotal DT.na_sequence_ids and $newTotal new sequences. Inserted ".($ctx->{self_inv}->getTotalInserts() - 1).", Updated ".$ctx->{self_inv}->getTotalUpdates()." and Deleted ".$ctx->{self_inv}->getTotalDeletes();
+  my $results = "Processed $count clusters: $oldTotal DT.na_sequence_ids and $newTotal new sequences. Inserted ".($self->getTotalInserts() - 1).", Updated ".$self->getTotalUpdates()." and Deleted ".$self->getTotalDeletes();
   ###updates the AlgorithnInvocation table with results and time complete
 
   print LOG "\n$results\n";
@@ -564,7 +564,7 @@ sub run {
 ##################################################
 
 sub printDebuggingInfo {
-  my($level) = shift;
+  my($self,$level) = @_;
   print STDERR "\nDebugging information...\n\n" if $level;
   foreach my $ass ($algoInvo->getChildren('GUS::Model::DoTS::Assembly')) {
     print STDERR "\nFinished Assembly: DT.",$ass->getId(),", cacheId=",$ass->getCacheId(),"\nAlignment:\n" if $level; 
@@ -589,13 +589,13 @@ sub printDebuggingInfo {
 
 ##purpose here is to iterate until somehow freezes and get no changes...just how to do this is the question!!
 sub iterateAssembly {
-  my($countContigs,$countSinglets) = @_;
+  my($self,$countContigs,$countSinglets) = @_;
   print STDERR "Iterating assembly($countContigs contigs, $countSinglets singlets)\n" if $debug;
   $iterationNumber++;
-  if ($iterationNumber > $ctx->{cla}->{max_iterations} || ($countContigs == 1 && $countSinglets == 0)) {
+  if ($iterationNumber > $self->getArg('max_iterations') || ($countContigs == 1 && $countSinglets == 0)) {
     ##need to assemble the trimmed assemblysequences here if there are any... 
-    &processTrimmedAssemblySequences(); 
-    &makeSingletonAssemblies($countSinglets);
+    $self->processTrimmedAssemblySequences(); 
+    $self->makeSingletonAssemblies($countSinglets);
     return $countSinglets; 
   }
 
@@ -625,35 +625,35 @@ sub iterateAssembly {
   close T;
   #  exit;
   ##then run cap4..
-  my ($newCountContigs,$newCountSinglets,$newSinglets,$newAlign) = &processCap4(1);
+  my ($newCountContigs,$newCountSinglets,$newSinglets,$newAlign) = $self->processCap4(1);
   ##then parse and check to see if have fewer assemblies + singletons...
   ##if fewer,process the alignments else submit what I have...
   if ($newCountContigs && ($newCountSinglets < $countSinglets || $newCountContigs < $countContigs)) {
     ##need to process and then redo iteration
-    &processAlignment($newAlign);
-    &iterateAssembly($newCountContigs,$newCountSinglets);
+    $self->processAlignment($newAlign);
+    $self->iterateAssembly($newCountContigs,$newCountSinglets);
   } else {
-    &processTrimmedAssemblySequences(); 
-    &makeSingletonAssemblies($newCountSinglets);
+    $self->processTrimmedAssemblySequences(); 
+    $self->makeSingletonAssemblies($newCountSinglets);
   }
   return $newCountSinglets;     ##what to return!!..number of singlets...
 }
 
 sub makeSingletonAssemblies {
-  my($numSinglets) = @_;
+  my($self,$numSinglets) = @_;
   
   if ($numSinglets > 0) {
     foreach my $a ($assCache->getAllCachedAssemblySequences()) {
       next unless $a->isSinglet();
-      $algoInvo->addChild(&makeNewAssembly($a));
+      $algoInvo->addChild($self->makeNewAssembly($a));
       $a->setSinglet(0);
     }
   }
 }
 
 sub getRnaSeqTypeId {
-
-    my $st = $ctx->{cla}->{'sim_mRNA'} ? GUS::Model::DoTS::SequenceType->new({'name' => 'similarity_mRNA', 'hierarchy' => 3, 'nucleotide_type' => 'RNA'}) : GUS::Model::DoTS::SequenceType->new({'name' => 'mRNA', 'hierarchy' => 3, 'nucleotide_type' => 'RNA'});
+    my ($self) = @_;
+    my $st = $self->getArg('sim_mRNA') ? GUS::Model::DoTS::SequenceType->new({'name' => 'similarity_mRNA', 'hierarchy' => 3, 'nucleotide_type' => 'RNA'}) : GUS::Model::DoTS::SequenceType->new({'name' => 'mRNA', 'hierarchy' => 3, 'nucleotide_type' => 'RNA'});
     unless ($st->retrieveFromDB()) { $st->submit();}
     $mRnaSeqTypeId = $st->getSequenceTypeId;
 
@@ -661,20 +661,20 @@ sub getRnaSeqTypeId {
 }
 
 sub getSoId {
-
+   my ($self) = @_;
     my $so = GUS::Model::SRes::SequenceOntology->new({'term_name' => 'assembly'});
     unless ($so->retrieveFromDB()) { die "term_name assembly is not in the sequenceontology table\n";}
-    $soId = $so->getSequenceTypeId;
+    $soId = $so->getSequenceOntologyId;
 
     return $soId;
 }
 
 sub makeNewAssembly {
-  my(@aseq) = @_;
+  my($self,@aseq) = @_;
 
   my $singAss = GUS::Model::DoTS::Assembly->new({'sequence_type_id' => $mRnaSeqTypeId, ##all Assemblies are of type mRNA
 			       'sequence_ontology_id' => $soId,
-                               'taxon_id' => $ctx->{cla}->{'taxon_id'},
+                               'taxon_id' => $self->getArg('taxon_id'),
                                'subclass_view' => 'Assembly',
 			       'sequence_version' => 1,
                                'description' => 'Not Annotated'} );
@@ -703,6 +703,7 @@ sub makeNewAssembly {
 ##am I submitting assemblies twice??...
 ##note  that need to submit assemblies that have been deleted last!!
 sub submitUpdatedAssemblies {
+  my ($self) = @_;
   my %submitted;
   my @reviewed;
   my @delReviewed;              ##THose that have been deleted...but man rev
@@ -712,11 +713,11 @@ sub submitUpdatedAssemblies {
   #  foreach my $id (@oldIds){
   #    my $ass = $algoInvo->getFromDbCache('GUS::Model::DoTS::Assembly',$id);
   #    if(!$ass->isMarkedDeleted() && scalar($ass->getChildren('GUS::Model::DoTS::AssemblySequence')) == 0){
-  #      &markAssemblyAndChildrenDeleted($ass);
+  #      $self->markAssemblyAndChildrenDeleted($ass);
   #      $algoInvo->addChild($ass) unless $ass->getParent('GUS::Model::DoTS::AlgorithmInvocation');
   #    }elsif($ass->isMarkedDeleted() && $ass->getChildren('GUS::Model::DoTS::AssemblySequence')){
   #      print STDERR "ERROR: $id is marked deleted but still has AssemblySequence children\n";
-  #      &printDebuggingInfo(1);
+  #      $self->printDebuggingInfo(1);
   #    }
   #  }
 
@@ -747,7 +748,7 @@ sub submitUpdatedAssemblies {
         }
       }
       ##note: if not deleting and  is assembly that is marked deleted need to catch and unmark deleted
-      if ($c->isMarkedDeleted() && $ctx->{cla}->{no_delete}) {
+      if ($c->isMarkedDeleted() && $self->getArg('no_delete')) {
         $c->markUnDeleted();
       }
       ###check to see if still has assemblyseuqencechildren and deal with if  so...
@@ -787,6 +788,7 @@ sub submitUpdatedAssemblies {
 }
 
 sub countAssembliesAndAssemblySequences {
+  my ($self) = @_;
   my @tmp = $algoInvo->getChildren('GUS::Model::DoTS::Assembly');
   my $ct = 0;
   #  my @reviewed;
@@ -823,6 +825,7 @@ sub countAssembliesAndAssemblySequences {
 #my %mapAss; contains array of assemblysequence ids
 #my %mapAssSeq; keys assemblysequence id values the assemblyto which assigned
 sub assignIdsForReassembly {
+  my ($self) = @_;
   my %mapNew;
   my %numNew;
   print STDERR "assignIdsForReassembly gene \n" if $debug;
@@ -887,10 +890,10 @@ sub assignIdsForReassembly {
         my $delRNA = $delAss->getRNA(1);
         my $oldRNA = $oldAss->getRNA(1);
         ##NOTE...need to do merge split for the Assembly not the RNA
-        $delAss->addToSubmitList(&createMergeSplit($delRNA,$oldRNA,1)) if $delRNA && $oldRNA;
-        $delAss->addToSubmitList(&createMergeSplit($delAss,$oldAss,1));
+        $delAss->addToSubmitList($self->createMergeSplit($delRNA,$oldRNA,1)) if $delRNA && $oldRNA;
+        $delAss->addToSubmitList($self->createMergeSplit($delAss,$oldAss,1));
         ##now mark deleted!!
-        &markAssemblyAndChildrenDeleted($delAss);
+        $self->markAssemblyAndChildrenDeleted($delAss);
       }
       $dealtWith{$old_id} = 1;
     }
@@ -899,8 +902,8 @@ sub assignIdsForReassembly {
 }
 
 sub markAssemblyAndChildrenDeleted {
-  my($delAss) = @_;
-  if ($ctx->{cla}->{no_delete}) { ##just tag that has been deleted...delete later
+  my($self,$delAss) = @_;
+  if ($self->getArg('no_delete')) { ##just tag that has been deleted...delete later
     $delAss->setDescription('DELETED');
     $delAss->setNumberOfContainedSequences(0);
     $delAss->set('sequence','NULL');
@@ -929,6 +932,7 @@ sub markAssemblyAndChildrenDeleted {
 ##all will assemble into a single assembly or at most two if came from two
 ##different ends of assembly(s)
 sub processTrimmedAssemblySequences {
+  my ($self) = @_;
   return if scalar(@trimmedAssemblySequences) < 1;
   print STDERR "processTrimmedAssemblySequences: starting\n" if $debug;
   open(T,">$tmpLib");
@@ -941,13 +945,13 @@ sub processTrimmedAssemblySequences {
   print T "</CAML>\n";
   close T;
   undef @trimmedAssemblySequences; ##have processed these so don't need....undef just to make sure don't do again.
-  my($countContigs,$countSinglets,$singlets,$align) = &processCap4();
-  &processAlignment($align);
+  my($countContigs,$countSinglets,$singlets,$align) = $self->processCap4();
+  $self->processAlignment($align);
   print STDERR "processTrimmedAssemblySequences: complete\n" if $debug;
 }
 
 sub processAlignment{
-  my($align) = @_;
+  my($self,$align) = @_;
   my $ct = 1;
   foreach my $al (@$align) {
     print STDERR "Processing Alignment ".$ct++.":\n\n$al\n\n" if $debug; ##$al\n" if $debug == 1;
@@ -961,7 +965,7 @@ sub processAlignment{
     ##at end
     ##if AssemblySequences get removed entirely from assembly...just make a singleton assembly
     #    foreach my $das (@delAssSeqs){
-    #      $algoInvo->addChild(&makeNewAssembly($das));
+    #      $algoInvo->addChild($self->makeNewAssembly($das));
     #    }
     #    if(scalar(@delAssSeqs) > 0){
     #      $algoInvo->addChildren(@delAssSeqs);
@@ -1008,8 +1012,8 @@ sub processAlignment{
       ##in this case, the RNA can have a protein child(ren) that is dependent....others will crop up.
       foreach my $d (@{$markDel}) {
         ##need to create mergeSplit...only if both have valid ids..are from db!
-        $algoInvo->addChild(&createMergeSplit($d,$newAss,1)) if ($d->getId() && $newAss->getId());
-        &markAssemblyAndChildrenDeleted($d);
+        $algoInvo->addChild($self->createMergeSplit($d,$newAss,1)) if ($d->getId() && $newAss->getId());
+        $self->markAssemblyAndChildrenDeleted($d);
         
         $d->setParent($algoInvo);
       }
@@ -1021,7 +1025,7 @@ sub processAlignment{
     ##set last things with this assembly and add to cache
     ##set parent ids relevant to this program..
     ##need these in order to create new RNA if new assembly
-    $newAss->setTaxonId($ctx->{cla}->{'taxon_id'});
+    $newAss->setTaxonId($self->getArg('taxon_id'));
     $newAss->setSubclassView('Assembly');
     $newAss->setDescription('Not Annotated');
     $newAss->setSequenceVersion(1);
@@ -1032,7 +1036,8 @@ sub processAlignment{
 
 ##this needs to be modified extensively in face of manual annotation...
 # sub markAssemblyToRNADeleted {
-#   my $assembly = shift;
+#   my ($self,$assembly) = @_;
+#
 #   print STDERR "Deleting Assembly: ".$assembly->getCacheId()."\n" if $debug;
 #   my $r = $assembly->getRNA(1,1);
 #   $algoInvo->addChild($r);  ##do this so gets submitted in submit...
@@ -1050,31 +1055,31 @@ sub processAlignment{
 ##should also count the number of contigs and singlets to determine if need to rerun...
 ##also need to return the singlets...
 sub processCap4 {
-  my($iterate) = @_;
+  my($self,$iterate) = @_;
   print STDERR "Processing cap4 alignment\n" if $debug == 1;
   my $countRedo = 0;
   ##first unlink output file so can detect failures..
   unlink "$tmpLib.assem.caml";
   ##deal  with debugging file...
-  if ($ctx->{cla}->{debug_assem_file} && !$iterate) {
+  if ($self->getArg('debug_assem_file') && !$iterate) {
     die "--debug_assem_file...comment line 749 and following else stmtnt etc to use\n";
-    open(C, "$ctx->{cla}->{debug_assem_file}") || die "debug_assem_file: $ctx->{cla}->{debug_assem_file} not found\n";
+    open(C, "$self->getArg('debug_assem_file')") || die "debug_assem_file: $self->getArg('debug_assem_file') not found\n";
   }                             # else{
   ##for running on the server...having problem with nodes and want to finish
-  #    my $cmd = "$cap4 $tmpLib ".($iterate ? $iterateParams : $ctx->{cla}->{cap4_params});
+  #    my $cmd = "$cap4 $tmpLib ".($iterate ? $iterateParams : $self->getArg('cap4_params'));
   ##for rning on the nodes...
-  #    my $cmd = "rsh -n $ctx->{cla}->{cap4_machine} 'cd $ctx->{cla}->{directory}; $cap4 $tmpLib ".($iterate ? $iterateParams : $ctx->{cla}->{cap4_params})."'";
+  #    my $cmd = "rsh -n $self->getArg('cap4_machine') 'cd $self->getArg('directory'); $cap4 $tmpLib ".($iterate ? $iterateParams : $self->getArg('cap4_params'))."'";
 
   my $cmd;
   ##first should unlink the output file so that will not  be an error  if cap4 fails..
-  if ($ctx->{cla}->{cap4_machine} =~ /^s/i) { ##running on server
-    $cmd = "$cap4 $tmpLib ".($iterate ? $iterateParams : $ctx->{cla}->{cap4_params});
+  if ($self->getArg('cap4_machine') =~ /^s/i) { ##running on server
+    $cmd = "$cap4 $tmpLib ".($iterate ? $iterateParams : $self->getArg('cap4_params'));
   } else {
-    my $rmCmd = "rsh -n $ctx->{cla}->{cap4_machine} 'cd $ctx->{cla}->{remote_dir}; /bin/rm $tmpLib"."*;'";
+    my $rmCmd = "rsh -n $self->getArg('cap4_machine') 'cd $self->getArg('remote_dir'); /bin/rm $tmpLib"."*;'";
     system($rmCmd);
-    system("rcp $tmpLib $ctx->{cla}->{cap4_machine}:$ctx->{cla}->{remote_dir}");
-    $cmd = "rsh -n $ctx->{cla}->{cap4_machine} 'cd $ctx->{cla}->{remote_dir}; $cap4 $tmpLib ".($iterate ? $iterateParams : $ctx->{cla}->{cap4_params}).($ctx->{cla}->{cap4_machine} =~ /^s/i ? "" : "'");
-    $cmd .= "; rcp $ctx->{cla}->{cap4_machine}:$ctx->{cla}->{remote_dir}/$tmpLib.assem.caml .";
+    system("rcp $tmpLib $self->getArg('cap4_machine'):$self->getArg('remote_dir')");
+    $cmd = "rsh -n $self->getArg('cap4_machine') 'cd $self->getArg('remote_dir'); $cap4 $tmpLib ".($iterate ? $iterateParams : $self->getArg('cap4_params')).($self->getArg('cap4_machine') =~ /^s/i ? "" : "'");
+    $cmd .= "; rcp $self->getArg('cap4_machine'):$self->getArg('remote_dir')/$tmpLib.assem.caml .";
   }
   print STDERR "$cmd\n" if $debug;
 
@@ -1144,6 +1149,7 @@ sub processCap4 {
 ##sequences could be either from dbEST or GenBank...check if dbEST first then GenBank.
 ##all sequences should be in AssemblySequence
 sub getNewSequences {
+  my ($self) = @_;
   print STDERR "getting ".scalar(@assIds)." new sequences: \(",join(', ',@assIds),"\)\n" if $debug == 1;
   my %del;
   foreach my $id (@assIds) {
@@ -1190,13 +1196,14 @@ sub getNewSequences {
 
 ##this will be used if reassembling...
 sub getGusEntriesForReassembly {
+  my ($self) = @_;
   print STDERR "retrieving gus entries \(".join(', ',@oldIds)."\)\n" if $debug;
   if (scalar(@oldIds) == 0) {   ##is a new gene....contains no old dots ids...
     return 1;
   }
   foreach my $na_seq_id (@oldIds) {
     if (! exists $mapAss{$na_seq_id}) { ##new assembly...
-      #my $a  = GUS::Model::DoTS::Assembly->new({'na_sequence_id' => $na_seq_id,'taxon_id' => $ctx->{cla}->{taxon_id} }); alered by DP 3/08/03-see line below
+      #my $a  = GUS::Model::DoTS::Assembly->new({'na_sequence_id' => $na_seq_id,'taxon_id' => $self->getArg('taxon_id') )); alered by DP 3/08/03-see line below
       my $a  = GUS::Model::DoTS::Assembly->new({'na_sequence_id' => $na_seq_id });
       my $haveAssSeqs = 0;
       if ($a->retrieveFromDB()) {
@@ -1233,6 +1240,7 @@ sub getGusEntriesForReassembly {
 ##this method retrieves retrieves and caches all assemblies
 sub getGusEntries {
   #  my(@oldIds) = @_; ##is global variable
+  my ($self) = @_;
   print STDERR "retrieving gus entries \(".join(', ',@oldIds)."\)\n" if $debug;
   if (scalar(@oldIds) == 0) {   ##is a new gene....contains no old dots ids...
     ##create a dots gene, add a TU child and return it...
@@ -1241,7 +1249,7 @@ sub getGusEntries {
   foreach my $na_seq_id (@oldIds) {
     if (! $assCache->assemblyIsCached($na_seq_id)) { ##new assembly...
       ##check this....should use the where hash ref...need to modify these Gene and RNA methods..
-      #my $a  = GUS::Model::DoTS::Assembly->new({'na_sequence_id' => $na_seq_id,'taxon_id' => $ctx->{cla}->{taxon_id} });altered by DP 3/08/03-see next line
+      #my $a  = GUS::Model::DoTS::Assembly->new({'na_sequence_id' => $na_seq_id,'taxon_id' => $self->getArg('taxon_id') });altered by DP 3/08/03-see next line
       my $a  = GUS::Model::DoTS::Assembly->new({'na_sequence_id' => $na_seq_id});
       if ($a->retrieveFromDB()) {
         #        print STDERR "getGusEntries: ".$a->toXML() if $debug;
@@ -1266,7 +1274,7 @@ sub getGusEntries {
 }
 
 sub createMergeSplit {
-  my($o,$n,$is_merge) = @_;
+  my($self,$o,$n,$is_merge) = @_;
   print STDERR "Creating MergeSplit: Old:".$o->getId().", New:".$n->getId().", is_merge:'$is_merge'\n" if $debug;
   my $ms = GUS::Model::DoTS::MergeSplit->new({'old_id' => $o->getId(),
                             'new_id' => $n->getId(),
@@ -1277,23 +1285,24 @@ sub createMergeSplit {
 }
 
 sub runDebugFromFile {
+  my ($self) = @_;
   print STDERR "Parsing cap4 file for debugging\n";
-  my ($countContigs,$countSinglets,$singlets,$align) = &processCap4();
+  my ($countContigs,$countSinglets,$singlets,$align) = $self->processCap4();
   if (scalar(@$align) == 0) {   ##didn't get any valid cap2 output
     print STDERR "ERROR: cap4 did not produce any valid output....exiting\n";
     print LOG "cluster_DEBUG: ERROR cap4 did not produce any valid output\n";
     next;
   }
-  &processAlignment($align);
+  $self->processAlignment($align);
 
   ##It's party time....iterate with cap4 until freezes down  to stable set of assemblies
   ##  need to determine the rules for this very carefully!!
   ##no! just iterate once but with the MaxOverlaps not set so does full alignment
   
-  &iterateAssembly($countContigs,$countSinglets) if $ctx->{cla}->{max_iterations};
+  $self->iterateAssembly($countContigs,$countSinglets) if $self->getArg('max_iterations');
   ##now do the submits.... gene will submit all RNAs and also genes that have been merged with it
-  #  my ($subRet,$reviewed,$delReviewed) = &submitUpdatedAssemblies();
-  #  my($assCt,$assSeqCt) = &countAssembliesAndAssemblySequences();
+  #  my ($subRet,$reviewed,$delReviewed) = $self->submitUpdatedAssemblies();
+  #  my($assCt,$assSeqCt) = $self->countAssembliesAndAssemblySequences();
   #  if($subRet){
     
   #    print LOG "cluster_DEBUG finished: $assCt Assemblies from $assSeqCt sequences\n";
@@ -1301,7 +1310,7 @@ sub runDebugFromFile {
   #      foreach my $r (@$reviewed){ print LOG "  REVIEWED: rna.",$r->[0],", DT.",$r->[1],"\n"; }
   #      foreach my $r (@$delReviewed){ print LOG "  REVIEWED deleted: rna.",$r->[0],", DT.",$r->[1],"\n"; }
   #    }
-  #    if(!$ctx->{cla}->{commit} || $debug){
+  #    if(!$self->getArg('commit') || $debug){
   #      print "\ncluster_DEBUG finished: $assCt Assemblies from $assSeqCt sequences\n";
   #      if($reviewed || $delReviewed){
   #        foreach my $r (@$reviewed){ print "  REVIEWED: rna.",$r->[0],", DT.",$r->[1],"\n"; }
