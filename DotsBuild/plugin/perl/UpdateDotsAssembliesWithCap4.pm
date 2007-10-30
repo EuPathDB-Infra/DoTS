@@ -651,8 +651,8 @@ sub makeSingletonAssemblies {
 
 sub getRnaSeqTypeId {
 
-    my $st = $ctx->{cla}->{'sim_mRNA'} ? GUS::Model::DoTS::SequenceType->new({'name' => 'similarity_mRNA'}) : GUS::Model::DoTS::SequenceType->new({'name' => 'mRNA'});
-    unless ($st->retrieveFromDB()) { die "Aborting. No entry for mRNA in Dots.SequenceType\n"; }
+    my $st = $ctx->{cla}->{'sim_mRNA'} ? GUS::Model::DoTS::SequenceType->new({'name' => 'similarity_mRNA'}) : GUS::Model::DoTS::SequenceType->new({'name' => 'predicted_mRNA'});
+    unless ($st->retrieveFromDB()) { die "Aborting. No entry for the assembly in Dots.SequenceType\n"; }
     $mRnaSeqTypeId = $st->getSequenceTypeId;
 
     return $mRnaSeqTypeId;
