@@ -12,7 +12,7 @@ use strict;
 use GUS::Model::DoTS::Assembly;
 use GUS::Model::Core::Algorithm;
 use GUS::Model::DoTS::TranslatedAAFeatSeg;
-use GUS::Common::Sequence;
+use GUS::Supported::Sequence;
 use CBIL::Bio::SequenceUtils;
 use CBIL::Bio::TrivTrans;
 # ----------------------------------------------------------
