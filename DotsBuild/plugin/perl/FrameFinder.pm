@@ -208,7 +208,7 @@ and tf.row_alg_invocation_id in ($restart)";
     #
     my $tmpFile = "$$.fr.tmp";
     open(TFILE, ">$tmpFile");
-    print TFILE &GUS::Common::Sequence::toFasta($seq, $naSeq->get('description'), 80), "\n";
+    print TFILE &GUS::Supported::Sequence::toFasta($seq, $naSeq->get('description'), 80), "\n";
     close(TFILE);
 
     # Summary data for Framefinder output
