@@ -183,11 +183,11 @@ and tf.row_alg_invocation_id in ($restart)";
 
   # creating single algorithm object;
   my $alg = GUS::Model::Core::Algorithm->new({'name'=>'FrameFinder'});
-  $alg->retrieveFromDB();
+  $alg->submit() unless $alg->retrieveFromDB();
   my $alg_id = $alg->get('algorithm_id');
-  $alg =  GUS::Model::Core::Algorithm->new({'name'=>'TrivialTrans'});
-  $alg->retrieveFromDB();
-  my $triv_alg_id = $alg->get('algorithm_id');
+  $algTriv =  GUS::Model::Core::Algorithm->new({'name'=>'TrivialTrans'});
+  $algTriv->retrieveFromDB();
+  my $triv_alg_id = $algTriv->get('algorithm_id');
   my $countEntries = 0;
   my $triv_count = 0;
 
