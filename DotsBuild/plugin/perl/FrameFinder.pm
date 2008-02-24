@@ -212,8 +212,9 @@ and tf.row_alg_invocation_id in ($restart)";
     close(TFILE);
 
     # Summary data for Framefinder output
-    #
-    my $parameterset= "-O 14 -F -17 -w $framefinderdir"."/wordProb/$self->getArg('wordfile')";
+    my $wordfile = $self->getArg('wordfile');
+
+    my $parameterset= "-O 14 -F -17 -w $framefinderdir"."/wordProb/$wordfile";
     my @F = `$Framefinder $parameterset $tmpFile`;
     #                        print STDERR "Running: @F\n";
     my $start_pos;
@@ -411,7 +412,7 @@ if ($stpos<=0)
       $translate->setDianaAtgScore('0') unless $translate->getDianaAtgScore() == 0;
       $translate->setDianaAtgPosition('0') unless $translate->getDianaAtgPosition() ==0;
       $translate->setIsReversed($triv_trans_revcomp) unless $translate->getIsReversed() == $triv_trans_revcomp;
-      $translate->setPredictionAlgorithmId('3289') unless $translate->getPredictionAlgorithmId() == 3289;
+      $translate->setPredictionAlgorithmId($alg_id) unless $translate->getPredictionAlgorithmId() == $alg_id;
       my $triv_trans_stop = $triv_trans_start+3*length($triv_seq)-1;
      
      my $TransStart = $self->getPosition(length($seq),$translate->getIsReversed(),$triv_trans_start);
