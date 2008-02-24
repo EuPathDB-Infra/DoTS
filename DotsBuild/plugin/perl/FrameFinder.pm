@@ -19,70 +19,118 @@ use CBIL::Bio::TrivTrans;
 # GUSApplication
 # ----------------------------------------------------------
 
+$| = 1;
+
+my $argsDeclaration =
+    [
+     stringArg({name => 'restart',
+            descr => 'restarts from last entry in TranslatedAASequence takes list of row_alg_invocation_ids',
+            constraintFunc => undef,
+            reqd => 0,
+            isList => 0
+	    }),
+      stringArg({name => 'idSQL',
+            descr => 'SQL statement:  must return list of primary identifiers (na_sequence_id) from --table_name',
+            constraintFunc => undef,
+            reqd => 1,
+            isList => 0
+	    }),
+      stringArg({name => 'wordfile',
+            descr => 'word probability file for framefinder, e.g hum_GB123.wordprob,mouse_GB123.wordprob',
+            constraintFunc => undef,
+            reqd => 1,
+            isList => 0
+	    }),
+      integerArg({name => 'testnumber',
+             descr => 'number of iterations for testing',
+             constraintFunc => undef,
+             reqd => 0,
+             isList => 0
+    	     }),
+      stringArg({name => 'ffdir',
+            descr => 'directory for framefinder_GUS location',
+            constraintFunc => undef,
+            reqd => 1,
+            isList => 0
+	    }),
+      stringArg({name => 'dianadir',
+            descr => 'directory for diana program location',
+            constraintFunc => undef,
+            reqd => 1,
+            isList => 0
+	    })
+    ];
+
+my $debug = 0;
+my $purposeBrief = <<PURPOSEBRIEF;
+Makes framefinder translation from nucleic acid sequence
+PURPOSEBRIEF
+
+my $purpose = <<PLUGIN_PURPOSE;
+Translates na seq with framefinder
+PLUGIN_PURPOSE
+
+#check the documentation for this
+my $tablesAffected = [];
+
+my $tablesDependedOn = [
+    ['DoTS::NASequence', '']
+];
+
+my $howToRestart = <<PLUGIN_RESTART;
+Use restart arg with list of alg_invocation_ids
+PLUGIN_RESTART
+
+my $failureCases = <<PLUGIN_FAILURE_CASES;
+PLUGIN_FAILURE_CASES
+
+my $notes = <<PLUGIN_NOTES;
+PLUGIN_NOTES
+
+
+my $documentation = {
+             purposeBrief => $purposeBrief,
+		     purpose => $purpose,
+		     tablesAffected => $tablesAffected,
+		     tablesDependedOn => $tablesDependedOn,
+		     howToRestart => $howToRestart,
+		     failureCases => $failureCases,
+		     notes => $notes
+		    };
+
+
 sub new {
-  my ($class) = @_;
+  my ($class) = shift;
 
   my $self = {};
   bless($self, $class);
 
-  my $usage = 'Plug-in for reconstruction of ORF by framefinder on assembly sequences and record the results in the TranslatedAAFeature and TranslatedAASequence tables';
-
-  my $easycsp =
-    [
-     {o => 'restart',
-      t => 'string',
-      h => 'restarts from last entry in TranslatedAASequence....
-                             takes list of row_alg_invocation_ids "234, 235"!',
-     },
-     {o => 'idSQL',
-      t => 'string',
-      h => 'SQL statement:  must return list of primary identifiers (na_sequence_id) from --table_name',
-     },
-     {o => 'wordfile',
-      t => 'string',
-      h => 'word probability file for framefinder',
-      e => [ qw ( hum_GB123.wordprob mouse_GB123.wordprob ) ],
-     },
-     {o => 'testnumber',
-      t => 'int',
-      h => 'number of iterations for testing',
-     },
-     {o => 'ffdir',
-      t => 'string',
-      h => 'directory for framefinder_GUS location',
-     },
-     {o => 'dianadir',
-      t => 'string',
-      h => 'directory for diana program location',
-     },
-    ];
-
   $self->initialize({requiredDbVersion => 3.5,
-		     cvsRevision => '$Revision$', # cvs fills this in!
+	 	     cvsRevision => '$Revision$', # cvs fills this in!
 		     cvsTag => '$Name$', # cvs fills this in!
 		     name => ref($self),
-		     revisionNotes => 'make consistent with GUS 3.0',
-		     easyCspOptions => $easycsp,
-		     usage => $usage
+		     argsDeclaration => $argsDeclaration,
+		     documentation => $documentation,
 		 });
-
   return $self;
 }
-my $debug = 0;
 
 sub run {
-  my $i = 0;
-  my $M = shift;
-  my $ctx = shift;
-  print STDERR "framefinder: COMMIT ", $ctx->{cla}->{'commit'} ? "****ON****" : "OFF", "\n";
-  print STDERR "Establishing dbi login\n";
+  my $self = @_;
 
-  my $dbh = $ctx->{'self_inv'}->getDatabase()->getQueryHandle();                
+  $self->logAlgInvocationId();
+  $self->logCommit();
+  $self->logArgs();
+
+  my $i = 0;
+
+
+  my $dbh = $self->getQueryHandle();
   my $time1 = scalar localtime;
-  my $framefinderdir=$ctx->{cla}->{ffdir} if ($ctx->{cla}->{ffdir});
-  my $dianadir=$ctx->{cla}->{dianadir} if ($ctx->{cla}->{dianadir});
+  my $framefinderdir=$self->getArg('ffdir') if ($self->getArg('ffdir'));
+  my $dianadir=$self->getArg('dianadir') if ($self->getArg('dianadir'));
   my $Framefinder = $framefinderdir.'/bin/framefinder_GUS'; # location of FrameFinder
-  my $Diana = $ctx->{cla}->{dianadir}.'/atg';
+  my $Diana = $self->getArg('dianadir').'/atg';
   if (!(-e $Diana))
 	{die "Framefinder: No diana program at the site mentioned\n";}
   if (!(-e $Framefinder))
@@ -91,12 +139,12 @@ sub run {
   my %ignore;                   # skipping entries already processed
   ## want to be able to ignore entries already done!!
   # current key is non-zero tranlation score: if non-zero, then processed.
-  if ($ctx->{cla}->{'restart'}) {
+  if ($self->getArg('restart')) {
     my $query = 
 "select rf.na_sequence_id 
 from dots.rnafeature rf, dots.translatedaafeature tf  
 where rf.na_feature_id = tf.na_feature_id 
-and tf.row_alg_invocation_id in ($ctx->{cla}->{'restart'})";
+and tf.row_alg_invocation_id in ($self->getArg('restart'))";
 #    my $query = "select distinct r.na_sequence_id from rnasequence r, translatedaafeatute tf, assembly a where r.na_feature_id = tf.na_feature_id and r.na_sequence_id = a.na_sequence_id and a.description != 'DELETED' and tf.translation_score is not null";
     print STDERR "Restarting: Querying for the ids to ignore\n$query\n";
     my $stmt = $dbh->prepare($query);
@@ -108,17 +156,13 @@ and tf.row_alg_invocation_id in ($ctx->{cla}->{'restart'})";
   }
 
   #         Starting the run
-  my $verbose; # = $ctx->{cla}->{verbose};
-  die "Error: idSQL query string parameter should not be empty\n" if (not defined($ctx->{cla}->{idSQL}));
-  die "Error: cannot find wordfile $ctx->{cla}->{wordfile} for framefinder" unless (-e "$framefinderdir/wordProb/".$ctx->{cla}->{wordfile});
-  print STDERR "$ctx->{cla}->{idSQL}\n"; 
-  my $stmt = $dbh->prepare($ctx->{cla}->{idSQL});
+  my $stmt = $dbh->prepare($self->getArg('idSQL'));
   $stmt->execute();
   my @todo;
   my $cte = 0;
   while ((my($nas) = $stmt->fetchrow_array())) {
     $cte++;
-    if ($ctx->{cla}->{testnumber} && $cte > $ctx->{cla}->{testnumber}) {
+    if ($self->getArg('testnumber') && $cte > $self->getArg('testnumber')) {
       $stmt->cancel(); last;
     }
     print STDERR "Retrieving entry $cte\n" if($cte % 10000 == 0);
@@ -170,13 +214,10 @@ and tf.row_alg_invocation_id in ($ctx->{cla}->{'restart'})";
     open(TFILE, ">$tmpFile");
     print TFILE &GUS::Common::Sequence::toFasta($seq, $naSeq->get('description'), 80), "\n";
     close(TFILE);
-    print "\nProcessing the sequence ".$naSeqId."\n" if $verbose;
-
-    #                        print STDERR "Created $tmpFile\n";
 
     # Summary data for Framefinder output
     #
-    my $parameterset= "-O 14 -F -17 -w $framefinderdir"."/wordProb/$ctx->{cla}->{wordfile}";
+    my $parameterset= "-O 14 -F -17 -w $framefinderdir"."/wordProb/$self->getArg('wordfile')";
     my @F = `$Framefinder $parameterset $tmpFile`;
     #                        print STDERR "Running: @F\n";
     my $start_pos;
@@ -236,18 +277,6 @@ and tf.row_alg_invocation_id in ($ctx->{cla}->{'restart'})";
       }
     }
     ;
-   
-    #                        print STDERR "$start_pos $end_pos $score $strand \n";
-
-    #                              DEBUG INFORMATION                
-    #print STDERR " parameters $numofsegs, $start_pos, $end_pos $contt , $cont2 \n";
-
-    #              foreach $flag(@breakpoints) {print "$flag\n";}
-    #              foreach $flag(@scores) {print "$flag\n";}
-    #               foreach $flag(@segments) {print "$flag\n";}
-    #		foreach $flag(@numofnucs) {print "$flag\n";}
-    #		foreach $flag(@shift_type) {print "$flag\n";}
-    #                             end debug
     my $aa_seq = "";
     my $first_seg = "";  # first aa segment
     my $num_start_x=0;
@@ -272,7 +301,7 @@ and tf.row_alg_invocation_id in ($ctx->{cla}->{'restart'})";
 
 #   print "Number of xs in front of the sequence is $num_start_x behind is $num_end_x\n";
  
-    my $clev = CalcPvalue($seq,$aa_seq);
+    my $clev = $self->CalcPvalue($seq,$aa_seq);
 #################    Trying to check start position in na_sequence
  if ($debug)
  {
@@ -295,7 +324,7 @@ if ($stpos<=0)
       $aaseg1 =~ s/\*/\./g;
       if (not ($aaseg =~ /$aaseg1/))
 	{
-   print STDERR "START POSITION $stpos failed in frame $o for $naSeqId\n na seq is $naseg1 and aa $aaseg1   aaseq  $aaseg\n" if $verbose;
+   print STDERR "START POSITION $stpos failed in frame $o for $naSeqId\n na seq is $naseg1 and aa $aaseg1   aaseq  $aaseg\n";
 #      print " in".CBIL::Bio::SequenceUtils::breakSequence($seq1)." translated is $aaseg2\n 
 	}
 	else
@@ -342,7 +371,7 @@ if ($stpos<=0)
 
 		 {
         $triv_count++; 
-        $clev = CalcPvalue($seq,$triv_seq);
+        $clev = $self->CalcPvalue($seq,$triv_seq);
         #	print "framefinder is NOT optimal here - triv trans is longer\n";
         $triv_flag = 1;
       }
@@ -389,8 +418,8 @@ if ($stpos<=0)
       $translate->setPredictionAlgorithmId('3289') unless $translate->getPredictionAlgorithmId() == 3289;
       my $triv_trans_stop = $triv_trans_start+3*length($triv_seq)-1;
      
-     my $TransStart = &getPosition(length($seq),$translate->getIsReversed(),$triv_trans_start);
-     my $TransStop  = &getPosition(length($seq),$translate->getIsReversed(),$triv_trans_stop ); #naSeq->getLength() sucks??
+     my $TransStart = $self->getPosition(length($seq),$translate->getIsReversed(),$triv_trans_start);
+     my $TransStop  = $self->getPosition(length($seq),$translate->getIsReversed(),$triv_trans_stop ); #naSeq->getLength() sucks??
 #	print "Trivial translation start: $TransStart  stop $TransStop\n";
 #        print "Trivial translation start: $triv_trans_start length->getlength = ". $naSeq->getLength()." reversed:". $translate->getIsReversed()." length(seq) = ".length($seq)." \n";
         if ($TransStop>$TransStart)
@@ -404,7 +433,7 @@ if ($stpos<=0)
      $translate->setTranslationStop($TransStart);
         }
 
-      print "setting sequence with the trivial translation\n" if $verbose;
+      print "setting sequence with the trivial translation\n";
 #      print CBIL::Bio::SequenceUtils::breakSequence($triv_seq)."\n"; 
       $tr_AASeq->setSequence($triv_seq); # unless $tr_AASeq->getSequence() == $triv_seq;
 #      print "set the trivial sequence".CBIL::Bio::SequenceUtils::breakSequence($tr_AASeq->getSequence())."\n";
@@ -429,9 +458,9 @@ if ($stpos<=0)
       $translate->setPredictionAlgorithmId('64') unless $translate->getPredictionAlgorithmId() == 64;
       $translate->setTranslationScore($score) unless $translate->getTranslationScore() == $score;
       $translate->setIsReversed($strand) unless $translate->getIsReversed() == $strand;
-      my $TransStart = &getPosition(length($seq),$translate->getIsReversed(),$start_pos);
+      my $TransStart = $self->getPosition(length($seq),$translate->getIsReversed(),$start_pos);
       $translate->setTranslationStart($TransStart)-$shift_start unless $translate->getTranslationStart() == $TransStart-$shift_start; #framefinder locates 3-d nucleotide
-      my $TransStop = &getPosition(length($seq),$translate->getIsReversed(),$end_pos);
+      my $TransStop = $self->getPosition(length($seq),$translate->getIsReversed(),$end_pos);
       $translate->setTranslationStop($TransStop) unless $translate->getTranslationStop() == $TransStop;      
       $translate->setParameterValues($parameterset) unless $translate->getParameterValues() == $parameterset;
       $translate->setTranslationModel($trans_model) unless $translate->getTranslationModel() == $trans_model;
@@ -448,7 +477,7 @@ if ($stpos<=0)
             $atg_pos = $1; $atg = $2;
             #	print " atgpos $atg_pos atg $atg \n";
           } else {
-            print "DIANA: did not find anything\n" if $verbose;
+            print "DIANA: did not find anything\n";
           }
         }
 #      } translate in any case
@@ -474,7 +503,7 @@ if ($stpos<=0)
                      	
       $translate->setNumberOfSegments($realsegs) unless $translate->getNumberOfSegments() == $realsegs;
 
-      print "setting sequence with the ff translation\n" if $verbose;
+      print "setting sequence with the ff translation\n";
       $tr_AASeq->setSequence($aa_seq); #  unless $tr_AASeq->getSequence() == $aa_seq;
 
 	
@@ -512,19 +541,19 @@ if ($stpos<=0)
 										# was -5
                 if ($StartPos<=0) {$StartPos=1;}
                 print STDERR "Initial Start is $StartPos   length is".$naSeq->getLength()."\n" if $debug;
-		$StartPos = &getPosition(length($seq),$translate->getIsReversed(),$StartPos);
+		$StartPos = $self->getPosition(length($seq),$translate->getIsReversed(),$StartPos);
                   @transsegs[$j]->setTranslationScore($scores[$i]-$scores[$i-1]);
                   @transsegs[$j]->setStartPos($StartPos);
                 } else {
                   @transsegs[$j]->setTranslationScore($scores[$i]);
 		  if ($start_pos==0) {$start_pos = 1;}
-                  @transsegs[$j]->setStartPos(&getPosition(length($seq),$translate->getIsReversed(),$start_pos));  #taking the initial start position
-        	print "Start is $start_pos while setting the segs  length is".$naSeq->getLength()."\n" if $verbose;
+                  @transsegs[$j]->setStartPos($self->getPosition(length($seq),$translate->getIsReversed(),$start_pos));  #taking the initial start position
+        	print "Start is $start_pos while setting the segs  length is".$naSeq->getLength()."\n";
                 }               # starting from the 1-st position
 		
 		# print "EndPosition shift is ";
 		my $grad = (@shift_type =~ /insert/ ? 1:-1);
-		my $EndPos = &getPosition(length($seq),$translate->getIsReversed(),@breakpoints[$i]+$grad*@numofnucs[$i]);
+		my $EndPos = $self->getPosition(length($seq),$translate->getIsReversed(),@breakpoints[$i]+$grad*@numofnucs[$i]);
 		if ($EndPos<=0) {$EndPos = 1;}
                 @transsegs[$j]->setEndPos($EndPos) unless @transsegs[$j]->getEndPos() == $EndPos;       
                 @transsegs[$j]->setNucleotidesShifted(@numofnucs[$i]) 
@@ -593,7 +622,7 @@ else {
     ##put in the sanity check here to make certain that the locations are correct
     my @failed = 0;
     my $i = 0;
-    print "Number of segments is ".$translate->getChildren('DoTS::TranslatedAAFeatSeg')."\n" if $verbose;
+    print "Number of segments is ".$translate->getChildren('DoTS::TranslatedAAFeatSeg')."\n";
     foreach my $seg(@transsegs) {
 #           ($translate->getChildren('DoTS::TranslatedAAFeatSeg')){
     
@@ -607,7 +636,7 @@ else {
 #        print "AA sequence" .CBIL::Bio::SequenceUtils::breakSequence($aaseg);
    
     my $aaseg = substr($aaseg0,0,length($aaseg0) < 13 ? length($aaseg0) - 3 : 10);
-    if (length($aaseg) < 3) {print "Sanity check is abandoned due to short segment\n" if $verbose; next;}
+    if (length($aaseg) < 3) {print "Sanity check is abandoned due to short segment\n"; next;}
     for(my $o=0; $o<7; $o++) {
         my $naseg1 = substr($naseg,$o,length($aaseg) * 3);
 	my $aaseg1 = CBIL::Bio::SequenceUtils::translateSequence($naseg1);
@@ -623,7 +652,7 @@ else {
 	else
 	{
 #	print "It is fine - locations are correct for frame $o\n";
-        print STDERR "Sanity Check is OK for $naSeqId\n na seq: ".CBIL::Bio::SequenceUtils::translateSequence($naseg1)." aaseq:  $aaseg\n ".substr($aaseg0, -4,4)." reversed is". $translate->getIsReversed()."\n" if $verbose;
+        print STDERR "Sanity Check is OK for $naSeqId\n na seq: ".CBIL::Bio::SequenceUtils::translateSequence($naseg1)." aaseq:  $aaseg\n ".substr($aaseg0, -4,4)." reversed is". $translate->getIsReversed()."\n";
         my $aafStartPos = $o;
         my $goodFirst = 1;
 	@failed[$i]=0;
@@ -634,9 +663,9 @@ else {
     }
 #    if($failed)
 {  ##failed sanity check...
-        print" Overall test for this sequence: " if $verbose;
-        for (my $i=0; $i<5;$i++) {print " @failed[$i]" if $verbose;}
-        print "\n" if $verbose;
+        print" Overall test for this sequence: ";
+        for (my $i=0; $i<5;$i++) {print " @failed[$i]";}
+        print "\n";
       ##what to do
 }
       # Set children
@@ -649,7 +678,7 @@ else {
     unlink $tmpFile;
     $countEntries++;
     print STDERR "$countEntries processed ",($totalToDo - $countEntries)," remaining\n" if $countEntries % 10 == 0;
-    $ctx->{ self_inv }->undefPointerCache();
+    $self->undefPointerCache();
   } 
   #                       printf "run finished, processed $countEntries entries\n";
   print STDERR "Triv vs total number of entries: $triv_count vs $countEntries\n";
@@ -661,7 +690,7 @@ else {
 
 sub CalcPvalue {
   # calculation of the P-value based on Poisson approximation of geometric distribution;
-  my ($source, $target) = @_;
+  my ($self,$source, $target) = @_;
   my $target_len = length($target);
   my $Npep = 2*length($source) - 6*$target_len+6; #it's scanning length in 6-frames;
   if ($Npep <=0)                #it happens due to the insertions/deletions by framefinder
@@ -677,7 +706,7 @@ sub CalcPvalue {
 
 
 sub getPosition {
-  my($len,$isrev,$pos) = @_;
+  my($self,$len,$isrev,$pos) = @_;
   if($isrev){
     return $len - $pos + 1;
   }else{
