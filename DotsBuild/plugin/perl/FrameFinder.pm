@@ -119,12 +119,7 @@ sub new {
 sub run {
   my $self = @_;
 
-  $self->logAlgInvocationId();
-  $self->logCommit();
-  $self->logArgs();
-
   my $i = 0;
-
 
   my $dbh = $self->getQueryHandle();
   my $time1 = scalar localtime;
