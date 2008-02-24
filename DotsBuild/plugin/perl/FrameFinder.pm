@@ -121,7 +121,7 @@ sub run {
   my $self = @_;
 
   my $i = 0;
-
+  my $dbh = $self->getQueryHandle();
   my $dbh = $self->getQueryHandle();
   my $time1 = scalar localtime;
   my $framefinderdir=$self->getArg('ffdir') if ($self->getArg('ffdir'));
