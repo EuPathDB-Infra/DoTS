@@ -15,6 +15,7 @@ use GUS::Model::DoTS::TranslatedAAFeatSeg;
 use GUS::Supported::Sequence;
 use CBIL::Bio::SequenceUtils;
 use CBIL::Bio::TrivTrans;
+use GUS::PluginMgr::Plugin;
 # ----------------------------------------------------------
 # GUSApplication
 # ----------------------------------------------------------
