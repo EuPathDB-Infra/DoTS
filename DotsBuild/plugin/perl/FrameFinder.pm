@@ -8,18 +8,16 @@ package DoTS::DotsBuild::Plugin::FrameFinder;
 # ----------------------------------------------------------
 
 @ISA = qw(GUS::PluginMgr::Plugin);
-use DBI;
+use GUS::PluginMgr::Plugin;
 use strict;
+
 use GUS::Model::DoTS::Assembly;
 use GUS::Model::Core::Algorithm;
 use GUS::Model::DoTS::TranslatedAAFeatSeg;
 use GUS::Supported::Sequence;
 use CBIL::Bio::SequenceUtils;
 use CBIL::Bio::TrivTrans;
-use GUS::PluginMgr::Plugin;
-# ----------------------------------------------------------
-# GUSApplication
-# ----------------------------------------------------------
+use DBI;
 
 $| = 1;
 
@@ -102,7 +100,7 @@ my $documentation = {
 
 
 sub new {
-  my ($class) = shift;
+  my ($class) = @_;
 
   my $self = {};
   bless($self, $class);
@@ -118,7 +116,7 @@ sub new {
 }
 
 sub run {
-  my $self = @_;
+  my $self = shift;
 
   my $i = 0;
   my $dbh = $self->getQueryHandle();
@@ -137,11 +135,12 @@ sub run {
   ## want to be able to ignore entries already done!!
   # current key is non-zero tranlation score: if non-zero, then processed.
   if ($self->getArg('restart')) {
+    my $restart =  $self->getArg('restart'); 
     my $query = 
 "select rf.na_sequence_id 
 from dots.rnafeature rf, dots.translatedaafeature tf  
 where rf.na_feature_id = tf.na_feature_id 
-and tf.row_alg_invocation_id in ($self->getArg('restart'))";
+and tf.row_alg_invocation_id in ($restart)";
 #    my $query = "select distinct r.na_sequence_id from rnasequence r, translatedaafeatute tf, assembly a where r.na_feature_id = tf.na_feature_id and r.na_sequence_id = a.na_sequence_id and a.description != 'DELETED' and tf.translation_score is not null";
     print STDERR "Restarting: Querying for the ids to ignore\n$query\n";
     my $stmt = $dbh->prepare($query);
