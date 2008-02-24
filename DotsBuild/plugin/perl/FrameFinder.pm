@@ -8,6 +8,7 @@ package DoTS::DotsBuild::Plugin::FrameFinder;
 # ----------------------------------------------------------
 
 @ISA = qw(GUS::PluginMgr::Plugin);
+use DBI;
 use strict;
 use GUS::Model::DoTS::Assembly;
 use GUS::Model::Core::Algorithm;
