@@ -119,7 +119,7 @@ sub run {
   my $self = shift;
 
   my $i = 0;
-  my $dbh = $self->getQueryHandle();
+
   my $dbh = $self->getQueryHandle();
   my $time1 = scalar localtime;
   my $framefinderdir=$self->getArg('ffdir') if ($self->getArg('ffdir'));
@@ -182,12 +182,15 @@ and tf.row_alg_invocation_id in ($restart)";
 #  my $wordprob='hum_GB_123.wordprob'; #for human
 
   # creating single algorithm object;
+
   my $alg = GUS::Model::Core::Algorithm->new({'name'=>'FrameFinder'});
   $alg->submit() unless $alg->retrieveFromDB();
   my $alg_id = $alg->get('algorithm_id');
+
   my $algTriv =  GUS::Model::Core::Algorithm->new({'name'=>'TrivialTrans'});
-  $algTriv->retrieveFromDB();
+  $algTriv->submit() unless $algTriv->retrieveFromDB();
   my $triv_alg_id = $algTriv->get('algorithm_id');
+
   my $countEntries = 0;
   my $triv_count = 0;
 
@@ -412,7 +415,7 @@ if ($stpos<=0)
       $translate->setDianaAtgScore('0') unless $translate->getDianaAtgScore() == 0;
       $translate->setDianaAtgPosition('0') unless $translate->getDianaAtgPosition() ==0;
       $translate->setIsReversed($triv_trans_revcomp) unless $translate->getIsReversed() == $triv_trans_revcomp;
-      $translate->setPredictionAlgorithmId($alg_id) unless $translate->getPredictionAlgorithmId() == $alg_id;
+      $translate->setPredictionAlgorithmId($triv_alg_id) unless $translate->getPredictionAlgorithmId() == $triv_alg_id;
       my $triv_trans_stop = $triv_trans_start+3*length($triv_seq)-1;
      
      my $TransStart = $self->getPosition(length($seq),$translate->getIsReversed(),$triv_trans_start);
@@ -452,7 +455,7 @@ if ($stpos<=0)
       $shift_start = $shift_start==0 ? -1: $shift_start;
 #      my $shift_start = 2;
       $translate->setIsSimple(0) unless $translate->getIsSimple() == 0;
-      $translate->setPredictionAlgorithmId('64') unless $translate->getPredictionAlgorithmId() == 64;
+      $translate->setPredictionAlgorithmId($alg_id) unless $translate->getPredictionAlgorithmId() == $alg_id;
       $translate->setTranslationScore($score) unless $translate->getTranslationScore() == $score;
       $translate->setIsReversed($strand) unless $translate->getIsReversed() == $strand;
       my $TransStart = $self->getPosition(length($seq),$translate->getIsReversed(),$start_pos);
