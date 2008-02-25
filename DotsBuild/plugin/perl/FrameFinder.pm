@@ -185,7 +185,7 @@ and tf.row_alg_invocation_id in ($restart)";
   my $alg = GUS::Model::Core::Algorithm->new({'name'=>'FrameFinder'});
   $alg->submit() unless $alg->retrieveFromDB();
   my $alg_id = $alg->get('algorithm_id');
-  $algTriv =  GUS::Model::Core::Algorithm->new({'name'=>'TrivialTrans'});
+  my $algTriv =  GUS::Model::Core::Algorithm->new({'name'=>'TrivialTrans'});
   $algTriv->retrieveFromDB();
   my $triv_alg_id = $algTriv->get('algorithm_id');
   my $countEntries = 0;
