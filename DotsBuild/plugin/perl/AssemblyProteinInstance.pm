@@ -1,7 +1,7 @@
 package DoTS::DotsBuild::Plugin::AssemblyProteinInstance;
 
 @ISA = qw(GUS::PluginMgr::Plugin);
-
+use GUS::PluginMgr::Plugin;
 use strict;
 
 use GUS::Model::DoTS::RNA;
@@ -24,66 +24,98 @@ sub new {
   
   my $usage = 'Plug_in to populate the ProteinInstance table relating Protein to TranslatedAAFeature for the assemblies';
   
-  my $easycsp =
-    [{o => 'testnumber',
-      t => 'int',
-      h => 'number of iterations for testing',
-     },
-     {o => 'taxon_id',
-      t => 'int',
-      h => 'the taxon_id of the assemblies to be used',
-     }];
-  
-  $self->initialize({requiredDbVersion => {},
+  my  $argsDeclaration =
+    [ integerArg({name => 'testnumber',
+             descr => 'number of iterations for testing',
+             constraintFunc => undef,
+             reqd => 0,
+             isList => 0
+    	     }),
+      integerArg({name => 'taxon_id',
+             descr => 'taxon_id',
+             constraintFunc => undef,
+             reqd => 1,
+             isList => 0
+    	     })];
+
+
+  my $purposeBrief = <<PURPOSEBRIEF;
+ProteinInstance relating Protein to TranslatedAAFeature for assemblies
+PURPOSEBRIEF
+
+my $purpose = <<PLUGIN_PURPOSE;
+Plug_in to populate the ProteinInstance table relating Protein to TranslatedAAFeature for the assemblies
+PLUGIN_PURPOSE
+
+#check the documentation for this
+my $tablesAffected = [];
+
+my $tablesDependedOn = [
+    []
+];
+
+my $howToRestart = <<PLUGIN_RESTART;
+PLUGIN_RESTART
+
+my $failureCases = <<PLUGIN_FAILURE_CASES;
+PLUGIN_FAILURE_CASES
+
+my $notes = <<PLUGIN_NOTES;
+PLUGIN_NOTES
+
+my $documentation = {
+             purposeBrief => $purposeBrief,
+		     purpose => $purpose,
+		     tablesAffected => $tablesAffected,
+		     tablesDependedOn => $tablesDependedOn,
+		     howToRestart => $howToRestart,
+		     failureCases => $failureCases,
+		     notes => $notes
+		    };
+
+  $self->initialize({requiredDbVersion => 3.5,
 		     cvsRevision => '$Revision$',  # cvs fills this in!
 		     cvsTag => '$Name$', # cvs fills this in!
 		     name => ref($self),
-		     revisionNotes => 'make consistent with GUS 3.0',
-		     easyCspOptions => $easycsp,
-		     usage => $usage
+		     argsDeclaration => $argsDeclaration,
+		     documentation => $documentation,
 		    });
-  
+
   return $self;
 }
 
 
 sub run {
   my $self = shift;
-  
-  print $self->getArgs()->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
-  print "Testing on ".$self->getArgs()->{'testnumber'}."\n" if ($self->getArgs()->{'testnumber'});
-  
-  unless ($self->getArgs()->{'taxon_id'}) {
-    die "you must provide a taxon_id\n";
-  }
-  
+
+  print "Testing on ".$self->getArg('testnumber')."\n" if ($self->getArg('testnumber'));
+
   $self->log ("Starting entries\n");
-  
+
   my $ids = $self->getIds();
-  
+
   my $count = $self->processIds($ids);
-  
+
   $self->log ("$count entries have been made to the ProteinInstance table\n");
   return "$count entries to the ProteinInstance table in GUS\n";
 }
 
 sub getIds {
-    
   my $self = shift;
-  
+
   my @ids;
   my $i=0;
-  
+
   my $dbh = $self->getQueryHandle();
 
-  my $taxon_id = $self->getArgs()->{'taxon_id'};
-  
-  my $st1 = $dbh->prepareAndExecute("select  /** RULE */ a.na_sequence_id from dots.assembly a where a.taxon_id = $taxon_id and a.description != 'DELETED'");
-  
-  my $st2 = $dbh->prepare("select /** RULE */ p.protein_instance_id from dots.proteininstance p, dots.translatedaafeature f, dots.rnafeature r where r.na_sequence_id = ? and r.na_feature_id = f.na_feature_id and f.aa_feature_id = p.aa_feature_id");  
-  
+  my $taxon_id = $self->getArg('taxon_id');
+
+  my $st1 = $dbh->prepareAndExecute("select a.na_sequence_id from dots.assembly a where a.taxon_id = $taxon_id and a.description != 'DELETED'");
+
+  my $st2 = $dbh->prepare("select p.protein_instance_id from dots.proteininstance p, dots.translatedaafeature f, dots.rnafeature r where r.na_sequence_id = ? and r.na_feature_id = f.na_feature_id and f.aa_feature_id = p.aa_feature_id");  
+
   while (my $na_sequence_id = $st1->fetchrow_array) {
-    if ($self->getArgs()->{'testnumber'} && $i >= $self->getArgs()->{'testnumber'}) {
+    if ($self->getArg('testnumber') && $i >= $self->getArg('testnumber')) {
       last;
     }
     $st2->execute($na_sequence_id);
