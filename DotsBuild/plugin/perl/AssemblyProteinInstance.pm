@@ -12,7 +12,7 @@ use GUS::Model::DoTS::RNAFeature;
 use GUS::Model::DoTS::Protein;
 use GUS::Model::DoTS::RNAInstance;
 use GUS::Model::DoTS::TranslatedAASequence;
-
+use GUS::Model::DoTS::Gene;
 
 $| = 1;
 
