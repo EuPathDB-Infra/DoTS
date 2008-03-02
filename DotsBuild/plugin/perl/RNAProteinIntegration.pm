@@ -45,7 +45,7 @@ sub new {
       stringArg({name => 'ext_db_rel',
 		 descr => 'comma delimited list of external_database_release_ids for entries in dots.nrdbentry',
 		 constraintFunc => undef,
-		 reqd => ,
+		 reqd => 1,
 		 isList => 0
 		}),
     ];
