@@ -1,7 +1,7 @@
 package DoTS::DotsBuild::Plugin::RNAProteinIntegration;
 
 @ISA = qw(GUS::PluginMgr::Plugin);
-
+use GUS::PluginMgr::Plugin;
 use strict;
 
 use GUS::Model::DoTS::ExternalNASequence;
@@ -13,7 +13,6 @@ use GUS::Model::DoTS::RNA;
 use GUS::Model::DoTS::Protein;
 use GUS::Model::SRes::ExternalDatabaseRelease;
 
-
 my $ctx;
 my $count=0;
 my $debug = 0;
@@ -23,124 +22,151 @@ my $dbh;
 $| = 1;
 
 sub new {
-    my ($class) = @_;
-    
-    my $self = {};
-    bless($self,$class);
-    
-    my $usage = 'Plug_in to populate the RNAFeature, RNAInstance,TranslatedAAFeatureProteinInstance table relating Protein to TranslatedAAFeature for the assemblies';
-    
-    my $easycsp =
-	[{o => 'testnumber',
-	  t => 'int',
-	  h => 'number of iterations for testing',
-         },
-	 {o => 'taxon_id',
-	  t => 'int',
-	  h => 'the taxon_id of the assemblies to be used',
-         },
-	 {o => 'ext_db_rel',
-	  t => 'string',
-	  h => 'comma delimited list of external_database_release_ids for entries in dots.nrdbentry'
-         }];
-    
-    $self->initialize({requiredDbVersion => {},
-		       cvsRevision => '$Revision$',  # cvs fills this in!
+  my ($class) = @_;
+  
+  my $self = {};
+  bless($self,$class);
+
+  my $usage = 'Plug_in to populate the RNAFeature, RNAInstance,TranslatedAAFeatureProteinInstance table relating Protein to TranslatedAAFeature for the assemblies';
+
+  my  $argsDeclaration =
+    [ integerArg({name => 'testnumber',
+		  descr => 'number of iterations for testing',
+		  constraintFunc => undef,
+		  reqd => 0,
+		  isList => 0
+		 }),
+      integerArg({name => 'taxon_id',
+		  descr => 'taxon_id',
+		  constraintFunc => undef,
+		  reqd => 1,
+		  isList => 0
+		 }),
+      stringArg({name => 'ext_db_rel',
+		 descr => 'comma delimited list of external_database_release_ids for entries in dots.nrdbentry',
+		 constraintFunc => undef,
+		 reqd => ,
+		 isList => 0
+		}),
+    ];
+
+
+  my $debug = 0;
+  my $purposeBrief = <<PURPOSEBRIEF;
+Plug_in relating Protein to TranslatedAAFeature for the assemblies
+PURPOSEBRIEF
+
+  my $purpose = <<PLUGIN_PURPOSE;
+Plug_in to populate the RNAFeature, RNAInstance,TranslatedAAFeatureProteinInstance table relating Protein to TranslatedAAFeature for the assemblies
+PLUGIN_PURPOSE
+
+  #check the documentation for this
+  my $tablesAffected = [];
+
+  my $tablesDependedOn = [
+			  ['DoTS::NASequence', '']
+			 ];
+
+  my $howToRestart = <<PLUGIN_RESTART;
+PLUGIN_RESTART
+
+  my $failureCases = <<PLUGIN_FAILURE_CASES;
+PLUGIN_FAILURE_CASES
+
+  my $notes = <<PLUGIN_NOTES;
+PLUGIN_NOTES
+
+
+  my $documentation = {
+		       purposeBrief => $purposeBrief,
+		       purpose => $purpose,
+		       tablesAffected => $tablesAffected,
+		       tablesDependedOn => $tablesDependedOn,
+		       howToRestart => $howToRestart,
+		       failureCases => $failureCases,
+		       notes => $notes
+		      };
+
+  $self->initialize({requiredDbVersion => 3.5,
+		     cvsRevision => '$Revision$',  # cvs fills this in!
 		     cvsTag => '$Name$', # cvs fills this in!
-		       name => ref($self),
-		       revisionNotes => 'make consistent with GUS 3.0',
-		       easyCspOptions => $easycsp,
-		       usage => $usage
-		       });
-    
-    return $self;
+		     name => ref($self),
+		     argsDeclaration => $argsDeclaration,
+		     documentation => $documentation,
+		    });
+  return $self;
 }
 
 
 sub run {
-    my $M   = shift;
-    $ctx = shift;
-    
-    $algoInvo = $ctx->{self_inv};
-    
-    print STDERR $ctx->{cla}->{'commit'} ? "***COMMIT ON***\n" : "***COMMIT TURNED OFF***\n";
-    print STDERR "Testing on $ctx->{'cla'}->{'testnumber'}\n" if $ctx->{'cla'}->{'testnumber'};
-    
-    unless ($ctx->{'cla'}->{'taxon_id'}) {
-	die "you must provide a taxon_id\n";
-    }
-    
-    $dbh = $ctx->{self_inv}->getQueryHandle();
+    my $self   = shift;
 
-    my $dbrel = $ctx->{'cla'}->{'ext_db_rel'} || die "you must provide a comma delimited list of 
-                                                      ext_db_rel_id for dots.nrdbentry";
-    
-    my $time = `date`;
-    chomp($time);
-    print STDERR ("Starting entries : $time\n");
-    
-#call the subroutine to make an array of na_sequence_ids for the mRNA  
-    my @ids = &getmRNA();
+    $dbh = $self->getQueryHandle();
 
-#loop through each mRNA na_sequence_id in @ids  
+    my $dbrel = $self->getArg('ext_db_rel');
+
+    $self->log ("Starting entries\n");
+
+    #call the subroutine to make an array of na_sequence_ids for the mRNA  
+    my @ids = $self->getmRNA($dbh);
+
+    #loop through each mRNA na_sequence_id in @ids  
     foreach my $id (@ids) {
-        $ctx->{self_inv}->undefPointerCache();
+        $self->undefPointerCache();
 	my $extNAseq = GUS::Model::DoTS::ExternalNASequence->new({'na_sequence_id' => $id});
 	$extNAseq->retrieveFromDB();
-	my $rnafeat = $extNAseq->getChild('GUS::Model::DoTS::RNAFeature',1) ? $extNAseq->getChild('GUS::Model::DoTS::RNAFeature') : &makeRNAFeature ($extNAseq);
-	my $rnainst = $rnafeat->getChild('GUS::Model::DoTS::RNAInstance',1) ? $rnafeat->getChild('GUS::Model::DoTS::RNAInstance') : &makeRNAInstance ($rnafeat);
+	my $rnafeat = $extNAseq->getChild('GUS::Model::DoTS::RNAFeature',1) ? $extNAseq->getChild('GUS::Model::DoTS::RNAFeature') : $self->makeRNAFeature ($extNAseq);
+	my $rnainst = $rnafeat->getChild('GUS::Model::DoTS::RNAInstance',1) ? $rnafeat->getChild('GUS::Model::DoTS::RNAInstance') : $self->makeRNAInstance ($rnafeat);
 	my $rna; 
-	next unless ($rna = $rnainst->getParent('GUS::Model::DoTS::RNA',1) ? $rnainst->getParent('GUS::Model::DoTS::RNA') : &getRNA($id, $dbh, $rnainst));
+	next unless ($rna = $rnainst->getParent('GUS::Model::DoTS::RNA',1) ? $rnainst->getParent('GUS::Model::DoTS::RNA') : $self->getRNA($id, $dbh, $rnainst));
 	$extNAseq->addToSubmitList($rna);
 	my $prot;
 	next unless ($prot = $rna->getChild('GUS::Model::DoTS::Protein',1));
 	my $transaafeat;
-	next unless $transaafeat = &makeTransAAFeat($id, $dbh, $rnafeat, $dbrel);
+	next unless $transaafeat = $self->makeTransAAFeat($id, $dbh, $rnafeat, $dbrel);
 
-	my $protinst = $transaafeat->getChild('GUS::Model::DoTS::ProteinInstance', 1) ? $transaafeat->getChild('GUS::Model::DoTS::ProteinInstance') : &makeProteinInstance($transaafeat);
+	my $protinst = $transaafeat->getChild('GUS::Model::DoTS::ProteinInstance', 1) ? $transaafeat->getChild('GUS::Model::DoTS::ProteinInstance') : $self->makeProteinInstance($transaafeat);
 
 	$protinst->setParent($prot);
 	$extNAseq->addToSubmitList($prot);
 	$count += $extNAseq->submit();
 	if ($count%1000==0) {
-	    $time = `date`;
-	    chomp($time); 
-	    print STDERR ("$count    $time\n");
-	}   
+	    $self->log ("$count entries\n");
+	}
     }
-    $ctx->{self_inv}->undefPointerCache();
-    $time = `date`;
-    chomp($time);
-    print STDERR ("Finishing entries: $count completed:  $time\n");
-    
+    $self->undefPointerCache();
+    $self->log ("Finishing entries: $count completed\n");
+
     return ("$count mRNA entries have complete RNA/protein integration.\n");
 }
 
 #subroutine that gets all the mRNA na_sequence_ids and puts them in @ids
 sub getmRNA {
+  my ($self,$dbh) = @_;
   my @ids;
-  my $st = $dbh->prepareAndExecute("select /*+ RULE */ na_sequence_id from dots.externalnasequence where sequence_type_id in (2,7) and na_sequence_id in (select ass.na_sequence_id from dots.assemblysequence ass, dots.assembly a where ass.assembly_na_sequence_id = a.na_sequence_id and a.taxon_id = $ctx->{'cla'}->{'taxon_id'})"); 
-  
+  my $taxonId = $self->getArg('taxon_id');
+  my $st = $dbh->prepareAndExecute("select na_sequence_id from dots.externalnasequence where sequence_type_id in (2,7) and na_sequence_id in (select ass.na_sequence_id from dots.assemblysequence ass, dots.assembly a where ass.assembly_na_sequence_id = a.na_sequence_id and a.taxon_id = $taxonId)");
+
   while (my ($na_sequence_id) = $st->fetchrow_array) {
-    if ( $ctx->{'cla'}->{'testnumber'} && @ids >= $ctx->{'cla'}->{'testnumber'}) {
+    if ( $self->('testnumber') && @ids >= $self->getArg('testnumber')) {
       last;
     }
     push(@ids,$na_sequence_id); 
-  } 
+  }
   my $length = @ids;
-  print STDERR ("There are $length mRNA ids to process\n");
+  $self->log ("There are $length mRNA ids to process\n");
   return @ids;
 }
 
 #subroutine that puts an entry into RNAfeature that represents the mRNA and returns the na_feature_id   
 sub makeRNAFeature {
-  my ($extNAseq) = @_;
+  my ($self,$extNAseq) = @_;
   my $external_database_release_id = $extNAseq->get('external_database_release_id');
   my $source_id = $extNAseq->get('source_id');
   my $name;
   my $newExternalDatabaseRelease = GUS::Model::SRes::ExternalDatabaseRelease->new({'external_database_release_id'=>$external_database_release_id});
   my $external_database_id = $newExternalDatabaseRelease->get('external_database_id');
-  if ($external_database_id == 152){
+  if ($external_database_id == 27){
     $name = "REFSEQ";
   }
   else {
@@ -148,7 +174,7 @@ sub makeRNAFeature {
   }
   my $is_predicted = 0;
   my $review_status_id = 0;
-  
+
   my %attHash =('name'=>$name, 'is_predicted'=>$is_predicted, 'review_status_id'=>$review_status_id, 'source_id'=>$source_id, 'external_database_release_id'=>$external_database_release_id ); 
   my $newRNAFeature = GUS::Model::DoTS::RNAFeature->new(\%attHash);
 
@@ -159,21 +185,21 @@ sub makeRNAFeature {
 
 #subroutine that makes an entry into RNAInstance for the mRNA  
 sub makeRNAInstance {
-  my ($rnafeat) = @_;
+  my ($self,$rnafeat) = @_;
   my $is_reference = 0;
   my $review_status_id = 0;
   my $rna_instance_category_id = 1;
   my %attHash = ('is_reference'=>$is_reference, 'review_status_id'=>$review_status_id, 'rna_instance_category_id'=>$rna_instance_category_id);
   my $newRNAInstance = GUS::Model::DoTS::RNAInstance->new(\%attHash);
-  
+
   $newRNAInstance->setParent($rnafeat);
-  
+
   return $newRNAInstance;
 }
 
 #identify the rna_id that corresponds to the assembly containing the mRNA whose na_sequence_id = $id
 sub getRNA {
-  my ($id, $dbh, $rnainst) = @_;
+  my ($self, $id, $dbh, $rnainst) = @_;
   my $st = $dbh->prepare("select s.rna_id from dots.rnafeature f, dots.rnainstance s, dots.assemblysequence a where a.na_sequence_id = ? and a.assembly_na_sequence_id = f.na_sequence_id and f.na_feature_id = s.na_feature_id");
 
   $st->execute($id);
@@ -193,7 +219,7 @@ sub getRNA {
 #note that protein_id is the source_id from a GenBank entry and not the GUS Protein table id
 #updates the TranslatedAAFeature table if aa_sequence_id has changed
 sub makeTransAAFeat {
-  my ($id, $dbh, $rnafeat,$dbrel) = @_;
+  my ($self, $id, $dbh, $rnafeat,$dbrel) = @_;
   my $st1 = $dbh->prepare("select protein_id from dots.transcript where name = 'CDS' and na_sequence_id = ?");
   my $st2 = $dbh->prepare("select aa_sequence_id from dots.nrdbentry where source_id = ? and external_database_release_id in ($dbrel)");
   my $is_predicted = 0;
@@ -232,7 +258,7 @@ sub makeTransAAFeat {
 #subroutine to make an entry into ProteinSequence that links the TranslatedAAFeature corresponding to the GenBank 
 #translation of the mRNA and the Protein entry that corresponds to the RNA for the assembly containing the mRNA
 sub makeProteinInstance {
-  my ($transaafeat) = @_;
+  my ($self,$transaafeat) = @_;
   my $is_reference = 0;
   my $protein_instance_category_id = 2;
   my $review_status_id = 0;
