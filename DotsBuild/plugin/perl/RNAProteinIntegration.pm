@@ -148,7 +148,7 @@ sub getmRNA {
   my $st = $dbh->prepareAndExecute("select na_sequence_id from dots.externalnasequence where sequence_type_id in (2,7) and na_sequence_id in (select ass.na_sequence_id from dots.assemblysequence ass, dots.assembly a where ass.assembly_na_sequence_id = a.na_sequence_id and a.taxon_id = $taxonId)");
 
   while (my ($na_sequence_id) = $st->fetchrow_array) {
-    if ( $self->('testnumber') && @ids >= $self->getArg('testnumber')) {
+    if ( $self->getArg('testnumber') && @ids >= $self->getArg('testnumber')) {
       last;
     }
     push(@ids,$na_sequence_id); 
