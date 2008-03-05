@@ -158,7 +158,7 @@ sub updateProteinInstance {
   my $refseq_db_rel = $self->getArg('refseq_db_rel_id');
   my $swissprot_db_rel = $self->getArg('swissprot_db_rel_id');
   my $num;
-  my $refseqquery = "select p.protein_instance_id from dots.assemblysequence ass, dots.rnafeature rf, dots.externalnasequence x, dots.translatedaafeature tf, dots.externalaasequence xa, dots.proteinInstance p  where ass.assembly_na_sequence_id = ? and ass.na_sequence_id = x.na_sequence_id and x.external_database_release_id = $refseq_db_rel and ass.na_sequence_id = rf.na_sequence_id and rf.na_feature_id = tf.na_feature_id and tf.aa_sequence_id = xa.aa_sequence_id and tf.aa_feature_id = p.aa_feature_id order by xa.length desc";
+  my $refseqquery = "select p.protein_instance_id from dots.assemblysequence ass, dots.rnafeature rf, dots.nrdbentry n, dots.translatedaafeature tf, dots.externalaasequence xa, dots.proteinInstance p  where ass.assembly_na_sequence_id = ? and ass.na_sequence_id = rf.na_sequence_id and rf.na_feature_id = tf.na_feature_id and tf.aa_sequence_id = xa.aa_sequence_id and xa.aa_sequence_id = n.aa_sequence_id and n.external_database_release_id = $refseq_db_rel and tf.aa_feature_id = p.aa_feature_id order by xa.length desc";
 
   my $stmt =  $dbh->prepare($refseqquery);
   foreach my $id (keys %{$assemblies}) {
