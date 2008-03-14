@@ -17,10 +17,10 @@
 #----------------------------------------------------------
 package DoTS::DotsBuild::Plugin::LoadPredictedAAFeatures;
 @ISA = qw(GUS::PluginMgr::Plugin);
-
+use GUS::PluginMgr::Plugin;
 use strict;
 use FileHandle;
-use lib "$ENV{GUS_HOME}/lib/perl";
+
 use GUS::Model::DoTS::AALocation;
 use GUS::Model::DoTS::TranslatedAASequence;
 use GUS::Model::DoTS::PredictedAAFeature;
@@ -28,7 +28,7 @@ use GUS::Model::DoTS::PfamEntry;
 use GUS::Model::DoTS::SignalPeptideFeature;
 use CBIL::Util::Disp;
 
-
+$| = 1;
 
 #----------------------------------------------------------
 # Global Variables:
@@ -59,71 +59,98 @@ sub new {
 	 bless($self, $class);
 	 my $usage = 'A package to insert predicted AA features from a tab delimited file.';
 
-	 my $easycsp = 
+	  my  $argsDeclaration  =
 
-	   [
-	    {
-	     o => 'testnumber',
-	     t => 'int',
-	     h => 'Number of iterations for testing',
-	    },
+	   [integerArg({name => 'testnumber',
+		  descr => 'Number of iterations for testing',
+		  constraintFunc => undef,
+		  reqd => 0,
+		  isList => 0
+		 }),
+	    stringArg({name => 'restart',
+		  descr => 'For restarting script...takes list of row_alg_invocation_ids to exclude',
+		  constraintFunc => undef,
+		  reqd => 0,
+		  isList => 0
+		 }),
+	    fileArg({name => 'filename',
+		  descr => 'Name of file containing the predicted aa features',
+		  constraintFunc=> undef,
+		  reqd  => 1,
+		  isList => 0,
+		  mustExist => 1,
+		  format=>'Text'
+		 }),
+           booleanArg({name => 'reload',
+		  descr => 'For loading new Ids and scores for HmmPfam entries',
+                  reqd => 0,
+                  default => 0
+                 })];
 
-	    {
-	     o => 'restart',     
-	     t => 'string',
-	     h => 'For restarting script...takes list of row_alg_invocation_ids to exclude',
-	    },
 
-	    {
-	     o => 'filename',
-	     t => 'string',
-	     h => 'Name of file containing the predicted aa features',
-	    },
+  my $purposeBrief = <<PURPOSEBRIEF;
+Load TMHMM,SignalP, and other algorithm results
+PURPOSEBRIEF
 
-	    {
-	     o => 'reload',
-	     t => 'boolean',
-	     h => 'For loading new Ids and scores for HmmPfam entries',
-	    },
-	    {
-	     o => 'project_id',
-	     t => 'int',
-	     h => 'applicable project_id from core.projectinfo table',
-	    }
-	   ];
+  my $purpose = <<PLUGIN_PURPOSE;
+Load the results of SignalP, TMHMM, and other algorithms
+PLUGIN_PURPOSE
 
-	    $self->initialize({requiredDbVersion => {},
-		     cvsRevision => '$Revision$', # keyword filled in by cvs
-		     cvsTag => '$Name$ ',             # keyword filled in by cvs
+  #check the documentation for this
+  my $tablesAffected = [['DoTS::ProteinInstance', '']
+		       ];
+
+  my $tablesDependedOn = [
+			  ['DoTS::ProteinInstance', '']
+			 ];
+
+  my $howToRestart = <<PLUGIN_RESTART;
+PLUGIN_RESTART
+
+  my $failureCases = <<PLUGIN_FAILURE_CASES;
+PLUGIN_FAILURE_CASES
+
+  my $notes = <<PLUGIN_NOTES;
+PLUGIN_NOTES
+
+
+  my $documentation = {
+		       purposeBrief => $purposeBrief,
+		       purpose => $purpose,
+		       tablesAffected => $tablesAffected,
+		       tablesDependedOn => $tablesDependedOn,
+		       howToRestart => $howToRestart,
+		       failureCases => $failureCases,
+		       notes => $notes
+		      };
+
+  $self->initialize({requiredDbVersion => 3.5,
+		     cvsRevision => '$Revision$',  # cvs fills this in!
+		     cvsTag => '$Name$', # cvs fills this in!
 		     name => ref($self),
-		     revisionNotes => 'first pass of plugin for GUS 3.0',
-		     easyCspOptions => $easycsp,
-		     usage => $usage
-		    }); 
+		     argsDeclaration => $argsDeclaration,
+		     documentation => $documentation,
+		    });
   return $self;
 }
 
 sub run {
 	 my $self   = shift;
-	 $self->log("Testing on " . $self->getArgs()->{'testnumber'}."\n") if $self->getArgs()->{'testnumber'};
-	 #GusApplication::Log('INFO', 'RAIID',  $ctx->{self_inv}->{algorithm_invocation_id});
-	 $self->getArgs()->{'commit'} ? $self->log("***COMMIT ON***\n") : $self->log("**COMMIT TURNED OFF**\n");
+	 $self->log("Testing on " . $self->getArg('testnumber')."\n") if $self->getArg('testnumber');
+
 
 	 my $aa_sequence_id;
 
-	 if (!-e $self->getArgs()->{'filename'}) {
-			die "You must provide a valid tab delimited file on the command line\n";
-	 }
-	 if ($self->getArgs()->{'debug'}) {
+	 if ($self->getArg('debug')) {
 			$verbose=1;
 	 }
-	 if ($self->getArgs()->{'verbose'}) {
+	 if ($self->getArg('verbose')) {
 			$verbose=1;
 	 }
 
-	 my $f  = $self->getArgs()->{'filename'} =~ /\.Z$/ ? "zcat".$self->getArgs()->{'filename'}."|" : $self->getArgs()->{'filename'};
+	 my $f  = $self->getArg('filename') =~ /\.Z$/ ? "zcat".$self->getArg('filename')."|" : $self->getArg('filename');
 	 my $fh = FileHandle->new($f);
-	 print STDERR "Could not open". $self->getArgs()->{'filename'}.": $!\n\n" unless $fh;
+	 print STDERR "Could not open". $self->getArg('filename').": $!\n\n" unless $fh;
 
 	 my %aa_sequence_ids_seen = ();
 	 my $rows_n = 0;
@@ -135,7 +162,7 @@ sub run {
 			# skip comments and blank lines, shouldn't be in there anyway
 			#
 			next if ( (/^\s*\#/) || (/^\s+$/) );
-			print STDERR $_ ."\n" if $self->getArgs()->{'debug'};
+			print STDERR $_ ."\n" if $verbose;
 			my @tmp = split(/\t/,$_);
 			#GusApplication::Log('INPUT', @tmp);
 			$rows_n++;
@@ -146,7 +173,7 @@ sub run {
 				 CBIL::Util::Disp::Display(\%counter) if $rows_n % 1000 == 0;
 				 $seq->undefPointerCache;
 			}
-			if ($self->getArgs()->{'testnumber'} && $rows_n > $self->getArgs()->{'testnumber'}) {
+			if ($self->getArg('testnumber') && $rows_n > $self->getArg('testnumber')) {
 			  last();
 			}
 	 } # end while LOOP
@@ -184,7 +211,7 @@ sub get_object{
 	 if ($tmp[0]=~m/^(\d+)/) {
 			my $id=$1; 
 			$seq = GUS::Model::DoTS::TranslatedAASequence->new({'aa_sequence_id' => $id});
-			$self->log ("Found UID $id !\n") if $self->getArgs()->{'verbose'};
+			$self->log ("Found UID $id !\n") if $verbose;
 	 } else {
 			$self->log ("Illformed AaSequenceId $tmp[0]\n");
 	 }
@@ -222,7 +249,7 @@ sub process {
 
   my $feature;
 
-  if ($self->getArgs()->{'verbose'} && $source_id) {
+  if ($verbose && $source_id) {
     print STDERR "source_id is $source_id\n";
     print STDERR "alg_name is $alg_name\n\n";
   }
@@ -355,13 +382,13 @@ sub process {
 
     my ($feature,$aafid)=$self->existenceHmmPfamFeature($aa_sequence_id, $alg_name, 'PFAM motif', 
 							$score, $start, $stop);
-    $self->log("Got HmmPfamFeature with ID $aafid....\n\n") if $self->getArgs()->{'verbose'};
+    $self->log("Got HmmPfamFeature with ID $aafid....\n\n") if $verbose;
 
     ## if the feature exists, we might want to update it (e.g. is values are missing)....
     if ($feature) {
       
       ## ... but only if 'reload' is set !!! 
-      unless ($self->getArgs->{'reload'}) {
+      unless ($self->getArgs->getArg('reload')) {
 	
 	## else return to parser !
 	print STDERR "\n\nCannot create the new HmmPFAM Feature. Returning....\n\n";
@@ -422,8 +449,6 @@ sub existenceAAFeature{
 
 Sql
 
-	 #print STDERR "$sql\n" if $ctx->{'debug'};
-
 	 my $stmt = $dbh->prepare( $sql );
 
 	 $stmt->execute();
@@ -448,7 +473,6 @@ Sql
 sub existenceHmmPfamFeature{
 	 my ($self,$aa_sequence_id, $alg_name, $feature_name,$score, $start, $stop) = @_;
 
-	 my $project_id=$self->getArgs()->{'project_id'};
 	 my $dbh = $self->getQueryHandle();
 	 my $sql = "select paf.*
 	        from dots.TranslatedAAFeature taf, dots.PredictedAAFeature paf, dots.AALocation aal
@@ -560,7 +584,7 @@ sub createNewSignalPeptideFeature {
   my ($exists,$aafid) = $self->existenceSPFeature($source_id, $algorithm, $featuretype,
 						  $meanS_start, $meanS_stop);
   if ($exists) {
-    $self-log ("SignalPeptideFeature with aa_feature_id $aafid exists. Skipping ...\n\n") if $self->getArgs()->{'verbose'};
+    $self-log ("SignalPeptideFeature with aa_feature_id $aafid exists. Skipping ...\n\n") if $verbose;
     return undef;
   }
 
@@ -595,12 +619,12 @@ sub createNewSignalPeptideFeature {
   my $aa_location = $self->createNewAALocation($meanS_start, $meanS_stop);
   $newSignalPeptide->addChild($aa_location) if $aa_location;
   
-  $self->log ($newSignalPeptide->toString()."\n") if $self->getArgs()->{'debug'};
+  $self->log ($newSignalPeptide->toString()."\n") if $verbose;
   
   
   ### DOES NOT WORK FOR THAT PURPOSE    
   #    #if ($newSignalPeptide->retrieveFromDB()){
-  #	print STDERR "$algorithm feature exists for $source_id !!!\n\n" if $ctx->{'verbose'};
+  #	print STDERR "$algorithm feature exists for $source_id !!!\n\n" if $verbose;
   #	return undef;
   #    }
   ##################################
@@ -618,14 +642,14 @@ sub UpdateSignalPeptideHMMFeature {
 
   #    if ($prediction=~/Non-/){
   #	# do not load or attempt to load entries for non secretory proteins
-  #	print STDERR "No SP (HMM) in dataset. Returning \'undef\' ... \n\n" if $ctx->{'verbose'};
+  #	print STDERR "No SP (HMM) in dataset. Returning \'undef\' ... \n\n" if $verbose;
   #	return undef;
   #    }else{
   my ($SignalPeptideFeature, $aafid) =
     $self->existenceSPFeature($source_id, $algorithm, $featuretype, 1, $start);
 
   if ($SignalPeptideFeature) {
-    $self->log("UPDATE $source_id\n") if $self->getArgs()->{'verbose'};
+    $self->log("UPDATE $source_id\n") if $verbose;
     $SignalPeptideFeature->set('anchor_probability', $SAP);
     $SignalPeptideFeature->set('signal_probability', $SPP);
     return $SignalPeptideFeature;
@@ -648,8 +672,7 @@ sub conclude{
 
 sub existenceSPFeature{
   my ($self,$source_id, $alg_name, $feature_name, $start, $stop) = @_;
-  
-  my $project_id = $self->getArgs()->{'project_id'};
+
   my $dbh = $self->getQueryHandle();
   
   #  my $sql = "select spf.*
