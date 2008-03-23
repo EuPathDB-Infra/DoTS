@@ -1,57 +1,102 @@
 package DoTS::DotsBuild::Plugin::UpdateAssemblyAnatomyPercent;
 
 @ISA = qw(GUS::PluginMgr::Plugin);
+
+use GUS::PluginMgr::Plugin;
 use strict;
 use GUS::Model::DoTS::AssemblyAnatomyPercent;
 use DoTS::DotsBuild::AssemblyAnatomyNode;
 
-# ----------------------------------------------------------------------
-# create and initalize new plugin instance.
+
+$| = 1;
 
 sub new {
-  my $Class = shift;
+  my ($class) = @_;
 
-  my $m = bless {}, $Class;
+  my $self = {};
+  bless($self,$class);
 
   my $usage = 'assign library distribution to assemblies';
 
-  my $easycsp =
-    [
-     {o => 'testnumber',
-      t => 'int',
-      h => 'number of iterations for testing',
-     },
-     {o => 'taxon_id',
-      t => 'int',
-      h => 'taxon_id',
-     },
-     {o => 'restart',
-      t => 'boolean',
-      h => 'restarts: ignores those assembies already in the AssemblyAnatomyPercent',
-     },
-     {o => 'idSQL',
-      t => 'string',
-      h => 'SQL query that returns Assembly na_sequence_ids, deletes these from AssemblyAnatomyPercent unless >= restart date and then creates new entries for each na_sequence_id',
-     },
-     {o => 'print_tree',
-      t => 'boolean',
-      h => 'prints a tree into STDOUT for each DT',
-     }
-   ];
+ my  $argsDeclaration =
+    [ integerArg({name => 'testnumber',
+		  descr => 'number of iterations for testing',
+		  constraintFunc => undef,
+		  reqd => 0,
+		  isList => 0
+		 }),
+      integerArg({name => 'taxon_id',
+		  descr => 'taxon_id',
+		  constraintFunc => undef,
+		  reqd => 1,
+		  isList => 0
+		 }),
+      booleanArg({name => 'restart',
+                  descr => 'restarts: ignores those assembies already in the AssemblyAnatomyPercent',
+                   constraintFunc => undef,
+		  reqd => 0
+		 }),
+      stringArg({name => 'idSQL',
+		  descr => 'SQL query that returns Assembly na_sequence_ids, deletes these from AssemblyAnatomyPercent unless >= restart date and then creates new entries for each na_sequence_id',
+		  constraintFunc => undef,
+		  reqd => 1,
+		  isList => 0
+		 }),
+      booleanArg({name => 'print_tree',
+                  descr => 'prints a tree into STDOUT for each DT',
+		  constraintFunc => undef,
+		  reqd => 0
+		 })];
 
-  $m->initialize({requiredDbVersion => {},
-		  cvsRevision => '$Revision$', # cvs fills this in!
-		  cvsTag => '$Name$', # cvs fills this in!
-		  name => ref($m),
-		  revisionNotes => 'make consistent with GUS 3.0',
-		  easyCspOptions => $easycsp,
-		  usage => $usage
-		 });
 
-  return $m;
+   my $purposeBrief = <<PURPOSEBRIEF;
+Assign library distribution to assemblies
+PURPOSEBRIEF
+
+  my $purpose = <<PLUGIN_PURPOSE;
+Assign library distribution to assemblies
+PLUGIN_PURPOSE
+
+  #check the documentation for this
+  my $tablesAffected = [['DoTS::AssemblyAnatomyPercent', 'DoTS::AssemblyAnatomyNode']
+		       ];
+
+  my $tablesDependedOn = [
+			  ['DoTS::AnatomyLibrary']
+			 ];
+
+  my $howToRestart = <<PLUGIN_RESTART;
+Use boolean argumnet restart
+PLUGIN_RESTART
+
+  my $failureCases = <<PLUGIN_FAILURE_CASES;
+PLUGIN_FAILURE_CASES
+
+  my $notes = <<PLUGIN_NOTES;
+PLUGIN_NOTES
+
+
+  my $documentation = {
+		       purposeBrief => $purposeBrief,
+		       purpose => $purpose,
+		       tablesAffected => $tablesAffected,
+		       tablesDependedOn => $tablesDependedOn,
+		       howToRestart => $howToRestart,
+		       failureCases => $failureCases,
+		       notes => $notes
+		      };
+
+  $self->initialize({requiredDbVersion => 3.5,
+		     cvsRevision => '$Revision$',  # cvs fills this in!
+		     cvsTag => '$Name$', # cvs fills this in!
+		     name => ref($self),
+		     argsDeclaration => $argsDeclaration,
+		     documentation => $documentation,
+		    });
+  return $self;
 }
 
-$| = 1;
+
 
 sub run {
   my ($self) = @_;
