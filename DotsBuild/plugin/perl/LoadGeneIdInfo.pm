@@ -98,7 +98,9 @@ sub run {
 
   my $self  = shift;
 
-  $self->updateDbRef();
+  my $msg = $self->updateDbRef();
+
+  return $msg;
 }
 
 
@@ -148,8 +150,12 @@ sub updateDbRef {
     exit if ($testnumber && $testnumber >= $num);
   }
 
-  $self->log ("$num DbRef rows updated\n");
+  my $msg = "$num DbRef rows updated\n";
+
+  $self->log ($msg);
   close (FILE);
+
+  return $msg;
 }
 
 
