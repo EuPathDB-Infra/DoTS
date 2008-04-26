@@ -184,7 +184,9 @@ sub run {
 
   my $dbh = $self->getQueryHandle();
 
-  $self->setGlobalNoVersion(1) if $self->getArg('doNotVersion');
+  my $algInv = $self->getAlgInvocation();
+
+  $algInv->setGlobalNoVersion(1) if $self->getArgs()->{'doNotVersion'};
 
   my $stmt;
 
