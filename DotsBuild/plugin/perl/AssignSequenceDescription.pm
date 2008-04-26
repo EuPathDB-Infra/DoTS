@@ -222,8 +222,8 @@ sub run {
   print "Processing $totalToDo " . $self->getArg('table') . "objects\n";
   undef %ignore;                ##free memory.
 
-  my $query_table_id = $self->getTableIdFromTableName($query_table);
-  my $table_pk = $self->getTablePKFromTableId($self->getTableIdFromTableName($self->getArg('table')));
+  my $query_table_id = $algInv->getTableIdFromTableName($query_table);
+  my $table_pk = $algInv->getTablePKFromTableId($algInv->getTableIdFromTableName($self->getArg('table')));
   eval("require " . $self->getArg('table'));
 
   my $protQuery = "select s.similarity_id,ea.aa_sequence_id,edr.external_database_release_id,ea.source_id,ea.name,ea.description,s.number_identical,s.total_match_length,s.pvalue_mant,s.pvalue_exp,ea.length,s.min_subject_start,s.max_subject_end,s.number_of_matches
