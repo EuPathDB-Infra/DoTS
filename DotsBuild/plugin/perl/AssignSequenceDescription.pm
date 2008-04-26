@@ -12,6 +12,7 @@ package DoTS::DotsBuild::Plugin::AssignSequenceDescription;
 ## Brian Brunk 7/21/00
 
 @ISA = qw(GUS::PluginMgr::Plugin);
+use GUS::PluginMgr::Plugin;
 use strict;
 use GUS::Model::DoTS::RNA;
 use GUS::Model::DoTS::Similarity;
@@ -75,7 +76,6 @@ sub new {
      {o => 'nrdb_ext_db_rls_id',
       t => 'int',
       h => 'id of external db release',
-      d => '4194',
      },
      {o => 'attribute',
       t => 'string',
@@ -100,7 +100,7 @@ sub new {
      },
     ];
 
-  $m->initialize({requiredDbVersion => {},
+  $m->initialize({requiredDbVersion => 3.5,
 		  cvsRevision => '$Revision$', # cvs fills this in!
 		  cvsTag => '$Name$', # cvs fills this in!
 		  name => ref($m),
@@ -180,7 +180,7 @@ sub run {
       where query_table_id = $query_table_id 
       and ea.external_database_release_id = edr.external_database_release_id
       and query_id = ?
-      and s.subject_table_id = 83";
+      and s.subject_table_id = 228";
 
   $protQuery .= " and s.row_alg_invocation_id not in ($ctx->{cla}->{ignoreAlgInv})" if $ctx->{cla}->{ignoreAlgInv};
   $protQuery .= " and s.modification_date >= '$ctx->{cla}->{sim_mod_date}'" if $ctx->{cla}->{sim_mod_date};
@@ -197,7 +197,7 @@ sub run {
   my $simQuery = "select * from DoTS.Similarity where
     query_table_id = $query_table_id 
     and query_id = ?
-    and subject_table_id = 83
+    and subject_table_id = 228
     and subject_id = ?
     order by similarity_id desc";  ##want the newest first...
 
