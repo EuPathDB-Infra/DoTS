@@ -52,7 +52,7 @@ my $argsDeclaration =
           name => 'taxon_id',
           descr => 'taxon id',
           constraintFunc => undef,
-          reqd => 1,
+          reqd => 0,
           isList => 0
       }),
       integerArg({
@@ -460,13 +460,13 @@ EOSQL
         WHERE  b.query_na_sequence_id = s.na_sequence_id 
           AND  b.query_table_id = ti.table_id
           AND  lower(ti.name) = 'assemblysequence'
-          AND  b.query_taxon_id = $taxon_id 
+          AND  b.query_taxon_id = $taxon_id
           AND  b.target_table_id = $target_table_id
           AND  b.target_na_sequence_id = $seqId
           AND  b.is_best_alignment = 1
 	  AND  s.na_sequence_id = x.na_sequence_id
           AND  x.sequence_ontology_id = so.sequence_ontology_id
-          AND  so.term_name = 'EST'
+          AND  so.term_name in ('EST','mRNA')
 EOSQL
 
 
