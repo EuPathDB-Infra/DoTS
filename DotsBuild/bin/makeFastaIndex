@@ -1,0 +1,32 @@
+#!/usr/bin/perl
+
+use strict;
+
+use lib "$ENV{GUS_HOME}/lib/perl";
+use CBIL::Bio::FastaFile;
+
+$| = 1;
+umask 002;
+
+my($fastaFileName) = @ARGV;
+ 
+if (!$fastaFileName) {
+    print "usage:  makeFastaIndex fastaFileName\n";
+    exit(1);
+}
+
+if (-e "$fastaFileName.gz") {
+	&runCmd("gunzip $fastaFileName.gz");
+    }
+
+
+die "$fastaFileName doesn't exist\n" unless -e $fastaFileName;
+ 
+
+print "Creating index for $fastaFileName (may take a while)\n";
+
+my $fasta = CBIL::Bio::FastaFile->new($fastaFileName);
+
+my $count = $fasta->getCount();
+
+print STDERR "Number of sequences: $count\n";
