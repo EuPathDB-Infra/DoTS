@@ -4,15 +4,20 @@ use strict;
 use lib "$ENV{GUS_HOME}/lib/perl";
 use CBIL::Util::Utils;
 
-my $file = $ARGV[0];
+my $inputFile = $ARGV[0];
+my $outputSmallFile = $ARGV[1]; # optional arg
+my $outputBigFile = $ARGV[2];   # optional arg
 
-die "cluster file $file doesn't exist" unless -e $file;
+$outputSmallFile = "$inputFile.small" unless $outputSmallFile;
+$outputBigFile = "$inputFile.big" unless $outputBigFile;
 
-my ($singletons) = `grep "(1 seq" $file | wc`;
+die "cluster file $inputFile doesn't exist" unless -e $inputFile;
+
+my ($singletons) = `grep "(1 seq" $inputFile | wc`;
 
 $singletons =~ s/(\d+)\s+\d+\s+\d+/$1/;
 
-my ($total) = `wc $file`;
+my ($total) = `wc $inputFile`;
 
 $total =~ s/(\d+)\s+\d+\s+\d+\s+.*/$1/;
 
@@ -22,9 +27,9 @@ my $small = $singletons + int (7 * $nonsingletons / 8);
 
 my $big = ($total-$small);
 
-my $head = "head -$small $file > $file.small";
+my $head = "head -$small $inputFile > $inputFile.small";
 
-my $tail = "tail -$big $file > $file.big";
+my $tail = "tail -$big $inputFile > $inputFile.big";
 
 &runCmd($head);
 &runCmd($tail);
