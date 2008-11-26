@@ -27,9 +27,9 @@ my $small = $singletons + int (7 * $nonsingletons / 8);
 
 my $big = ($total-$small);
 
-my $head = "head -$small $inputFile > $inputFile.small";
+my $head = "head -$small $inputFile > $outputFileSmall";
 
-my $tail = "tail -$big $inputFile > $inputFile.big";
+my $tail = "tail -$big $inputFile > $outputFileBig";
 
 &runCmd($head);
 &runCmd($tail);
