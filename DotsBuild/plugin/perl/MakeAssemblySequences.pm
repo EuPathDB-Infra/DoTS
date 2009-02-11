@@ -428,6 +428,14 @@ sub trimAT {
   return $seq;
 }
 
+
+sub undoTables {
+  my ($self) = @_;
+
+  return ('DoTS.AssemblySequence'
+	 );
+}
+
 1;
 
 __END__
