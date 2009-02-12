@@ -100,6 +100,7 @@ sub run {
 
   print STDERR "# running sql:\n# $sql\n";
   $dbh->sqlexec($sql);
+  $dbh->commit(); # ga no longer doing this by default
 
   print "done\n";
 }

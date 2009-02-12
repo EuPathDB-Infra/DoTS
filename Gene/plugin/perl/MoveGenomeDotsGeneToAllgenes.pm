@@ -112,6 +112,8 @@ sub run {
 
     $self->moveToAllgenes($dbh, $tempLogin, $taxonId, $genomeId, $gdgTab, $gdtTab);
 
+    $self->getQueryHandle()->commit(); # ga no longer doing this by default
+
     return "finished moving $gdgTab and $gdtTab into allgenes";
 }
 
