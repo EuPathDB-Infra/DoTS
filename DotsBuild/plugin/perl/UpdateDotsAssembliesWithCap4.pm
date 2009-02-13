@@ -1316,5 +1316,21 @@ sub runDebugFromFile {
   
 }
 
+sub undoTables {
+  my ($self) = @_;
+
+  return ('DoTS.MergeSplit',
+	  'DoTS.Assembly',
+	 );
+}
+
+sub undoUpdatedTables {
+  my ($self) = @_;
+
+  return ('DoTS.AssemblySequence');
+}
+
+
+
 1;
 
