@@ -332,7 +332,7 @@ sub trimDanglingNNN {
     }
 }
 
-sub undoUpdatedTables {
+sub undoTables {
   my ($self) = @_;
 
   return ('DoTS.AssemblySequence');

@@ -1330,13 +1330,6 @@ sub undoTables {
 	 );
 }
 
-sub undoUpdatedTables {
-  my ($self) = @_;
-
-  return ('DoTS.AssemblySequence');
-}
-
-
 
 1;
 
