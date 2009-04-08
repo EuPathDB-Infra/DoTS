@@ -1326,6 +1326,7 @@ sub undoTables {
 	  'DoTS.AssemblySequence',
 	  'DoTS.MergeSplit',
 	  'DoTS.Assembly',
+	  'DoTS.SequenceType'
 	 );
 }
 
