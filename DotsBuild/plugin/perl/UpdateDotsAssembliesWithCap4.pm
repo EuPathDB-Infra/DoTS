@@ -1319,7 +1319,12 @@ sub runDebugFromFile {
 sub undoTables {
   my ($self) = @_;
 
-  return ('DoTS.MergeSplit',
+  return (
+	  'DoTS.AAFEATURE',
+	  'DoTS.AASEQUENCE',
+	  'DoTS.NAFEATURE',
+	  'DoTS.AssemblySequence',
+	  'DoTS.MergeSplit',
 	  'DoTS.Assembly',
 	 );
 }
