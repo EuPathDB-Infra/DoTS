@@ -13,7 +13,7 @@ umask 002;
 #work around liniac bug that loses stdout
 open(STDOUT, ">&STDERR")     || die "Can't open dump output:  $!";
 
-my ($buildDir, $numNodes, $queryFile, $subjectFile, $queue) = @ARGV;
+my ($buildDir, $numNodes, $queryFile, $subjectFile, $queue, $ppn) = @ARGV;
  
 if (!$buildDir || !$numNodes || !$queryFile) {
   print "usage:  runPsipred buildDir numNodes queryFile subjectFile\n";
@@ -24,6 +24,6 @@ my $time = 7200;
 
 $queue = "--q $queue" if ($queue);
 
-&runPsipred($buildDir, $queryFile, $subjectFile, $numNodes, $time, $queue);
+&runPsipred($buildDir, $queryFile, $subjectFile, $numNodes, $time, $queue, $ppn);
  
 print "Done\n";
