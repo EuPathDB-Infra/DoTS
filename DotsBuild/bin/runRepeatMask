@@ -13,12 +13,13 @@ my ($buildDir,$numnodes,$queue,$query);
 &GetOptions("buildDir=s" => \$buildDir,
 	    "numnodes=i" => \$numnodes,
 	    "query=s" => \$query,
-	    "queue=s" => \$queue);
+	    "queue=s" => \$queue,
+            "ppn=i" => \$ppn);
 
 
 
 if (!($buildDir && $numnodes && $query)) {
-    print "usage:  runRepeatMask --buildDir --numnodes --query --queue (opt)\n";
+    print "usage:  runRepeatMask --buildDir --numnodes --query --queue (opt) --ppn (opt)\n";
     exit();
 }
 
@@ -26,7 +27,7 @@ die "Build dir $buildDir doesn't exist" unless -d $buildDir;
 
 print "\n";
 
-&runRepeatMask($buildDir, $numnodes, "$query", 10080, $queue);
+&runRepeatMask($buildDir, $numnodes, "$query", 10080, $queue, $ppn);
 
 print "Done\n";
 
