@@ -12,7 +12,7 @@ umask 002;
 #work around liniac bug that loses stdout
 open(STDOUT, ">&STDERR")     || die "Can't dup stdout";
 
-my($buildDir,$numNodes,$subjectFile,$queue) = @ARGV;
+my($buildDir,$numNodes,$subjectFile,$queue, $ppn) = @ARGV;
  
 if (!$buildDir || !$numNodes || !$subjectFile) {
     print "usage:  runTRNAscan buildDir numNodes subjectFile\n";
@@ -27,6 +27,6 @@ my $time = 4500;
 
 $queue = "--q $queue" if ($queue); 
 
-&runTRNAscan($buildDir, "$subjectFile", $numNodes, $time, $queue);
+&runTRNAscan($buildDir, "$subjectFile", $numNodes, $time, $queue, $ppn);
  
 print "Done\n";
