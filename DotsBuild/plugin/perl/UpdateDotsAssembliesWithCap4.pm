@@ -1323,6 +1323,7 @@ sub undoTables {
 	  'DoTS.AAFEATURE',
 	  'DoTS.AASEQUENCE',
 	  'DoTS.NAFEATURE',
+	  'DoTS.NASEQUENCE',
 	  'DoTS.AssemblySequence',
 	  'DoTS.MergeSplit',
 	  'DoTS.Assembly',
