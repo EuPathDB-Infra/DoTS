@@ -178,7 +178,7 @@ sub run {
         "select e.na_sequence_id 
          from dots.ExternalNASequence e, sres.sequenceontology s
          where e.taxon_id in($taxonIdList)
-         and s.term_name in ('mRNA', 'EST')
+         and s.term_name in ('mRNA', 'EST', 'transcript')
          and e.sequence_ontology_id = s.sequence_ontology_id
          and e.na_sequence_id not in
          (select a.na_sequence_id from dots.AssemblySequence a) ";
