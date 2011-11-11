@@ -25,9 +25,13 @@ if (!($buildDir && $numnodes && $query && $target)) {
 
 die "Build dir $buildDir doesn't exist" unless -d $buildDir;
 
-print "\n";
+die "Target list,$buildDir/genome/${query}-$target/input/target.lst, doesn't exist" unless -e "$buildDir/genome/${query}-$target/input/target.lst";
+
+print "Running script to reformat target files to nib";
 
 system("runFaToNib --filesFile $buildDir/genome/${query}-$target/input/target.lst");
+
+print "Finished reformatting target files, running task\n";
 
 &runGenomeAlignWithGfClient($buildDir, $numnodes, $query, $target, 10080, $queue) if $seqsRM;
 
