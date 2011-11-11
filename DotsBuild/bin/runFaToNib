@@ -19,6 +19,7 @@ print "$filesFile, file of file names is being read\n";
 while(<FILES>) {
   chomp;
   next if ($_ =~ /^\s+$/);
+  die "Input fasta file '$_' does not exist.  (But its name is included in filesFile '$filesFile')" unless -e $_;
 
   my $filePath = $_;
   my $faFile = basename($filePath);
