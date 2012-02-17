@@ -12,7 +12,7 @@ umask 002;
 #work around liniac bug that loses stdout
 open(STDOUT, ">&STDERR")     || die "Can't dup stdout";
 
-my($buildDir,$numNodes,$queryFile,$subjectFile,$queue, $ppn) = @ARGV;
+my($buildDir,$numNodes,$queryFile,$subjectFile,$queue,$ppn) = @ARGV;
  
 if (!$buildDir || !$numNodes || !$queryFile || !$subjectFile) {
     print "usage:  runsimilarities buildDir numNodes queryFile subjectFile\n";
@@ -35,6 +35,8 @@ my $time = 7200;
 
 $queue = "--q $queue" if ($queue);
 
-&runSimilarity($buildDir, "$queryFile", "$subjectFile", $numNodes, $time, $queue, $ppn);
+my $mem = " --memoryPerNode 7.0 ";
+
+&runSimilarity($buildDir, "$queryFile", "$subjectFile", $numNodes, $time, $queue, $mem, $ppn);
  
 print "Done\n";
