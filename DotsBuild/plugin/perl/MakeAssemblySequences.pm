@@ -1,4 +1,24 @@
 package DoTS::DotsBuild::Plugin::MakeAssemblySequences;
+#vvvvvvvvvvvvvvvvvvvvvvvvv GUS4_STATUS vvvvvvvvvvvvvvvvvvvvvvvvv
+  # GUS4_STATUS | SRes.OntologyTerm              | auto   | absent
+  # GUS4_STATUS | SRes.SequenceOntology          | auto   | fixed
+  # GUS4_STATUS | Study.OntologyEntry            | auto   | absent
+  # GUS4_STATUS | SRes.GOTerm                    | auto   | absent
+  # GUS4_STATUS | Dots.RNAFeatureExon            | auto   | absent
+  # GUS4_STATUS | RAD.SageTag                    | auto   | absent
+  # GUS4_STATUS | RAD.Analysis                   | auto   | absent
+  # GUS4_STATUS | ApiDB.Profile                  | auto   | absent
+  # GUS4_STATUS | Study.Study                    | auto   | absent
+  # GUS4_STATUS | Dots.Isolate                   | auto   | absent
+  # GUS4_STATUS | DeprecatedTables               | auto   | absent
+  # GUS4_STATUS | Pathway                        | auto   | absent
+  # GUS4_STATUS | DoTS.SequenceVariation         | auto   | absent
+  # GUS4_STATUS | RNASeq Junctions               | auto   | absent
+  # GUS4_STATUS | Simple Rename                  | auto   | absent
+  # GUS4_STATUS | ApiDB Tuning Gene              | auto   | absent
+  # GUS4_STATUS | Rethink                        | auto   | absent
+  # GUS4_STATUS | dots.gene                      | manual | absent
+#^^^^^^^^^^^^^^^^^^^^^^^^^ End GUS4_STATUS ^^^^^^^^^^^^^^^^^^^^
 
 @ISA = qw(GUS::PluginMgr::Plugin);
 
@@ -67,6 +87,13 @@ my $argsDeclaration =
         }),
 
 
+   stringArg({name => 'soExtDbSpec',
+	      descr => 'The extDbSpec for Sequence Ontology (name|version format)',
+	      constraintFunc=> undef,
+	      reqd  => 0,
+	      isList => 0,
+	     }),
+
  ];
 
 
@@ -112,7 +139,7 @@ sub new {
   my $self = {};
   bless($self,$class);
 
-  $self->initialize({requiredDbVersion => 3.6,
+  $self->initialize({requiredDbVersion => 4.0,
 		     cvsRevision => '$Revision$', # cvs fills this in!
 		     name => ref($self),
 		     argsDeclaration   => $argsDeclaration,
@@ -133,6 +160,8 @@ $| = 1;
 
 sub run {
   my ($self,$ctx) = @_;
+
+
   print STDERR ($self->getArg('commit') ? "COMMIT ON\n" : "COMMIT TURNED OFF\n");
   print STDERR ("Testing on". $self->getArg('testnumber')."\n") if $self->getArg('testnumber');
 
@@ -149,6 +178,8 @@ sub run {
   $ctx->{'self_inv'}->setMaximumNumberOfObjects(100000);
 
   my $dbh = $self->getQueryHandle();
+
+  my $soExtDbRlsId = $self->getExtDbRlsId($self->getArg('soExtDbSpec'));
 
   if ($self->getArg('export')) {
     my $export = $self->getArg('export');
@@ -176,10 +207,11 @@ sub run {
     ##first get the ESTs and mRNAs..
     my $sql =
         "select e.na_sequence_id 
-         from dots.ExternalNASequence e, sres.sequenceontology s
+         from dots.ExternalNASequence e, sres.ontologyterm s
          where e.taxon_id in($taxonIdList)
-         and s.term_name in ('mRNA', 'EST', 'transcript')
-         and e.sequence_ontology_id = s.sequence_ontology_id
+         and s.name in ('mRNA', 'EST', 'transcript')
+         and s.external_database_release_id = $soExtDbRlsId
+         and e.sequence_ontology_id = s.ontology_term_id
          and e.na_sequence_id not in
          (select a.na_sequence_id from dots.AssemblySequence a) ";
 
@@ -192,10 +224,11 @@ sub run {
     ##next get the things from embl that are RNAs longer than 500 bp...
     ##need to check this for things that are not human or mouse...may need to use less sophisticated query!
     my $mRNASql = "select s.na_sequence_id
-              from dots.externalnasequence s, sres.sequenceontology st
+              from dots.externalnasequence s, sres.ontologyterm st
               where s.taxon_id in ($taxonIdList)
-              and st.term_name = 'RNA'
-              and s.sequence_ontology_id = st.sequence_ontology_id
+              and st.name = 'RNA'
+              and s.sequence_ontology_id = st.ontology_term_id
+              and st.external_database_release_id = $soExtDbRlsId
               and s.length > 400
               and s.na_sequence_id
               not in (select a.na_sequence_id from dots.AssemblySequence a)";
