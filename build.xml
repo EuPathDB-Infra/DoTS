@@ -13,7 +13,7 @@
 
   <target name="GUS-Checkout" unless="GUS.present"> 
     <ant target="defaultProjectCheckout" inheritAll="false"> 
-      <property name="svnurl" value="https://www.cbil.upenn.edu/svn/gus/GusAppFramework" />
+      <property name="svnurl" value="https://cbilsvn.pmacs.upenn.edu/svn/gus/GusAppFramework" />
       <property name="project" value="GUS"/>
       <property name="version" value="internal/plasmodb_5-0beta-0"/>
     </ant>
