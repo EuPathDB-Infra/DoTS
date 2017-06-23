@@ -27,6 +27,7 @@ use GUS::Model::DoTS::AssemblySequence;
 use CBIL::Bio::SequenceUtils;
 use GUS::PluginMgr::Plugin;
 
+use CBIL::Bio::SequenceUtils;
 
 my $argsDeclaration =
 [
@@ -181,7 +182,7 @@ sub run {
 	$getSeqs = $cla->{idSQL};
     } else {
     my $taxon = $cla->{'taxon_id_list'};
-	$getSeqs = "select a.assembly_sequence_id 
+	$getSeqs = "select a.assembly_sequence_id, e.source_id
   from dots.AssemblySequence a, dots.ExternalNASequence e
   where a.have_processed = 0 
   and a.na_sequence_id = e.na_sequence_id
@@ -195,15 +196,22 @@ sub run {
     my $count = 0;
     my $miniLib = "";
     my @todo;
+
+    my %assIdToSourceId;
     
     ##run it into an array so does not block!!
-    while (my($id) = $stmt->fetchrow_array()) {
+    while (my($id, $sourceId) = $stmt->fetchrow_array()) {
 	next if exists $finished{$id};
 	last if ($cla->{'testnumber'} && $count >= $cla->{'testnumber'}); ##breaks 
 	$self->logAlert ("Retrieving $count\n") if $count % 10000 == 0;
 	push(@todo,$id);
+
+        $assIdToSourceId{$id} = $sourceId if($sourceId);
+
 	$count++;
     }
+
+
     $self->logAlert ("Extracting",($cla->{extractonly} ? " " : " and blocking "),"$count sequences from taxon_id(s) $cla->{'taxon_id_list'}\n or from $cla->{idSQL}\n");
     
     $count = 0;
@@ -214,12 +222,23 @@ sub run {
 	my $ass = GUS::Model::DoTS::AssemblySequence->
 	    new( { 'assembly_sequence_id' => $id } );
 	$ass->retrieveFromDB();
-	
+
+        my $naSeqSourceId = $assIdToSourceId{$id};
+
 	##want to set the sequence_start = quality_start etc here....has not been assembled...
 	$ass->resetAssemblySequence();
 #    $reset += $ass->submit() if $ass->hasChangedAttributes();
-	
-	$miniLib .= $ass->toFasta(1);
+
+
+        my $fastaDefline = $ass->getId() . ($naSeqSourceId ? "|$naSeqSourceId" : "");
+  
+	$miniLib .= CBIL::Bio::SequenceUtils::makeFastaFormattedSequence($fastaDefline, $ass->getSequence());
+
+
+  ##note could add in the description to make a better defline here..deal with "NULL"
+
+
+
 	$count++;
 	$countProc++;
 	$self->logAlert ("Processing $countProc\n") if $countProc % 1000 == 0;
