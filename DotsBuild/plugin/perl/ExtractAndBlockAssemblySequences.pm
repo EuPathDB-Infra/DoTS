@@ -230,7 +230,7 @@ sub run {
 #    $reset += $ass->submit() if $ass->hasChangedAttributes();
 
 
-        my $fastaDefline = $ass->getId() . ($naSeqSourceId ? "|$naSeqSourceId" : "");
+        my $fastaDefline = "assemblySeqIds|".$ass->getId() . ($naSeqSourceId ? "|$naSeqSourceId" : "");
   
 	$miniLib .= CBIL::Bio::SequenceUtils::makeFastaFormattedSequence($fastaDefline, $ass->getSequence());
 
