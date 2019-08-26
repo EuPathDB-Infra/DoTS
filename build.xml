@@ -9,37 +9,8 @@
       <property name="project" value="GUS"/>
       <property name="version" value="2.1.2"/>
     </ant>
-  </target>  
-
-  <target name="GUS-Checkout" unless="GUS.present"> 
-    <ant target="defaultProjectCheckout" inheritAll="false"> 
-      <property name="svnurl" value="https://cbilsvn.pmacs.upenn.edu/svn/gus/GusAppFramework" />
-      <property name="project" value="GUS"/>
-      <property name="version" value="internal/plasmodb_5-0beta-0"/>
-    </ant>
-  </target>    
-
-  <!-- oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo -->
-  <!-- oooooooooooooooooooooooooo    Checkout    oooooooooooooooooooooooooo -->
-  <!-- oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo -->
-
-  <target name="DoTS-ChildCheckout">
-    <available file="../GUS" type="dir" property="GUS.present" />
-    <antcall target="GUS-Checkout" />
   </target>
-  
-  
-  <!-- oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo -->
-  <!-- oooooooooooooooooooooooooo    Update    oooooooooooooooooooooooooo -->
-  <!-- oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo -->
 
-  <target name="DoTS-ChildUpdate" >
-    <ant target="defaultProjectUpdate">
-      <property name="project" value="GUS"/>
-    </ant>
-    <ant target="defaultProjectUpdate">
-    </ant>
-  </target>
 
   <!-- oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo -->
   <!-- oooooooooooooooooooooooooo  Installation  oooooooooooooooooooooooooo -->
@@ -50,18 +21,18 @@
                                             DoTS/Gene-Installation" >
 
     <ant target="defaultProjectInstall"/>
-  </target>  
-   
+  </target>
+
   <!-- oooooooooooooooooo  Installation Postprocess  ooooooooooooooooooooo -->
 
   <target name="DoTS-Installation-postprocess">
     <echo message="Postprocessing the DoTS installation"/>
 
-    <replace dir="${targetDir}/bin" 
-             propertyFile="${targetDir}/config/replacements.prop" > 
+    <replace dir="${targetDir}/bin"
+             propertyFile="${targetDir}/config/replacements.prop" >
       <include name="**/*" />
       <replacefilter token="@perl@" property="perl"/>
-    </replace> 
+    </replace>
 
   </target>
 
@@ -73,7 +44,7 @@
       <property name="project" value="DoTS"/>
       <property name="component" value="DotsBuild"/>
     </ant>
-  </target>  
+  </target>
 
   <target name="DoTS/Gene-Installation" depends="ProjectTree">
     <ant target="defaultComponentInstall">
@@ -92,8 +63,8 @@
       <fileset dir="${projectsDir}" >
         <exclude name="**/CVS/*" />
       </fileset>
-    </copy>  
-  </target>  
+    </copy>
+  </target>
 
 
   <!-- oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo -->
@@ -102,7 +73,7 @@
 
   <target name="ProjectTree" if="${checkout}">
     <ant target="projectCheckOut"/>
-  </target>  
+  </target>
 
 </project>
 
