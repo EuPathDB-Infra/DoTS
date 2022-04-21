@@ -53,6 +53,12 @@
     </ant>
   </target>
 
+  <!-- oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo -->
+  <!-- oooooooooooooooooooooooooo  ProjectTree  ooooooooooooooooooooooooooo -->
+  <!-- oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo -->
+
+  <target name="ProjectTree" if="${checkout}">
+    <ant target="projectCheckOut"/>
+  </target>
+
 </project>
-
-
