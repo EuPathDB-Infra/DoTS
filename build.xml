@@ -1,16 +1,10 @@
-<project name="DoTS" default="Installation" basedir=".">
+<project name="DoTS" basedir=".">
 
   <!-- oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo -->
   <!-- oooooooooooooooooooooooooo  Dependencies  oooooooooooooooooooooooooo -->
   <!-- oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo -->
 
-  <target name="GUS-Installation">
-    <ant antfile="../GUS/build.xml" target="GUS-Installation">
-      <property name="project" value="GUS"/>
-      <property name="version" value="2.1.2"/>
-    </ant>
-  </target>
-
+  <import file="${projectsDir}/GUS/build.xml" optional="true" />
 
   <!-- oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo -->
   <!-- oooooooooooooooooooooooooo  Installation  oooooooooooooooooooooooooo -->
@@ -19,46 +13,25 @@
   <target name="DoTS-Installation" depends="GUS-Installation,
                                             DoTS/DotsBuild-Installation,
                                             DoTS/Gene-Installation" >
-
-    <ant target="defaultProjectInstall"/>
+    <ant target="defaultProjectInstall">
+      <property name="project" value="DoTS"/>
+    </ant>
   </target>
-
-  <!-- oooooooooooooooooo  Installation Postprocess  ooooooooooooooooooooo -->
-
-  <target name="DoTS-Installation-postprocess">
-    <echo message="Postprocessing the DoTS installation"/>
-
-    <replace dir="${targetDir}/bin"
-             propertyFile="${targetDir}/config/replacements.prop" >
-      <include name="**/*" />
-      <replacefilter token="@perl@" property="perl"/>
-    </replace>
-
-  </target>
-
 
   <!-- ooooooooooooooooooooooo  Install Components  ooooooooooooooooooooooo -->
 
-  <target name="DoTS/DotsBuild-Installation" depends="ProjectTree">
+  <target name="DoTS/DotsBuild-Installation">
     <ant target="defaultComponentInstall">
       <property name="project" value="DoTS"/>
       <property name="component" value="DotsBuild"/>
     </ant>
   </target>
 
-  <target name="DoTS/Gene-Installation" depends="ProjectTree">
+  <target name="DoTS/Gene-Installation">
     <ant target="defaultComponentInstall">
       <property name="project" value="DoTS"/>
       <property name="component" value="Gene"/>
     </ant>
-  </target>
-
-  <!-- oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo -->
-  <!-- oooooooooooooooooooooooooo  ProjectTree  ooooooooooooooooooooooooooo -->
-  <!-- oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo -->
-
-  <target name="ProjectTree" if="${checkout}">
-    <ant target="projectCheckOut"/>
   </target>
 
 </project>
